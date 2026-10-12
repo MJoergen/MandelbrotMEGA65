@@ -134,6 +134,7 @@ help:
 	@echo "  check           Simulate a single testbench (TB=<name>) using ghdl, write the waveform, and show it in gtkwave"
 	@echo "  formal          Run the formal verification using SymbiYosys (in formal/)"
 	@echo "  consts          Check that the constants of the model match the design"
+	@echo "  diagrams        Render the block diagrams (doc/*.tex) to PNG using pdflatex"
 	@echo "  clean           Remove generated files"
 	@echo ""
 	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator'."
@@ -279,6 +280,25 @@ endif
 .PHONY: formal
 formal:
 	$(MAKE) -C formal
+
+
+#####################################
+# Diagrams
+#####################################
+
+# Block diagrams: standalone TikZ, rendered to a PNG next to the .tex file,
+# which the Markdown files link to. The PNG is committed, so the docs can be
+# read without LaTeX; run "make diagrams" after changing a .tex file. This
+# needs pdflatex (with TikZ) and pdftoppm.
+BLOCK_DIAGRAMS = doc/dispatcher
+
+.PHONY: diagrams
+diagrams: $(addsuffix .png,$(BLOCK_DIAGRAMS))
+
+%.png: %.tex
+	pdflatex -interaction=nonstopmode -halt-on-error -output-directory=$(dir $@) $<
+	pdftoppm -r 150 -png -singlefile $*.pdf $*
+	rm -f $*.pdf $*.aux $*.log
 
 # Check that the constants of the boards in sim/model.py and in the defaults
 # of sim/main_tb.vhd are the same as in the design (see sim/check_consts.py).

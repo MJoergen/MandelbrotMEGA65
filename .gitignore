@@ -9,3 +9,7 @@ __pycache__/
 sim/main_out.txt
 model.png
 ref.png
+# LaTeX intermediates of "make diagrams", if pdflatex fails
+doc/*.aux
+doc/*.log
+doc/*.pdf

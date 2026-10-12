@@ -701,48 +701,14 @@ does this for 21 processes in groups of 5 (so the last group is smaller), and
 for 6 processes in a single group (so the counter has empty positions).
 
 ### Timing of a job and a result
-The parts of the dispatcher, and the registers of each step, are:
-```
- start_i, startx_i, starty_i, stepx_i, stepy_i                  done_o
-      |                                                           ^
-      v                                                           |
-+----------------------------- dispatcher_jobs ----------------------------+
-| job_scheduler  the counter (cnt_r), the busy flag of the job module at   |
-|                the counter in each group (grp_busy_r), and the job       |
-|                module selected for the next job                          |
-| p_job_start    job_start_r, job_started_r, the job in tbl_*, and the     |
-|                next job (cur_addr_r, cur_blk_r)                          |
-| p_job_cx       c of the first row of the job (job_cx_r, job_starty_r)    |
-| p_grp          the job in each group (grp_cx_r, grp_starty_r,            |
-|                grp_stepy_r), job_start_d (job_start_o)                   |
-| p_done         the busy flags of each group (grp_job_busy_r), done_r     |
-+--------------------------------------------------------------------------+
-      |                                     |                    ^
-      | tbl_*: the job module, picture      | job, job_start     | job_busy
-      | column, and block of each job       v                    |
-      |                 +------- job modules (368, in groups of 16) -------+
-      |                 | job.vhd: the rows of the job, one after          |
-      |                 | the other, with the iterator                     |
-      |                 +--------------------------------------------------+
-      |                                     |                    ^
-      |                                     | res_addr, res_data | res_ack
-      v                                     v res_valid          |
-+--------------------------- dispatcher_results ---------------------------+
-| p_tbl          the table of the jobs (job_addr_r, job_blk_r)             |
-| p_res_busy     res_busy_r, which gives the ready flags (res_ready_s)     |
-| res_scheduler  the selected job module (idx_valid_r, idx_iterator_r)     |
-| p_res_grp      step 1: the selected job module in each group             |
-|                (grp_idx_r), and its job from the table (acc_*_r)         |
-| p_ack,         step 2: the acknowledge (res_ack_r), and the result of    |
-| p_grp_res      the group (grp_res_addr_r, grp_res_data_r)                |
-| p_wr           steps 3 and 4: the column and the row (acc_*_dd), and     |
-|                the write (wr_addr_r, wr_data_r, wr_en_r)                 |
-+--------------------------------------------------------------------------+
-                                      |
-                                      | wr_addr_o, wr_data_o, wr_en_o
-                                      v
-                               display memory
-```
+The parts of the dispatcher, and the processes and registers of each step,
+are:
+
+![The parts of the dispatcher](doc/dispatcher.png)
+
+The diagram is generated from [`doc/dispatcher.tex`](doc/dispatcher.tex)
+with `make diagrams`.
+
 All the signals between the parts are registers, so a job and a result can
 be followed one clock cycle at a time. The tables give the clock cycle in
 which each signal is high (or has the value given).
