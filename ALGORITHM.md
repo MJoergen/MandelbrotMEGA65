@@ -11,6 +11,7 @@
   * [Overflow](#overflow)
 * [Jobs](#jobs)
 * [Dispatcher](#dispatcher)
+  * [Timing of a job and a result](#timing-of-a-job-and-a-result)
 * [The top level](#the-top-level)
 * [Display memory](#display-memory)
 * [Redraw](#redraw)
@@ -698,6 +699,104 @@ every ready process is selected within the expected time (also when all the
 processes are ready all the time), and that all the results are selected. It
 does this for 21 processes in groups of 5 (so the last group is smaller), and
 for 6 processes in a single group (so the counter has empty positions).
+
+### Timing of a job and a result
+The parts of the dispatcher, and the registers of each step, are:
+```
+ start_i, startx_i, starty_i, stepx_i, stepy_i                  done_o
+      |                                                           ^
+      v                                                           |
++----------------------------- dispatcher_jobs ----------------------------+
+| job_scheduler  the counter (cnt_r), the busy flag of the job module at   |
+|                the counter in each group (grp_busy_r), and the job       |
+|                module selected for the next job                          |
+| p_job_start    job_start_r, job_started_r, the job in tbl_*, and the     |
+|                next job (cur_addr_r, cur_blk_r)                          |
+| p_job_cx       c of the first row of the job (job_cx_r, job_starty_r)    |
+| p_grp          the job in each group (grp_cx_r, grp_starty_r,            |
+|                grp_stepy_r), job_start_d (job_start_o)                   |
+| p_done         the busy flags of each group (grp_job_busy_r), done_r     |
++--------------------------------------------------------------------------+
+      |                                     |                    ^
+      | tbl_*: the job module, picture      | job, job_start     | job_busy
+      | column, and block of each job       v                    |
+      |                 +------- job modules (368, in groups of 16) -------+
+      |                 | job.vhd: the rows of the job, one after          |
+      |                 | the other, with the iterator                     |
+      |                 +--------------------------------------------------+
+      |                                     |                    ^
+      |                                     | res_addr, res_data | res_ack
+      v                                     v res_valid          |
++--------------------------- dispatcher_results ---------------------------+
+| p_tbl          the table of the jobs (job_addr_r, job_blk_r)             |
+| p_res_busy     res_busy_r, which gives the ready flags (res_ready_s)     |
+| res_scheduler  the selected job module (idx_valid_r, idx_iterator_r)     |
+| p_res_grp      step 1: the selected job module in each group             |
+|                (grp_idx_r), and its job from the table (acc_*_r)         |
+| p_ack,         step 2: the acknowledge (res_ack_r), and the result of    |
+| p_grp_res      the group (grp_res_addr_r, grp_res_data_r)                |
+| p_wr           steps 3 and 4: the column and the row (acc_*_dd), and     |
+|                the write (wr_addr_r, wr_data_r, wr_en_r)                 |
++--------------------------------------------------------------------------+
+                                      |
+                                      | wr_addr_o, wr_data_o, wr_en_o
+                                      v
+                               display memory
+```
+All the signals between the parts are registers, so a job and a result can
+be followed one clock cycle at a time. The tables give the clock cycle in
+which each signal is high (or has the value given).
+
+**A job.** In clock cycle t the counter of `job_scheduler` is at job module
+i, which is idle:
+
+| Clock cycle | What happens
+| ----------- | ------------
+| t   | `job_busy_i(i)` is low, and goes to `grp_busy_r` of its group
+| t+1 | `grp_busy_r` of the group is low, so job module i is selected
+| t+2 | `job_idx_valid_o` is high, with `job_idx_start_o` = i
+| t+3 | `job_start_r(i)` and `job_started_r` are high, the job is in `tbl_*_o`, and c of its first row in `job_cx_r` and `job_starty_r`
+| t+4 | `job_start_o(i)` (`job_start_d`) is high, and the job is in `grp_cx_r`, `grp_starty_r`, and `grp_stepy_r` of each group. `dispatcher_results` writes the job to its table
+| t+5 | The job module is busy (`job_busy_o`), and starts the iterator with the first row (`res_start_r`)
+| t+6 | `grp_job_busy_r` of the group has the busy flag
+
+So:
+* The scheduler samples the busy flag of job module i again
+  `G_NUM_ITERATORS` clock cycles after t, and the flag is high from t+5, so
+  the dispatcher needs at least five job modules (it asserts this, and
+  `dispatcher_jobs.psl` proves that a job module is only started when it is
+  idle).
+* The done flag ignores the busy flags while a job has just been started:
+  `job_started_r`, `job_started_d`, and `job_started_dd` are high in the
+  clock cycles t+3, t+4, and t+5, and from t+6 `grp_job_busy_r` has the
+  busy flag.
+
+**A result.** In clock cycle r job module i has a new result:
+
+| Clock cycle | What happens
+| ----------- | ------------
+| r   | `res_valid_i(i)` is high, with the row in `res_addr_i(i)` and the counts in `res_data_i`
+| r+1 | `res_busy_r(i)` is low, so the ready flag (`res_ready_s(i)`) is high, and goes to `req_r` of its group in `res_scheduler`
+| r+2 | The candidate of the group is picked from `req_r`
+| r+3 | `cand_r` of the group is job module i (if it is next in the round-robin order), and the counter is at the group (if not, the next clock cycles are the same, until it is)
+| c (r+4 at the earliest) | Job module i is selected: `idx_valid_r` is high, with `idx_iterator_r` = i
+| c+1 | Step 1: `grp_idx_r` and `grp_valid_r` in each group, and the job of i from the table in `acc_job_addr_r` and `acc_blk_r`
+| c+2 | Step 2: `res_ack_o(i)` (`res_ack_r`) is high, so `res_ready_s(i)` is low. The result is in `grp_res_addr_r` and `grp_res_data_r` of the group
+| c+3 | Step 3: the job module has seen the acknowledge, and the result is removed (`res_valid_i(i)` is low, and `res_busy_r(i)` is high). The address of the column and the row in the picture are in `acc_col_dd` and `acc_row_dd`
+| c+4 | Step 4: `wr_en_o` is high, with the address and the counts. The display memory writes them two clock cycles later (three on the Nexys 4 DDR)
+
+So:
+* The ready flag of job module i is low from c+2 until its next result,
+  as `res_scheduler` requires (`dispatcher_results.psl` proves this).
+* The counter of `res_scheduler` visits each group at most once every five
+  clock cycles (`C_PERIOD`, at least five positions). So the next job
+  module of the group is selected in c+5 at the earliest, from the ready
+  flags of c+2, and job module i is not selected twice for the same result.
+* Each acknowledged result is written exactly once, two clock cycles after
+  the acknowledge (`dispatcher_results.psl` proves this too).
+* With one pixel in each write, the ready flag of the next result of the
+  job module is high n+7 clock cycles after the selection, where n is the
+  number of iterations of the row (see [Timing](#timing)).
 
 ## The top level
 The design for the MEGA65 ([`src/mega65.vhd`](src/mega65.vhd)), which is the
