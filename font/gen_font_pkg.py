@@ -3,9 +3,13 @@
 # src/vga/overlay.vhd), from the Spleen 16x32 font. Only the digits 0 to 9 are
 # used. Spleen is licensed under the BSD 2-Clause license, see LICENSE.spleen.
 #
-# Usage (from the top directory of the repository):
-#   git clone https://github.com/fcambus/spleen
+# The font file (spleen-16x32.bdf) is not in this repository. The current
+# src/vga/font_pkg.vhd is from version 2.2.0, the tag 2.2.0 of the Spleen
+# repository, and this gives exactly the same file. Usage (from the top
+# directory of the repository):
+#   git clone --branch 2.2.0 https://github.com/fcambus/spleen
 #   python3 font/gen_font_pkg.py spleen/spleen-16x32.bdf > src/vga/font_pkg.vhd
+# The version is in the header of the generated file.
 
 import sys
 
