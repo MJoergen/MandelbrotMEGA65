@@ -53,7 +53,8 @@ nexys4ddr_SRC  = src/nexys4ddr.vhd
 # List of source files common to all boards. This is the only list: it is
 # also given to the Vivado script (mandelbrot.tcl), followed by the source
 # files of the board.
-SRC  = src/main/iterator.vhd
+SRC  = src/util_pkg.vhd
+SRC += src/main/iterator.vhd
 SRC += src/main/job.vhd
 SRC += src/main/job_scheduler.vhd
 SRC += src/main/res_scheduler.vhd

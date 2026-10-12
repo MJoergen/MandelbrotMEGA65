@@ -48,13 +48,14 @@ prove: depth 16
 smtbmc
 
 [script]
-d5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4  -gG_ROWS_IN_JOB=2 dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
-d6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_COLS=2 -gG_NUM_ROWS=8  -gG_ROWS_IN_JOB=2 dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
-d7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_COLS=1 -gG_NUM_ROWS=16 -gG_ROWS_IN_JOB=2 dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_COLS=2 -gG_NUM_ROWS=8  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_COLS=1 -gG_NUM_ROWS=16 -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
 prep -top dispatcher_jobs
 
 [files]
 dispatcher_jobs.psl
+../src/util_pkg.vhd
 ../src/main/dispatcher_pkg.vhd
 ../src/main/job_scheduler.vhd
 ../src/main/dispatcher_jobs.vhd

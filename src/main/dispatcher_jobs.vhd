@@ -16,6 +16,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std_unsigned.all;
 
 use work.dispatcher_pkg.all;
+use work.util_pkg.all;
 
 entity dispatcher_jobs is
    generic (

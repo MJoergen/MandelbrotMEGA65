@@ -28,6 +28,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 use work.dispatcher_pkg.all;
+use work.util_pkg.all;
 
 entity dispatcher is
    generic (

@@ -15,6 +15,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std_unsigned.all;
 
+use work.util_pkg.all;
 use work.video_pkg.all;
 
 entity vga is
@@ -48,16 +49,6 @@ entity vga is
 end entity vga;
 
 architecture structural of vga is
-
-   -- The number of bits needed for the values 0 to n-1
-   function log2 (n : natural) return natural is
-      variable r_v : natural := 0;
-   begin
-      while 2**r_v < n loop
-         r_v := r_v + 1;
-      end loop;
-      return r_v;
-   end function log2;
 
    -- The number of bits of the rows in the visible area
    constant C_ROW_BITS : natural := log2(G_MODE.v_visible);
