@@ -52,12 +52,14 @@ second), still above the 60 Hz of the VGA output, see
 
 [ALGORITHM.md](ALGORITHM.md) explains the design in detail: the number format,
 the multiplier, the iterator (including how overflow is detected), the jobs,
-the dispatcher, and the timing and resource usage.
+the dispatcher, and the timing and resource usage. [HISTORY.md](HISTORY.md)
+has the history of the design: the earlier versions of its parts, and the
+results of the earlier builds.
 
 ## Controls
 A new picture is only calculated when the view changes, and after reset. In
 between, the job modules are idle, and the FPGA uses much less power (see
-[The top level](ALGORITHM.md#the-top-level)). The view is controlled with a
+[Redraw](ALGORITHM.md#redraw)). The view is controlled with a
 joystick in each port, or with the keyboard, see
 [`src/mega65.vhd`](src/mega65.vhd).
 
@@ -72,7 +74,7 @@ While a control is held down, the view is updated about 18 times per second.
 Each update pans by 1/320 of the width (about 5.6% per second), or changes the
 size of a pixel by about 1.6% (roughly 33% per second). The initial view
 shows the real axis from -1.67 to 1 and the imaginary axis from -1.07 to
-1.07. See [The top level](ALGORITHM.md#the-top-level) for details.
+1.07. See [View control](ALGORITHM.md#view-control) for details.
 
 The colour palette can not be selected on the MEGA65, so it is always
 palette 0: the lower 8 bits of the count are the colour (RRRGGGBB), mostly
@@ -433,6 +435,7 @@ and [`src/hdmi/`](src/hdmi).
 | [`mega65-r3.xdc`](mega65-r3.xdc), [`mega65-r6.xdc`](mega65-r6.xdc), [`nexys4ddr.xdc`](nexys4ddr.xdc), [`mandelbrot.tcl`](mandelbrot.tcl) | Pin and timing constraints for each board, and script for synthesis and implementation with Vivado (including the optimization directives needed to meet timing), see [Running](#running). The script gets the FPGA part, the top level, and the list of source files from the Makefile, so it must be run through `make mega65-r3`, `make mega65-r6`, or `make nexys4ddr`.
 | [`mandelbrot.xlsx`](mandelbrot.xlsx) | Spreadsheet used during the design. It iterates the example point -1+0.5i from [the iterator section](ALGORITHM.md#iterator) using real numbers.
 | [`ALGORITHM.md`](ALGORITHM.md) | Detailed explanation of the algorithm and the design.
+| [`HISTORY.md`](HISTORY.md) | The history of the design: the earlier versions of its parts, the numbers of the model at the time, and the results of the earlier builds.
 | [`CODING_STYLE.md`](CODING_STYLE.md), [`vsg.yml`](vsg.yml) | The VHDL coding style, and the configuration of [VSG](https://vhdl-style-guide.readthedocs.io/) that checks most of it.
 | [`scripts/`](scripts), [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.claude/settings.json`](.claude/settings.json) | Installation of the free tools, the continuous integration on GitHub, and the hook that installs the tools in the cloud environment of Claude Code, see [Tools](#tools).
 | [`TODO.md`](TODO.md) | Ideas for further changes.

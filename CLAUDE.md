@@ -4,8 +4,9 @@ Mandelbrot set in VHDL. The main board is the MEGA65 (revisions R3 and R6,
 XC7A200T, 1280x1024 on VGA and HDMI). The Nexys 4 DDR (XC7A100T, 640x480) is
 still supported. [README.md](README.md) is the overview and how to build and
 run; [ALGORITHM.md](ALGORITHM.md) explains each module in detail, and holds the
-build results and their history. Read the relevant section of ALGORITHM.md
-before changing a module.
+current build results; [HISTORY.md](HISTORY.md) holds the earlier versions of
+the modules and the earlier build results. Read the relevant section of
+ALGORITHM.md before changing a module.
 
 This repository was split out of the `mandelbrot/` folder of
 MJoergen/nexys4ddr. Commits from before the split refer to that folder, and
@@ -61,13 +62,17 @@ are only checked by Vivado.
   spelling (e.g. "colour", "centre").
 * Keep the docs in sync with the design. A change that affects resources,
   slack, frame rate, or power updates README.md (Implementation results)
-  and ALGORITHM.md (Resources and timing closure), and the earlier result
-  stays as history ("The previous run ..."). Some numbers are also in the
+  and ALGORITHM.md (Resources and timing closure). The earlier result moves
+  to HISTORY.md ("The previous run ...", at the start of Builds of the
+  MEGA65, Builds of the Nexys 4 DDR, or Power). Some numbers are also in the
   comments of the constants in `src/mega65.vhd` and `src/nexys4ddr.vhd`.
+* ALGORITHM.md describes the current design only. When a part changes, the
+  description of the earlier version moves to HISTORY.md, and ALGORITHM.md
+  may link to it.
 * The statistics of the initial view in ALGORITHM.md are for 1280x1024
-  (from `sim/model.py`). The history sections (Timing, and History of the
-  ... build) are mostly about the Nexys 4 DDR at 640x480, and stay as they
-  are.
+  (from `sim/model.py`). HISTORY.md is mostly about the Nexys 4 DDR at
+  640x480, and stays as it is, apart from the earlier results that are
+  added to it.
 * The bit-accurate model must follow `src/main/iterator.vhd`: it is in
   `sim/iterator_model.py`, `sim/model.py`, and `sim/iterator_model_pkg.vhd`.
   The board constants in `sim/model.py` and the defaults of `sim/main_tb.vhd`
