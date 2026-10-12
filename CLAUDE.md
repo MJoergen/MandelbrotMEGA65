@@ -37,6 +37,9 @@ GHDL can not analyze `src/clk_rst.vhd`, `src/mega65*.vhd`, or
 are only checked by Vivado.
 
 ## Conventions
+* VHDL follows [CODING_STYLE.md](CODING_STYLE.md): naming, alignment, and
+  idioms, including the conventions VSG does not check, and the parts of the
+  code that do not follow them yet.
 * MEGA65 first. Where the boards differ, give the MEGA65 first and the
   Nexys 4 DDR second, e.g. "368 job modules (120 on the Nexys 4 DDR)", and
   list the boards as mega65-r3, mega65-r6, nexys4ddr.

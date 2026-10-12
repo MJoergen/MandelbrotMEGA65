@@ -329,4 +329,5 @@ and [`src/hdmi/`](src/hdmi).
 | [`mega65-r3.xdc`](mega65-r3.xdc), [`mega65-r6.xdc`](mega65-r6.xdc), [`nexys4ddr.xdc`](nexys4ddr.xdc), [`mandelbrot.tcl`](mandelbrot.tcl) | Pin and timing constraints for each board, and script for synthesis and implementation with Vivado (including the optimization directives needed to meet timing), see [Running](#running). The script gets the FPGA part, the top level, and the list of source files from the Makefile, so it must be run through `make mega65-r3`, `make mega65-r6`, or `make nexys4ddr`.
 | [`mandelbrot.xlsx`](mandelbrot.xlsx) | Spreadsheet used during the design. It iterates the example point -1+0.5i from [the iterator section](ALGORITHM.md#iterator) using real numbers.
 | [`ALGORITHM.md`](ALGORITHM.md) | Detailed explanation of the algorithm and the design.
+| [`CODING_STYLE.md`](CODING_STYLE.md), [`vsg.yml`](vsg.yml) | The VHDL coding style, and the configuration of [VSG](https://vhdl-style-guide.readthedocs.io/) that checks most of it.
 | [`TODO.md`](TODO.md) | Ideas for further changes.
