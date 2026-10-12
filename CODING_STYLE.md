@@ -256,4 +256,4 @@ These parts of the code do not follow the conventions above yet:
   (`clk_rst.vhd`, `mega65_r6.vhd`) instead of the `_n` suffix used elsewhere.
 * Constrained array types use `_t` (e.g. `seg_table_t`), except `mem_vector`
   in `sim/overlay_tb.vhd`.
-* 22 lines are over 100 columns, mostly in the testbenches.
+* 20 lines are over 100 columns, mostly in the testbenches.
