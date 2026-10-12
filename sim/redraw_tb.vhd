@@ -21,6 +21,17 @@
 -- out, and pan left until the left edge of the view is at -2 and the view
 -- does not change any more.
 --
+-- A second instance of main (i_main_fast, without a display memory) updates
+-- the view every 400 clock cycles, i.e. several times during a picture, and
+-- checks what happens when the view changes while a picture is calculated
+-- (b_fast): pan right is held down for three updates during the first
+-- picture, and each of them changes the view. Then:
+-- * Exactly one more picture is calculated, i.e. the three changes give only
+--   one new picture, and it has the view after the last change.
+-- * It is started as soon as the first picture is finished, i.e. at most
+--   C_MAX_GAP clock cycles after its last word is written.
+-- * No picture is started before the previous one is finished.
+--
 -- The update pulse, the start of a picture, and the view are inside main.vhd,
 -- so they are read with external names. A small picture with a few job modules
 -- and a small display memory (8 blocks) are used, and the update rate
@@ -62,6 +73,14 @@ architecture simulation of redraw_tb is
    -- Clock cycles to wait for an update of the view to finish
    constant C_UPD_CYCLES    : positive := 32;
 
+   -- Clock cycles between two updates of the view in i_main_fast. This is
+   -- much shorter than a picture.
+   constant C_FAST_PERIOD   : positive := 400;
+
+   -- The longest time from the last word of a picture until the start of
+   -- the next one, when the view has changed during the picture
+   constant C_MAX_GAP       : positive := 10;
+
    -- The view, i.e. startx, starty, stepx, and stepy
    subtype view_t is std_logic_vector(71 downto 0);
 
@@ -91,6 +110,11 @@ architecture simulation of redraw_tb is
    signal writes    : natural := 0;
    signal fps_count : natural := 0;
    signal max_time  : natural := 0;
+
+   -- i_main_fast, see b_fast
+   signal fast_btn     : std_logic_vector(4 downto 0) := "00000";
+   signal fast_wr_en   : std_logic;
+   signal fast_done    : boolean := false;
 
 begin
 
@@ -162,6 +186,36 @@ begin
          rd_addr_i => rd_addr,
          rd_data_o => rd_data
       ); -- i_disp_mem
+
+
+   -- The same, but with an update of the view every C_FAST_PERIOD clock
+   -- cycles. The display memory is not needed, only the number of words
+   -- written.
+   i_main_fast : entity work.main
+      generic map (
+         G_CLK_FREQ      => 18*C_FAST_PERIOD,
+         G_NUM_ITERATORS => C_NUM_ITERATORS,
+         G_PIXELS        => C_PIXELS,
+         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_NUM_COLS      => C_NUM_COLS,
+         G_NUM_ROWS      => C_NUM_ROWS,
+         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ADDR_BITS     => C_ADDR_BITS
+      )
+      port map (
+         clk_i        => clk,
+         rst_i        => rst,
+         btn_i        => fast_btn,
+         sw_i         => X"00",
+         seg_o        => open,
+         seg_an_o     => open,
+         fps_digits_o => open,
+         fps_blank_o  => open,
+         fps_valid_o  => open,
+         wr_addr_o    => open,
+         wr_data_o    => open,
+         wr_en_o      => fast_wr_en
+      ); -- i_main_fast
 
 
    -- The external names must come after the instantiation of main
@@ -397,6 +451,10 @@ begin
                    " times, expected once for each of the " & integer'image(pictures) & " pictures"
             severity error;
 
+         if not fast_done then
+            wait until fast_done;
+         end if;
+
          report "redraw_tb: finished, " & integer'image(pictures) & " pictures for " &
                 integer'image(changes_v) & " changes of the view, the longest took " &
                 integer'image(max_time) & " clock cycles";
@@ -404,5 +462,126 @@ begin
       end process p_test;
 
    end block b_test;
+
+
+   -- Changes of the view during a picture, with i_main_fast
+   b_fast : block is
+
+      alias upd    is << signal .redraw_tb.i_main_fast.upd : std_logic >>;
+      alias start  is << signal .redraw_tb.i_main_fast.start : std_logic >>;
+      alias startx is << signal .redraw_tb.i_main_fast.startx : std_logic_vector(17 downto 0) >>;
+      alias starty is << signal .redraw_tb.i_main_fast.starty : std_logic_vector(17 downto 0) >>;
+      alias stepx  is << signal .redraw_tb.i_main_fast.stepx : std_logic_vector(17 downto 0) >>;
+      alias stepy  is << signal .redraw_tb.i_main_fast.stepy : std_logic_vector(17 downto 0) >>;
+
+      signal view_s : view_t;
+
+      -- Counted by p_check: the pictures started, the pictures finished, and
+      -- the changes of the view during the first picture. The view of the
+      -- latest picture, the clock cycle of the last word of the first
+      -- picture, and the clock cycle of the start of the second picture.
+      signal pictures   : natural := 0;
+      signal finished   : natural := 0;
+      signal changes    : natural := 0;
+      signal pic_view   : view_t;
+      signal last_write : natural := 0;
+      signal start_2    : natural := 0;
+
+   begin
+
+      view_s <= startx & starty & stepx & stepy;
+
+      p_check : process (clk)
+         variable pic_words_v : natural;    -- Words written by the latest picture
+         variable cycle_v     : natural := 0;
+         variable view_v      : view_t;     -- The view in the previous clock cycle
+      begin
+         if rising_edge(clk) and rst = '0' then
+            cycle_v := cycle_v + 1;
+            if fast_wr_en = '1' then
+               pic_words_v := pic_words_v + 1;
+               if pic_words_v = C_WORDS then
+                  finished <= finished + 1;
+                  if pictures = 1 then
+                     last_write <= cycle_v;
+                  end if;
+               end if;
+            end if;
+
+            if start = '1' then
+               if pictures > 0 then
+                  assert pic_words_v = C_WORDS
+                     report "Fast updates: a picture was started before the previous one " &
+                            "was finished"
+                     severity error;
+                  assert view_s /= pic_view
+                     report "Fast updates: a picture was started, but the view has not changed"
+                     severity error;
+               end if;
+               if pictures = 1 then
+                  start_2 <= cycle_v;
+               end if;
+               pic_view    <= view_s;
+               pic_words_v := 0;
+               pictures    <= pictures + 1;
+            end if;
+
+            -- The changes of the view during the first picture
+            if pictures = 1 and pic_words_v < C_WORDS and view_s /= view_v then
+               changes <= changes + 1;
+            end if;
+            view_v := view_s;
+         end if;
+      end process p_check;
+
+      p_test : process
+      begin
+         wait until rst = '0';
+
+         -- Hold pan right down for three updates. The first picture is
+         -- started at once after reset, and takes much longer than three
+         -- updates. main.vhd registers the buttons, so they are released
+         -- just after the third update, when the update has taken them.
+         fast_btn <= "00100";
+         for i in 1 to 3 loop
+            wait until rising_edge(clk) and upd = '1';
+         end loop;
+         fast_btn <= "00000";
+         for i in 1 to C_UPD_CYCLES loop
+            wait until rising_edge(clk);
+         end loop;
+         assert pictures = 1 and finished = 0
+            report "Fast updates: the first picture is finished before the end of the third update"
+            severity failure;
+         assert changes = 3
+            report "Fast updates: the view changed " & integer'image(changes) &
+                   " times during the first picture, expected 3"
+            severity error;
+
+         -- Wait for the second picture, and long enough for a third one
+         wait until finished = 2;
+         for i in 1 to 4*C_FAST_PERIOD loop
+            wait until rising_edge(clk);
+         end loop;
+         assert pictures = 2
+            report "Fast updates: " & integer'image(pictures) &
+                   " pictures, expected one after reset, and one for the changes during it"
+            severity error;
+         assert pic_view = view_s
+            report "Fast updates: the second picture does not have the view after the last change"
+            severity error;
+         assert start_2 - last_write <= C_MAX_GAP
+            report "Fast updates: the second picture was started " &
+                   integer'image(start_2 - last_write) &
+                   " clock cycles after the last word of the first one"
+            severity error;
+         report "Fast updates: the second picture was started " &
+                integer'image(start_2 - last_write) &
+                " clock cycles after the last word of the first one";
+         fast_done <= true;
+         wait;
+      end process p_test;
+
+   end block b_fast;
 
 end architecture simulation;

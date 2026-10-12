@@ -867,9 +867,14 @@ picture, that at each update the latest picture is finished and has the
 current view (i.e. every change of the view gave a picture), that nothing is
 written between the pictures, and that the frame rate is updated once for each
 picture. It also reads the display memory after the first picture and after
-the last one: every pixel must be the value written by `main`. The update
-pulse, the start, and the view are inside `main`, so the testbench reads them
-with external names (VHDL-2008).
+the last one: every pixel must be the value written by `main`. A second
+instance of `main` updates the view every 400 clock cycles, i.e. several
+times during a picture. The testbench holds pan right down for three updates
+during the first picture, and checks that this gives exactly one more
+picture, with the view after the last change, and that it is started as soon
+as the first picture is finished (3 clock cycles after its last word is
+written). The update pulse, the start, and the view are inside `main`, so the
+testbench reads them with external names (VHDL-2008).
 
 **The view.** The view is given by the position of the top left corner of the
 picture (startx, starty), and the size of a pixel (stepx, stepy). The initial
@@ -1032,10 +1037,12 @@ checks the digits and the blanking against the integer division, and that the
 display shows the same number: every digit that is not blanked is switched on
 with the right segments during a refresh cycle, the blanked digits are never
 switched on, and at most one digit is on at a time. It also checks that a new
-picture time during a calculation does not start a new calculation. This
-instance of the module does not average (`G_AVG_SHIFT` is 0). A second
-instance averages (`G_AVG_SHIFT` is 3), and the testbench checks its frame
-rate after each of 1000 random picture times against a model of the average.
+picture time during a calculation does not start a new calculation. It does
+this with two instances of the module that do not average (`G_AVG_SHIFT` is
+0, as in `main`), one with the clock frequency of each board: 141,639,344 Hz
+(a quotient of 28 bits) and 120,000,000 Hz (27 bits). A third instance
+averages (`G_AVG_SHIFT` is 3), and the testbench checks its frame rate after
+each of 1000 random picture times against a model of the average.
 
 The testbench [`sim/overlay_tb.vhd`](sim/overlay_tb.vhd) checks the colour of
 every pixel of three frames of the VGA output (with a different value for each
