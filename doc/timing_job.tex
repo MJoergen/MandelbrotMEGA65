@@ -1,0 +1,75 @@
+% Timing diagram of a job: the first jobs of a picture, following job module
+% 6 from the scheduler to the start of its iterator. Rendered to
+% timing_job.png by "make diagrams" (see the DIAGRAMS variable in the
+% top-level Makefile). It is shown in ALGORITHM.md, in the section "Timing of
+% a job and a result" of the Dispatcher, next to the table of the clock cycles
+% of a job, and the clock cycles t, t+1, ... are the same as in the table.
+%
+% All values are read off a simulation of the first instance of the
+% dispatcher in sim/dispatcher_tb.vhd (i_dispatcher: 16 job modules in groups
+% of 5, so job module 6 is in group 1), in the first picture: t is the clock
+% cycle from 325 ns to 335 ns (the rising edge of clk at 325 ns). Anything that
+% changes the processes or the registers of the dispatcher, or that
+% testbench, has to change this file too.
+%
+% Drawing convention, the same as in timing_result.tex: single bits are always
+% drawn with their true value. A bus is white in the clock cycles where it
+% carries the job of job module 6, light grey with its value where it carries
+% another job, and grey without a value where it carries nothing (its valid
+% flag is low). The values of cx are in hex, as the 18 bits of the
+% register.
+%
+% The scheduler is started by start_i in t-1 (sched_active_r is high from t,
+% and its delayed copy active_d from t+1, not drawn), so job_idx_valid_o is
+% high from t+2. All the job modules are idle, so after that the scheduler
+% selects one job module in each clock cycle, and job_cx_r moves on by stepx
+% (0x333 here) for each job. The busy flags in grp_busy_r(1) are those of the
+% job module 5+(cnt_r mod 5) of group 1 in the clock cycle before: job
+% module 6 in t+1 and in t+6, and job module 7 in t+7.
+
+\documentclass[border=8pt]{standalone}
+
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage{tikz-timing}
+
+% White: the job of job module 6. Light grey: another job. Grey (U): nothing.
+\tikzset{
+   timing/d/background/.style={fill=white},
+   timing/u/background/.style={fill=black!25},
+   wh/.style={timing/d/background/.style={fill=white}},
+   gr/.style={timing/d/background/.style={fill=black!8}},
+   timing/name/.style={font=\ttfamily\small},
+   timing/d/text/.style={font=\scriptsize},
+}
+
+\begin{document}
+\begin{tikztimingtable}[timing/slope=0.08, timing/coldist=6pt, xscale=2.2, yscale=1.4]
+clk                                  & 10{HL} \\
+start\_i                             & 2L 2H 16L \\
+job\_scheduler/cnt\_r                & [gr] 2D{4} 2D{5} [wh] 2D{6} [gr] 2D{7} 2D{8} 2D{9} 2D{10} 2D{11} 2D{12} 2D{13} \\
+job\_busy\_i(6)                      & 14L 6H \\
+job\_scheduler/grp\_busy\_r(1)       & 16L 4H \\
+job\_idx\_valid\_o                   & 8L 12H \\
+job\_idx\_start\_o                   & 8U [wh] 2D{6} [gr] 2D{7} 2D{8} 2D{9} 2D{10} 2D{11} \\
+job\_start\_r(6)                     & 10L 2H 8L \\
+job\_started\_r, tbl\_valid\_o       & 10L 10H \\
+tbl\_idx\_o                          & 10U [wh] 2D{6} [gr] 2D{7} 2D{8} 2D{9} 2D{10} \\
+job\_cx\_r                           & 4U [wh] 8D{30000} [gr] 2D{30333} 2D{30666} 2D{30999} 2D{30CCC} \\
+job\_start\_o(6)                     & 12L 2H 6L \\
+job\_cx\_o(1)                        & 6U [wh] 8D{30000} [gr] 2D{30333} 2D{30666} 2D{30999} \\
+job\_started\_d                      & 12L 8H \\
+job(6)/res\_start\_r                 & 14L 2H 4L \\
+job(6)/res\_cx\_r                    & 14U [wh] 6D{30000} \\
+job\_started\_dd                     & 14L 6H \\
+grp\_job\_busy\_r(1)                 & 16L 4H \\
+\extracode
+\begin{pgfonlayer}{background}
+   \vertlines[densely dotted, black!50]{0,2,...,20}
+\end{pgfonlayer}
+\foreach \x/\l in {0/t-2, 2/t-1, 4/t, 6/t+1, 8/t+2, 10/t+3, 12/t+4, 14/t+5, 16/t+6, 18/t+7}
+   \node[above, font=\small] at (\x+1, 0.9) {\l};
+\end{tikztimingtable}
+\end{document}

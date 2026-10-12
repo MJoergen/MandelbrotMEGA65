@@ -1,0 +1,78 @@
+% Timing diagram of a result: following one result of job module 12 from the
+% job module to the write to the display memory. Rendered to
+% timing_result.png by "make diagrams" (see the DIAGRAMS variable in the
+% top-level Makefile). It is shown in ALGORITHM.md, in the section "Timing of
+% a job and a result" of the Dispatcher, next to the table of the clock cycles
+% of a result, and the clock cycles r, c, ... are the same as in the table.
+%
+% All values are read off a simulation of the first instance of the
+% dispatcher in sim/dispatcher_tb.vhd (i_dispatcher: 16 job modules in groups
+% of 5, so job module 12 is in group 2 and res_scheduler has five positions;
+% 64 picture columns with an address distance of 512; one pixel in each
+% write), in the first picture: r is the clock cycle from 645 ns to 655 ns (the
+% rising edge of clk at 645 ns). The result is the first row (0) of the job of
+% picture column 6, with the count 18, so it is written to address 6*512+0 =
+% 3072. Here job module 12 is selected as early as possible, c = r+4. Anything
+% that changes the processes or the registers of the dispatcher, or that
+% testbench, has to change this file too.
+%
+% Drawing convention, the same as in timing_job.tex: single bits are always
+% drawn with their true value. A bus is white in the clock cycles where it
+% carries the result of job module 12, light grey with its value where it
+% carries another result, and grey without a value where it carries nothing
+% (its valid flag is low).
+%
+% Many job modules have a result at the same time, so res_scheduler selects
+% other job modules in most clock cycles, and the steps of their results
+% overlap with those of this one. The counter of res_scheduler is at group 2
+% (job module 12) in r+3, and job module 12 is the candidate of group 2 in that
+% clock cycle (cand_r, not drawn), so it is selected in c = r+4. The job module
+% starts the next row (res_start_r) as soon as it sees the acknowledge in
+% c+2.
+
+\documentclass[border=8pt]{standalone}
+
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage{tikz-timing}
+
+% White: the result of job module 12. Light grey: another result. Grey (U):
+% nothing.
+\tikzset{
+   timing/d/background/.style={fill=white},
+   timing/u/background/.style={fill=black!25},
+   wh/.style={timing/d/background/.style={fill=white}},
+   gr/.style={timing/d/background/.style={fill=black!8}},
+   timing/name/.style={font=\ttfamily\small},
+   timing/d/text/.style={font=\scriptsize},
+}
+
+\begin{document}
+\begin{tikztimingtable}[timing/slope=0.08, timing/coldist=6pt, xscale=2.2, yscale=1.4]
+clk                                  & 11{HL} \\
+res\_valid\_i(12)                    & 2L 14H 6L \\
+res\_addr\_i(12)                     & 2U [wh] 14D{0} 6U \\
+res\_data\_i(12)                     & 2U [wh] 14D{18} 6U \\
+res\_busy\_r(12)                     & 4H 12L 6H \\
+res\_ready\_s(12)                    & 4L 10H 8L \\
+res\_scheduler/cnt\_r                & [gr] 2D{3} 2D{4} 2D{0} 2D{1} [wh] 2D{2} [gr] 2D{3} 2D{4} 2D{0} 2D{1} 2D{2} 2D{3} \\
+idx\_valid\_r                       & 4H 2L 6H 4L 6H \\
+idx\_iterator\_r                     & [gr] 2D{10} 2D{15} 2U 2D{0} 2D{9} [wh] 2D{12} 4U [gr] 2D{1} 2D{5} 2D{13} \\
+grp\_valid\_r                        & 6H 2L 6H 4L 4H \\
+acc\_job\_addr\_r                    & [gr] 2D{2} 2D{4} 2D{9} 2U 2D{10} 2D{3} [wh] 2D{6} 4U [gr] 2D{11} 2D{15} \\
+res\_ack\_o(12)                      & 14L 2H 6L \\
+acc\_col\_dd                         & 4U [gr] 2D{1024} 2D{2048} 2D{4608} 2U 2D{5120} 2D{1536} [wh] 2D{3072} 4U \\
+job(12)/res\_start\_r                & 16L 2H 4L \\
+wr\_en\_o                            & 6L 6H 2L 6H 2L \\
+wr\_addr\_o                          & 6U [gr] 2D{1024} 2D{2048} 2D{4608} 2U 2D{5120} 2D{1536} [wh] 2D{3072} 2U \\
+wr\_data\_o                          & 6U [gr] 2D{15} 2D{13} 2D{10} 2U 2D{10} 2D{13} [wh] 2D{18} 2U \\
+\extracode
+\begin{pgfonlayer}{background}
+   \vertlines[densely dotted, black!50]{0,2,...,22}
+\end{pgfonlayer}
+\foreach \x/\l in {0/r-1, 2/r, 4/r+1, 6/r+2, 8/r+3, 10/c, 12/c+1, 14/c+2, 16/c+3, 18/c+4, 20/c+5}
+   \node[above, font=\small] at (\x+1, 0.9) {\l};
+\end{tikztimingtable}
+\end{document}

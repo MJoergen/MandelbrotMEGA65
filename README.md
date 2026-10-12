@@ -256,8 +256,9 @@ Type `make` to list the supported targets. The most important ones are
   [GHDL plugin](https://github.com/ghdl/ghdl-yosys-plugin), and an SMT solver
   (Yices), e.g. from the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build).
   It takes about 20 seconds.
-* `make diagrams` renders the block diagrams (`doc/*.tex`, TikZ) to PNG
-  files next to them, which the documentation links to. The PNG files are
+* `make diagrams` renders the block diagrams and the timing diagrams
+  (`doc/*.tex`, TikZ) to PNG files next to them, which the documentation
+  links to. The PNG files are
   in the repository, so this is only needed after changing a diagram. It
   requires `pdflatex` and `pdftoppm`.
 * `make clean` removes the generated files.
@@ -278,7 +279,7 @@ tried, except where it says so.
 | [GTKWave](https://github.com/gtkwave/gtkwave) | 3.3.116 | `make check`
 | [m65](https://github.com/MEGA65/mega65-tools) | 20251108 | `make fpga`
 | [coretool](https://github.com/MEGA65/mega65-tools) | from git (commit 44c63d2, 2026-10-05), Python 3.12 | `make cor`
-| pdflatex (TeX Live, with TikZ), pdftoppm (Poppler) | TeX Live 2023, Poppler 24.02 | `make diagrams`
+| pdflatex (TeX Live, with TikZ and tikz-timing), pdftoppm (Poppler) | TeX Live 2023, Poppler 24.02 | `make diagrams`
 
 The testbenches use external names of VHDL-2008 (`disp_mem_tb`,
 `iterator_tb`, and `redraw_tb`). GHDL 4.1 crashes on an external name inside
@@ -480,7 +481,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`mega65-r3.xdc`](mega65-r3.xdc), [`mega65-r6.xdc`](mega65-r6.xdc), [`nexys4ddr.xdc`](nexys4ddr.xdc), [`mandelbrot.tcl`](mandelbrot.tcl) | Pin and timing constraints for each board, and script for synthesis and implementation with Vivado (including the optimization directives needed to meet timing), see [Running](#running). The script gets the FPGA part, the top level, and the list of source files from the Makefile, so it must be run through `make mega65-r3`, `make mega65-r6`, or `make nexys4ddr`.
 | [`mandelbrot.xlsx`](mandelbrot.xlsx) | Spreadsheet used during the design. It iterates the example point -1+0.5i from [the iterator section](ALGORITHM.md#iterator) using real numbers.
 | [`ALGORITHM.md`](ALGORITHM.md) | Detailed explanation of the algorithm and the design.
-| [`doc/`](doc) | The block diagrams of ALGORITHM.md, as TikZ sources (`<name>.tex`) and the PNG files made from them by `make diagrams`.
+| [`doc/`](doc) | The block diagrams and the timing diagrams of ALGORITHM.md, as TikZ sources (`<name>.tex`) and the PNG files made from them by `make diagrams`.
 | [`HISTORY.md`](HISTORY.md) | The history of the design: the earlier versions of its parts, the numbers of the model at the time, and the results of the earlier builds.
 | [`CODING_STYLE.md`](CODING_STYLE.md), [`vsg.yml`](vsg.yml) | The VHDL coding style, and the configuration of [VSG](https://vhdl-style-guide.readthedocs.io/) that checks most of it.
 | [`scripts/`](scripts), [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.claude/settings.json`](.claude/settings.json) | Installation of the free tools, the continuous integration on GitHub, and the hook that installs the tools in the cloud environment of Claude Code, see [Tools](#tools).

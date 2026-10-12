@@ -26,8 +26,8 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
 * `make formal`: the formal proofs, about 20 seconds.
 * `make consts`: checks that the constants in `sim/model.py` and
   `sim/main_tb.vhd` match the design, about 1 second.
-* `make diagrams`: renders the TikZ block diagrams (`doc/*.tex`) to the PNG
-  files that the docs link to. Commit the PNG together with the `.tex`.
+* `make diagrams`: renders the TikZ block diagrams and timing diagrams
+  (`doc/*.tex`) to the PNG files that the docs link to. Commit the PNG together with the `.tex`.
 * `make mega65-r6`, `make mega65-r3` (about 13 minutes each), `make nexys4ddr`
   (about 6 minutes). Run them in the background, or `make -j3 mega65-r3
   mega65-r6 nexys4ddr`. The results are in `build/<board>/vivado.log`, and

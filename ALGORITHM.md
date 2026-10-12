@@ -728,6 +728,15 @@ i, which is idle:
 | t+5 | The job module is busy (`job_busy_o`), and starts the iterator with the first row (`res_start_r`)
 | t+6 | `grp_job_busy_r` of the group has the busy flag
 
+The waveform shows this for the first jobs of a picture, in a simulation
+of `sim/dispatcher_tb.vhd` (16 job modules in groups of 5), following job
+module 6 (in group 1). The scheduler is started in t-1, and all the job
+modules are idle, so it selects one job module in each clock cycle. The
+values of the job followed are white, and those of the other jobs are light
+grey:
+
+![Timing of a job](doc/timing_job.png)
+
 So:
 * The scheduler samples the busy flag of job module i again
   `G_NUM_ITERATORS` clock cycles after t, and the flag is high from t+5, so
@@ -752,6 +761,18 @@ So:
 | c+2 | Step 2: `res_ack_o(i)` (`res_ack_r`) is high, so `res_ready_s(i)` is low. The result is in `grp_res_addr_r` and `grp_res_data_r` of the group
 | c+3 | Step 3: the job module has seen the acknowledge, and the result is removed (`res_valid_i(i)` is low, and `res_busy_r(i)` is high). The address of the column and the row in the picture are in `acc_col_dd` and `acc_row_dd`
 | c+4 | Step 4: `wr_en_o` is high, with the address and the counts. The display memory writes them two clock cycles later (three on the Nexys 4 DDR)
+
+The waveform shows a result of job module 12 (in group 2), in the same
+simulation, where it is selected as early as possible (c = r+4). Many job
+modules have a result at the same time, so the steps of the other results
+(light grey) overlap with those of this one:
+
+![Timing of a result](doc/timing_result.png)
+
+The waveforms are generated from [`doc/timing_job.tex`](doc/timing_job.tex)
+and [`doc/timing_result.tex`](doc/timing_result.tex) with `make diagrams`,
+and the values are read off the simulation (the clock cycles are given in
+the files).
 
 So:
 * The ready flag of job module i is low from c+2 until its next result,

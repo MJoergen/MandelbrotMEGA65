@@ -153,7 +153,7 @@ help:
 	@echo "  check           Simulate a single testbench (TB=<name>) using ghdl, write the waveform, and show it in gtkwave"
 	@echo "  formal          Run the formal verification using SymbiYosys (in formal/)"
 	@echo "  consts          Check that the constants of the model match the design"
-	@echo "  diagrams        Render the block diagrams (doc/*.tex) to PNG using pdflatex"
+	@echo "  diagrams        Render the diagrams (doc/*.tex) to PNG using pdflatex"
 	@echo "  clean           Remove generated files"
 	@echo ""
 	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator'."
@@ -315,14 +315,15 @@ formal:
 # Diagrams
 #####################################
 
-# Block diagrams: standalone TikZ, rendered to a PNG next to the .tex file,
-# which the Markdown files link to. The PNG is committed, so the docs can be
-# read without LaTeX; run "make diagrams" after changing a .tex file. This
-# needs pdflatex (with TikZ) and pdftoppm.
-BLOCK_DIAGRAMS = doc/dispatcher
+# Block diagrams and timing diagrams: standalone TikZ (the timing diagrams with
+# tikz-timing), rendered to a PNG next to the .tex file, which the Markdown
+# files link to. The PNG is committed, so the docs can be read without LaTeX;
+# run "make diagrams" after changing a .tex file. This needs pdflatex (with
+# TikZ and tikz-timing) and pdftoppm.
+DIAGRAMS = doc/dispatcher doc/timing_job doc/timing_result
 
 .PHONY: diagrams
-diagrams: $(addsuffix .png,$(BLOCK_DIAGRAMS))
+diagrams: $(addsuffix .png,$(DIAGRAMS))
 
 %.png: %.tex
 	pdflatex -interaction=nonstopmode -halt-on-error -output-directory=$(dir $@) $<
