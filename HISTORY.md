@@ -313,7 +313,22 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, with the reset of the display memory
+The previous run of `make mega65-r6`, before the buttons and switches were
+synchronized with two registers, the asynchronous inputs were declared as
+false paths, and the clock domain crossing of the frame rate was moved to an
+entity of its own (fps_cdc.vhd), met timing with +0.059 ns (+0.057 ns after
+the routing), and had 21,972 slices, 48,004 LUTs, and 60,288 registers
+(74,629 LUT cells and 59,168 registers after synthesis). Its worst hold path
+(+0.011 ns) was from the result register of a job module (`res_word_r`) to
+the register of its group in `dispatcher_results` (`grp_res_data_r`). The VGA
+clock had +0.161 ns of setup slack (from `pix_y` to `rd_grp_addr`, only
+routing, 8.71 ns of the 9.06 ns), and the paths from the MAIN clock to the
+VGA clock +8.88 ns. The previous run of `make mega65-r3` met timing after the
+routing, with +0.079 ns, with 22,107 slices, 48,005 LUTs, and +0.024 ns of
+hold slack (in `res_cy_r`). Its VGA clock had +0.254 ns of setup slack, and
+the paths from the MAIN clock to the VGA clock +8.94 ns.
+
+The run of `make mega65-r6` before that, with the reset of the display memory
 (see [Display memory](#the-display-memory)), met timing with +0.043 ns
 (+0.041 ns after the routing), and had 21,954 slices, 47,950 LUTs, and
 60,308 registers (74,653 LUT cells and 59,188 registers after synthesis).
@@ -330,7 +345,7 @@ run before that (before the pictures were only calculated when the view
 changes) met timing after the routing (+0.082 ns). This is the variation
 between runs described below.
 
-In the previous run the worst hold path was in the adder of the row number
+In that run the worst hold path was in the adder of the row number
 (`res_cy_r`) of a job module (+0.025 ns), and the worst path of the VGA clock
 was from the column counter (`pix_x`) to the number of the block in one of
 the groups (`rd_grp_blk`, +0.160 ns). In the earlier runs it was from the
@@ -339,13 +354,13 @@ in the word in one of the groups (`rd_sub_r`, +0.181 ns), or from the row
 counter (`pix_y`) to the read address of one of the groups
 (`rd_grp_addr`), also almost only routing.
 
-The previous run of `make mega65-r3`, with the reset of the display memory, met
-timing with +0.090 ns, but only after the post-route `phys_opt_design`
+The run of `make mega65-r3` before that, with the reset of the display memory,
+met timing with +0.090 ns, but only after the post-route `phys_opt_design`
 (-0.108 ns after the routing), with 22,023 slices and +0.026 ns of hold slack.
-The run before that, at 144 MHz and without the HDMI output, failed by
-0.076 ns (TNS -0.191 ns, 6 endpoints, in an iterator, and -0.078 ns after
-the routing), and the run before that, without the wait for the display
-memory after reset, met timing with +0.010 ns.
+The run before that, at 144 MHz and without the HDMI output, failed by 0.076
+ns (TNS -0.191 ns, 6 endpoints, in an iterator, and -0.078 ns after the
+routing), and the run before that, without the wait for the display memory
+after reset, met timing with +0.010 ns.
 
 **The main clock.** The setup slack depends on the placement of the iterators,
 and varies by about 0.1 ns between runs: four runs with 368 job modules at 144
@@ -366,7 +381,9 @@ more slack (a period of 7.060 ns instead of 6.944 ns), for 1.7% fewer pictures
 per second. The runs at 141.64 MHz (with the HDMI output) have all met timing:
 +0.004 ns on the R6 before only the BRAM that holds the pixel was read, +0.043
 ns on the R6 and +0.090 ns on the R3 after, and +0.059 ns on the R6 and +0.079
-ns on the R3 without the reset of the display memory.
+ns on the R3 without the reset of the display memory, and +0.070 ns on the R6
+and +0.033 ns on the R3 after the buttons were synchronized with two
+registers.
 
 The MEGA65 was added after the design had been developed on the Nexys 4 DDR
 (see [Builds of the Nexys 4 DDR](#builds-of-the-nexys-4-ddr)).
@@ -485,12 +502,20 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, with the reset of the display memory
+The previous run of `make nexys4ddr`, before the buttons and switches were
+synchronized with two registers and the asynchronous inputs were declared as
+false paths, used 10,069 slices (64%), 16,533 LUTs, and 26,684 registers
+(20,752 LUT cells and 26,686 registers after synthesis). It met timing with
++0.059 ns, only after the post-route `phys_opt_design` (-0.002 ns after the
+routing), with +0.008 ns of hold slack, and the paths from the MAIN clock to
+the VGA clock had +8.42 ns of slack.
+
+The run of `make nexys4ddr` before that, with the reset of the display memory
 (see [The display memory](#the-display-memory)), used 9,225 slices (58%),
 16,539 LUTs, and 26,702 registers: almost the same logic, packed into fewer
 slices.
 
-The previous run of `make nexys4ddr`, with the reset of the display memory,
+That run, with the reset of the display memory,
 met timing with +0.015 ns, also only after the post-route `phys_opt_design`
 (-0.067 ns after the routing). The run before that, before only the BRAM that
 holds the pixel was read (see [The display memory](#the-display-memory)),
@@ -714,8 +739,11 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, with the reset of
-the display memory, gave about the same: 3.50 W and 0.74 W on the R6 (3.54 W
+The previous runs, before the buttons were synchronized with two registers,
+gave 3.53 W busy and 0.74 W idle on the R6 (3.48 W and 0.74 W on the R3), and
+1.21 W and 0.36 W on the Nexys 4 DDR. Their busy power on the MEGA65 had
+1.04 W in the signals. The runs before that, with the reset of the display
+memory, gave about the same: 3.50 W and 0.74 W on the R6 (3.54 W
 and 0.75 W on the R3), and 1.20 W and 0.37 W on the Nexys 4 DDR.
 
 Before only the BRAM that holds the pixel was read, the read port of the

@@ -147,9 +147,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 21,972 (65%)        | 33,650    | 10,069 (64%)             | 15,850
-| LUTs               | 48,004 (36%)        | 134,600   | 16,533 (26%)             | 63,400
-| Registers          | 60,288 (22%)        | 269,200   | 26,684 (21%)             | 126,800
+| Slices             | 21,814 (65%)        | 33,650    | 10,217 (64%)             | 15,850
+| LUTs               | 47,954 (36%)        | 134,600   | 16,510 (26%)             | 63,400
+| Registers          | 60,294 (22%)        | 269,200   | 26,690 (21%)             | 126,800
 
 The performance and timing are:
 
@@ -159,19 +159,20 @@ The performance and timing are:
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
 | Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.059 ns                                | +0.059 ns
-| Hold slack      | +0.011 ns                                | +0.008 ns
+| Setup slack     | +0.070 ns                                | +0.037 ns
+| Hold slack      | +0.022 ns                                | +0.050 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.079 ns (22,107 slices, +0.024 ns hold slack). The
-previous builds, with the reset of the display memory, met timing with
-+0.043 ns on the R6 (21,954 slices), +0.090 ns on the R3, and +0.015 ns on
-the Nexys 4 DDR (9,225 slices). At 144 MHz the R3 had failed timing by
-0.076 ns, so the main clock was reduced to 141.64 MHz, which gives 0.116 ns
-more setup slack. The build for the Nexys 4 DDR before those failed timing
-by 0.001 ns, and the one before that met it with +0.026 ns. See
+R3 met timing with +0.033 ns (22,031 slices, +0.025 ns hold slack). The
+previous builds, before the buttons and switches were synchronized with two
+registers and the asynchronous inputs were declared as false paths, met
+timing with +0.059 ns on the R6 (21,972 slices), +0.079 ns on the R3, and
++0.059 ns on the Nexys 4 DDR (10,069 slices). At 144 MHz the R3 had failed
+timing by 0.076 ns, so the main clock was reduced to 141.64 MHz, which gives
+0.116 ns more setup slack. See
 [Resources and timing closure](ALGORITHM.md#resources-and-timing-closure)
-for details.
+for details, and [HISTORY.md](HISTORY.md#builds-of-the-mega65) for the
+earlier builds.
 
 ## Running
 Type `make` to list the supported targets. The most important ones are
