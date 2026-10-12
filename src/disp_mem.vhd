@@ -31,7 +31,7 @@
 -- registers of the blocks. The memory has no reset: it is cleared (all
 -- pixels 0) when the FPGA is configured, and a reset keeps its contents, i.e.
 -- the previous picture stays until the first picture after the reset has
--- overwritten it. The write reset (wr_rst_i) is not used.
+-- overwritten it. Neither port has a reset.
 --
 -- The read port has four clock cycles of latency: The read address goes to a
 -- register in each group, which drives the 8 BRAMs of the group, then the
@@ -39,8 +39,7 @@
 -- the pixel is selected from the groups. Without the registers of the read
 -- address, it would drive all the BRAMs, which are spread over the whole
 -- FPGA: with 320 blocks this took 8.2 ns of the 9.26 ns at 108 MHz. Selecting
--- the pixel from all the blocks in one clock cycle would be too slow too. The
--- read reset (rd_rst_i) is not used.
+-- the pixel from all the blocks in one clock cycle would be too slow too.
 --
 -- Only the BRAM that holds the pixel is read, i.e. the read enables of all
 -- the other BRAMs are low. Reading all the BRAMs in every clock cycle used
@@ -66,13 +65,11 @@ entity disp_mem is
    );
    port (
       wr_clk_i  : in  std_logic;
-      wr_rst_i  : in  std_logic;
       wr_addr_i : in  std_logic_vector(G_ADDR_BITS-1 downto 0);
       wr_data_i : in  std_logic_vector(9*G_PIXELS-1 downto 0);
       wr_en_i   : in  std_logic;
       --
       rd_clk_i  : in  std_logic;
-      rd_rst_i  : in  std_logic;
       rd_addr_i : in  std_logic_vector(G_ADDR_BITS-1 downto 0);
       rd_data_o : out std_logic_vector( 8 downto 0)
    );

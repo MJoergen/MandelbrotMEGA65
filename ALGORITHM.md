@@ -705,9 +705,8 @@ MMCM is not locked (the MEGA65 R3 does not use its reset button, see
 [`src/mega65_r3.vhd`](src/mega65_r3.vhd), so it is only reset after
 power-on). This signal is synchronized to each clock domain (the main
 clock and the VGA clock), and the reset is then stretched to eight clock cycles
-after it is released. The VGA reset is connected to the `vga`
-module and to the read port of the display memory, but neither of them uses it
-at present.
+after it is released. The VGA reset is connected to the `vga` module, but it
+does not use it at present. The display memory has no reset (see below).
 
 **The display memory.** The display memory
 ([`src/disp_mem.vhd`](src/disp_mem.vhd)) has `G_NUM_BLOCKS`*4096 pixels of 9

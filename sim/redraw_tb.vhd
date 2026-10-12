@@ -155,12 +155,10 @@ begin
       )
       port map (
          wr_clk_i  => clk,
-         wr_rst_i  => rst,
          wr_addr_i => wr_addr,
          wr_data_i => wr_data,
          wr_en_i   => wr_en,
          rd_clk_i  => clk,
-         rd_rst_i  => '0',
          rd_addr_i => rd_addr,
          rd_data_o => rd_data
       ); -- i_disp_mem

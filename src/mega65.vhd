@@ -348,13 +348,11 @@ begin
       )
       port map (
          wr_clk_i  => main_clk,
-         wr_rst_i  => main_rst,
          wr_addr_i => wr_addr,
          wr_data_i => wr_data,
          wr_en_i   => wr_en,
          --
          rd_clk_i  => vga_clk,
-         rd_rst_i  => vga_rst,
          rd_addr_i => rd_addr,
          rd_data_o => rd_data
       ); -- i_disp_mem
