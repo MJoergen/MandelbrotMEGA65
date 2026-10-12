@@ -1,8 +1,10 @@
 -- This module runs entirely in the VGA clock domain. It generates the pixel
 -- position, reads the value of each pixel from the display memory, converts it
 -- to a colour with the palette selected by palette_i, and generates the VGA
--- output signals for the video mode G_MODE (see video_pkg.vhd). The frame rate
--- is shown in the top right corner, see overlay.vhd.
+-- output signals for the video mode G_MODE (see video_pkg.vhd). A line of text
+-- is shown at the top, see overlay.vhd: the view (the centre and the zoom, see
+-- view_text.vhd) in the top left corner, and the frame rate in the top right
+-- corner.
 --
 -- The address of the pixel in column x and row y of the picture is
 -- x*G_COL_STRIDE + y, with G_ADDR_BITS bits, the same as in dispatcher.vhd.
@@ -17,6 +19,7 @@ use ieee.numeric_std_unsigned.all;
 
 use work.util_pkg.all;
 use work.video_pkg.all;
+use work.text_pkg.all;
 
 entity vga is
    generic (
@@ -40,6 +43,10 @@ entity vga is
       fps_digits_i : in  std_logic_vector(31 downto 0);
       fps_blank_i  : in  std_logic_vector( 7 downto 0);
 
+      -- The view, moved from the MAIN clock domain together with the frame
+      -- rate, see view_text.vhd and text_pkg.vhd
+      view_text_i  : in  std_logic_vector(99 downto 0);
+
       vga_hs_o     : out std_logic;
       vga_vs_o     : out std_logic;
       vga_de_o     : out std_logic;                       -- Visible area
@@ -52,9 +59,19 @@ architecture structural of vga is
    -- The number of bits of the rows in the visible area
    constant C_ROW_BITS : natural := log2(G_MODE.v_visible);
 
-   -- The number of digits of the frame rate. The overlay is 8 pixels from the
-   -- right edge, and each digit is 16 pixels wide (see overlay.vhd).
+   -- The line of text of the overlay, from 8 pixels from the left edge to 8
+   -- pixels from the right edge, in characters of 16 pixels (see
+   -- overlay.vhd): 79 characters for 1280 pixels, and 39 for 640. The view is
+   -- on the left, and the frame rate (C_DIGITS digits) on the right, with the
+   -- characters in between not shown.
    constant C_DIGITS   : natural := fps_blank_i'length;
+   constant C_VIEW     : natural := view_text_i'length / 4;
+   constant C_CHARS    : natural := (G_MODE.h_visible - 16) / 16;
+   constant C_GAP      : natural := C_CHARS - C_VIEW - C_DIGITS;
+
+   -- The frame rate as characters, with the blanked digits not shown
+   signal fps_chars : std_logic_vector(4*C_DIGITS-1 downto 0);
+   signal chars     : std_logic_vector(4*C_CHARS-1 downto 0);
 
    signal pix_x : std_logic_vector(10 downto 0);
    signal pix_y : std_logic_vector(10 downto 0);
@@ -96,6 +113,10 @@ begin
    -- the 22 bits of rd_addr
    assert G_COL_STRIDE < 2**11 and G_ADDR_BITS <= rd_addr'length
       report "The column stride must be less than 2048, and the address at most 22 bits"
+      severity failure;
+
+   assert C_VIEW + C_DIGITS < C_CHARS
+      report "The text does not fit in the line"
       severity failure;
 
    --------------------------------------------------
@@ -163,18 +184,25 @@ begin
 
 
    --------------------------------------------------
-   -- Instantiate frame rate overlay
+   -- Instantiate the overlay of the view and the
+   -- frame rate
    --------------------------------------------------
+
+   gen_fps_chars : for i in 0 to C_DIGITS-1 generate
+      fps_chars(4*i+3 downto 4*i) <= C_CHAR_NONE when fps_blank_i(i) = '1' else
+                                     fps_digits_i(4*i+3 downto 4*i);
+   end generate gen_fps_chars;
+
+   chars <= view_text_i & (4*C_GAP-1 downto 0 => '1') & fps_chars;
 
    i_overlay : entity work.overlay
       generic map (
-         G_DIGITS => C_DIGITS,
-         G_X      => G_MODE.h_visible - 8 - 16*C_DIGITS
+         G_CHARS => C_CHARS,
+         G_X     => 8
       )
       port map (
          vga_clk_i    => clk_i,
-         fps_digits_i => fps_digits_i,
-         fps_blank_i  => fps_blank_i,
+         chars_i      => chars,
          vga_pix_x_i  => disp_x,
          vga_pix_y_i  => disp_y,
          vga_hs_d4_i  => disp_hs,

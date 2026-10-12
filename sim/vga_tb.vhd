@@ -28,8 +28,8 @@
 -- pixel of a frame is the value of that pixel in the selected palette, and
 -- black outside the visible area.
 --
--- The frame rate overlay (overlay.vhd) is switched off here (all digits are
--- blanked), it is tested by overlay_tb.vhd.
+-- The overlay of the view and the frame rate (overlay.vhd) is switched off
+-- here (no characters are shown), it is tested by overlay_tb.vhd.
 --
 -- Each instance runs for a little more than two frames, and the testbench
 -- stops by itself.
@@ -389,6 +389,7 @@ begin
             palette_i    => palette,
             fps_digits_i => (others => '0'),
             fps_blank_i  => (others => '1'),
+            view_text_i  => (others => '1'),
             vga_hs_o     => vga_hs,
             vga_vs_o     => vga_vs,
             vga_col_o    => vga_col

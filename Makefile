@@ -54,6 +54,7 @@ nexys4ddr_SRC  = src/nexys4ddr.vhd
 # also given to the Vivado script (mandelbrot.tcl), followed by the source
 # files of the board.
 SRC  = src/util_pkg.vhd
+SRC += src/text_pkg.vhd
 SRC += src/main/iterator.vhd
 SRC += src/main/job.vhd
 SRC += src/main/job_scheduler.vhd
@@ -74,13 +75,14 @@ SRC += src/vga/vga.vhd
 SRC += src/main/viewport.vhd
 SRC += src/main/controls.vhd
 SRC += src/main/fps.vhd
+SRC += src/main/view_text.vhd
 SRC += src/main/seg.vhd
 SRC += src/main/main.vhd
 SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga redraw picture overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps cdc_data controls
+TBS = vga redraw picture overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps view_text cdc_data controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
 # the command line, e.g. "make run TB=iterator".

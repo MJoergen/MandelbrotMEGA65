@@ -24,6 +24,14 @@
 -- fps_valid_o is high for one clock cycle when fps_digits_o and fps_blank_o
 -- are changed. The top level module moves the frame rate to the VGA clock
 -- domain, so this module does not depend on the VGA clock.
+--
+-- The view of each picture (the centre and the zoom) is converted to text
+-- when the picture is started, see view_text.vhd, and shown on the VGA output
+-- too. view_text_o is changed together with the frame rate, at the end of the
+-- picture (fps_valid_o), so the text and the frame rate on the screen are
+-- always those of the same picture, i.e. the latest one, and the top level
+-- moves them to the VGA clock domain together. The conversion takes 130
+-- clock cycles (for 1280x1024), which is much less than a picture.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -67,6 +75,9 @@ entity main is
       fps_blank_o  : out std_logic_vector( 7 downto 0);
       fps_valid_o  : out std_logic;
 
+      -- The view of the latest picture, as text, see view_text.vhd
+      view_text_o  : out std_logic_vector(99 downto 0);
+
       -- Write port of the display memory
       wr_addr_o    : out std_logic_vector(G_ADDR_BITS-1 downto 0);
       wr_data_o    : out std_logic_vector(9*G_PIXELS-1 downto 0);
@@ -87,6 +98,9 @@ architecture structural of main is
    constant C_SIZE_X        : real :=  2.6667;
    constant C_SIZE_Y        : real :=  2.0 * real(4*G_NUM_ROWS) / real(3*G_NUM_COLS);
    constant C_START_Y       : real := -C_SIZE_Y / 2.0;
+
+   -- The initial size of a pixel in LSBs, as in viewport.vhd
+   constant C_INIT_STEP     : positive := integer(C_SIZE_X*real(2**16))/G_NUM_COLS;
 
    signal startx         : std_logic_vector(17 downto 0);
    signal starty         : std_logic_vector(17 downto 0);
@@ -122,6 +136,11 @@ architecture structural of main is
    signal fps_digits     : std_logic_vector(31 downto 0);
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
+
+   -- The view of the picture, as text. view_text_r is changed together with
+   -- the frame rate. Nothing is shown before the first picture.
+   signal view_text      : std_logic_vector(99 downto 0);
+   signal view_text_r    : std_logic_vector(99 downto 0) := (others => '1');
 
    -- The view is updated 18 times per second.
    constant C_UPD_PERIOD : natural := G_CLK_FREQ / 18;
@@ -305,6 +324,46 @@ begin
    fps_digits_o <= fps_digits;
    fps_blank_o  <= fps_blank;
    fps_valid_o  <= fps_valid;
+
+
+   --------------------------------------------------
+   -- Convert the view of the picture to text
+   --------------------------------------------------
+
+   -- The dispatcher takes the view when it sees the start, so the text is of
+   -- the same view.
+   i_view_text : entity work.view_text
+      generic map (
+         G_NUM_COLS  => G_NUM_COLS,
+         G_NUM_ROWS  => G_NUM_ROWS,
+         G_INIT_STEP => C_INIT_STEP
+      )
+      port map (
+         clk_i    => clk_i,
+         rst_i    => rst_i,
+         start_i  => start,
+         startx_i => startx,
+         starty_i => starty,
+         stepx_i  => stepx,
+         stepy_i  => stepy,
+         text_o   => view_text,
+         valid_o  => open
+      ); -- i_view_text
+
+   p_view_text : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         if fps_valid = '1' then
+            view_text_r <= view_text;
+         end if;
+
+         if rst_i = '1' then
+            view_text_r <= (others => '1');
+         end if;
+      end if;
+   end process p_view_text;
+
+   view_text_o <= view_text_r;
 
    i_seg : entity work.seg
       port map (
