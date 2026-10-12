@@ -1,18 +1,22 @@
--- This is a self-checking testbench for the controls of the MEGA65
--- (controls.vhd). A model of the keyboard driver cycles through the 80 keys,
--- one in each clock cycle, and shows whether each of them is pressed. The
--- testbench tries every combination of the six joystick lines (up, down,
--- left, right, and the fire buttons of both ports) and the six keys that are
--- used (the four cursor keys, "+", and "-"), each time also with a random set
--- of the other keys pressed. After a full cycle of the keyboard driver, it
--- checks the buttons and switches against the mapping in README.md
--- (Controls):
--- * Zoom (btn 4): either fire button, "+", or "-".
--- * Zoom out (switch 2): the fire button of port 2, or "-".
--- * Pan left, right, up, and down (btn 3 to 0): the directions of port 1,
---   or the cursor keys.
--- * The other switches are off.
--- It also checks that the keys are released again.
+-- This is a self-checking testbench for the mapping of the joysticks and the
+-- keyboard of the MEGA65 to the buttons and switches (controls.vhd). It
+-- behaves like the keyboard driver (m2m_keyb.vhd): it cycles through all the
+-- keys, each for C_HOLD clock cycles, and shows whether each one is pressed.
+-- It checks:
+-- * Nothing is pressed after power-on, and palette 0 is selected.
+-- * Each of the keys used, on its own, gives the expected button or switch,
+--   and each key "1" to "4" selects its palette, which stays selected when
+--   the key is released.
+-- * When several of the keys "1" to "4" are pressed, the lowest one wins, and
+--   the palette does not change during the scan.
+-- * All 64 combinations of the joystick inputs, with no key pressed.
+-- * Random combinations of pressed keys (also the keys that are not used) and
+--   joystick inputs.
+-- The inputs are changed at the start of a cycle through the keys (key 0), as
+-- the palette is only changed at the end of a cycle. After each change it
+-- waits for that cycle, and then checks the outputs in every clock cycle of
+-- the next cycle through the keys, so they must not change while the inputs
+-- stay the same.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -24,28 +28,42 @@ end entity controls_tb;
 
 architecture simulation of controls_tb is
 
-   -- The keys that are used, in the order of the bits of keys_v below: cursor
-   -- up, down, left, and right, "+", and "-" (see matrix_to_keynum.vhd)
-   type key_vector is array (natural range <>) of natural;
-   constant C_KEYS : key_vector(0 to 5) := (73, 7, 74, 2, 40, 43);
+   constant C_NUM_KEYS  : natural := 80;
+   constant C_HOLD      : natural := 3;  -- Clock cycles for each key
+   constant C_SCAN      : natural := C_NUM_KEYS * C_HOLD;
+   constant C_KEY_UP    : natural := 73;
+   constant C_KEY_DOWN  : natural := 7;
+   constant C_KEY_LEFT  : natural := 74;
+   constant C_KEY_RIGHT : natural := 2;
+   constant C_KEY_PLUS  : natural := 40;
+   constant C_KEY_MINUS : natural := 43;
+   constant C_KEY_1     : natural := 56;
+   constant C_KEY_2     : natural := 59;
+   constant C_KEY_3     : natural := 8;
+   constant C_KEY_4     : natural := 11;
+
+   -- The keys "1" to "4", for the palettes 0 to 3
+   type nat_vector is array (natural range <>) of natural;
+   constant C_PALETTE_KEYS : nat_vector(0 to 3) := (C_KEY_1, C_KEY_2, C_KEY_3, C_KEY_4);
+
+   -- The joystick inputs, active low: fire of port 2, then fire, left, right,
+   -- up, and down of port 1
+   constant C_JOY_NONE : std_logic_vector(5 downto 0) := "111111";
 
    signal clk           : std_logic;
-   signal key_num       : natural range 0 to 79 := 0;
+   signal pressed       : std_logic_vector(C_NUM_KEYS-1 downto 0) := (others => '0');
+   signal joy_n         : std_logic_vector(5 downto 0)            := C_JOY_NONE;
+   signal key_num       : natural range 0 to C_NUM_KEYS-1         := 0;
+   signal hold_cnt      : natural range 0 to C_HOLD-1             := 0;
    signal key_pressed_n : std_logic;
-
-   -- The keys pressed, and the joystick lines (active low)
-   signal pressed       : std_logic_vector(0 to 79) := (others => '0');
-   signal fa_up_n       : std_logic := '1';
-   signal fa_down_n     : std_logic := '1';
-   signal fa_left_n     : std_logic := '1';
-   signal fa_right_n    : std_logic := '1';
-   signal fa_fire_n     : std_logic := '1';
-   signal fb_fire_n     : std_logic := '1';
-
    signal btn           : std_logic_vector(4 downto 0);
    signal sw            : std_logic_vector(7 downto 0);
 
 begin
+
+   ----------------------------
+   -- Generate clock
+   ----------------------------
 
    p_clk : process
    begin
@@ -53,119 +71,162 @@ begin
       wait for 10 ns;
    end process p_clk;
 
-   -- The keyboard driver goes through all the keys, one in each clock cycle
-   p_keyb : process (clk)
+
+   ----------------------------
+   -- Keyboard driver
+   ----------------------------
+
+   p_key_num : process (clk)
    begin
       if rising_edge(clk) then
-         if key_num < 79 then
-            key_num <= key_num + 1;
+         if hold_cnt = C_HOLD-1 then
+            hold_cnt <= 0;
+            key_num  <= (key_num + 1) mod C_NUM_KEYS;
          else
-            key_num <= 0;
+            hold_cnt <= hold_cnt + 1;
          end if;
       end if;
-   end process p_keyb;
+   end process p_key_num;
 
    key_pressed_n <= not pressed(key_num);
 
 
-   p_test : process
-      variable seed1_v    : positive := 1;
-      variable seed2_v    : positive := 2;
-      variable r_v        : real;
-      variable joy_v      : std_logic_vector(5 downto 0);  -- Up, down, left, right, fire A, fire B
-      variable keys_v     : std_logic_vector(5 downto 0);  -- As in C_KEYS
-      variable other_v    : std_logic_vector(0 to 79);
-      variable exp_btn_v  : std_logic_vector(4 downto 0);
-      variable exp_sw_v   : std_logic_vector(7 downto 0);
-      variable errors_v   : natural := 0;
-   begin
-      for c in 0 to 2**12-1 loop
-         joy_v  := std_logic_vector(to_unsigned(c mod 64, 6));
-         keys_v := std_logic_vector(to_unsigned(c / 64, 6));
-
-         -- Random other keys
-         for k in 0 to 79 loop
-            uniform(seed1_v, seed2_v, r_v);
-            other_v(k) := '1' when r_v < 0.2 else '0';
-         end loop;
-         for i in C_KEYS'range loop
-            other_v(C_KEYS(i)) := keys_v(i);
-         end loop;
-
-         pressed    <= other_v;
-         fa_up_n    <= not joy_v(0);
-         fa_down_n  <= not joy_v(1);
-         fa_left_n  <= not joy_v(2);
-         fa_right_n <= not joy_v(3);
-         fa_fire_n  <= not joy_v(4);
-         fb_fire_n  <= not joy_v(5);
-
-         -- A full cycle of the keyboard driver
-         for t in 1 to 81 loop
-            wait until rising_edge(clk);
-         end loop;
-         wait for 1 ns;
-
-         exp_btn_v(4) := joy_v(4) or joy_v(5) or keys_v(4) or keys_v(5);
-         exp_btn_v(3) := joy_v(2) or keys_v(2);
-         exp_btn_v(2) := joy_v(3) or keys_v(3);
-         exp_btn_v(1) := joy_v(0) or keys_v(0);
-         exp_btn_v(0) := joy_v(1) or keys_v(1);
-         exp_sw_v     := (others => '0');
-         exp_sw_v(2)  := joy_v(5) or keys_v(5);
-         if btn /= exp_btn_v or sw /= exp_sw_v then
-            if errors_v < 10 then
-               report "Joysticks " & to_string(joy_v) & ", keys " & to_string(keys_v) &
-                      ": buttons " & to_string(btn) & ", switches " & to_string(sw) &
-                      ", expected " & to_string(exp_btn_v) & " and " & to_string(exp_sw_v)
-                  severity error;
-            end if;
-            errors_v := errors_v + 1;
-         end if;
-      end loop;
-
-      -- Release everything
-      pressed    <= (others => '0');
-      fa_up_n    <= '1';
-      fa_down_n  <= '1';
-      fa_left_n  <= '1';
-      fa_right_n <= '1';
-      fa_fire_n  <= '1';
-      fb_fire_n  <= '1';
-      for t in 1 to 81 loop
-         wait until rising_edge(clk);
-      end loop;
-      wait for 1 ns;
-      assert btn = "00000" and sw = X"00"
-         report "The buttons or switches are still on after everything is released"
-         severity error;
-
-      assert errors_v = 0
-         report integer'image(errors_v) & " wrong combinations"
-         severity error;
-
-      report "controls_tb: finished";
-      std.env.finish;
-   end process p_test;
-
-
-   -------------------
+   ----------------------------
    -- Instantiate DUT
-   -------------------
+   ----------------------------
 
    i_controls : entity work.controls
       port map (
          clk_i           => clk,
          key_num_i       => key_num,
          key_pressed_n_i => key_pressed_n,
-         fa_up_n_i       => fa_up_n,
-         fa_down_n_i     => fa_down_n,
-         fa_left_n_i     => fa_left_n,
-         fa_right_n_i    => fa_right_n,
-         fa_fire_n_i     => fa_fire_n,
-         fb_fire_n_i     => fb_fire_n,
+         fa_up_n_i       => joy_n(1),
+         fa_down_n_i     => joy_n(0),
+         fa_left_n_i     => joy_n(3),
+         fa_right_n_i    => joy_n(2),
+         fa_fire_n_i     => joy_n(4),
+         fb_fire_n_i     => joy_n(5),
          btn_o           => btn,
          sw_o            => sw
       ); -- i_controls
+
+
+   ----------------------------
+   -- Test
+   ----------------------------
+
+   p_test : process
+      variable palette_v : natural range 0 to 3 := 0;
+      variable seed1_v   : positive := 1;
+      variable seed2_v   : positive := 1;
+      variable rand_v    : real;
+      variable keys_v    : std_logic_vector(C_NUM_KEYS-1 downto 0);
+      variable joy_v     : std_logic_vector(5 downto 0);
+
+      -- Set the inputs, wait for one cycle through the keys, and check the
+      -- outputs during the next one. palette_v is the palette that was
+      -- selected before, and is updated here.
+      procedure check (keys : std_logic_vector(C_NUM_KEYS-1 downto 0);
+                       joy  : std_logic_vector(5 downto 0);
+                       msg  : string) is
+         variable btn_v : std_logic_vector(4 downto 0);
+         variable sw_v  : std_logic_vector(7 downto 0);
+      begin
+         -- Start of a cycle through the keys
+         wait until rising_edge(clk) and key_num = C_NUM_KEYS-1 and hold_cnt = C_HOLD-1;
+         pressed <= keys;
+         joy_n   <= joy;
+
+         -- The lowest key "1" to "4" wins
+         for i in 3 downto 0 loop
+            if keys(C_PALETTE_KEYS(i)) = '1' then
+               palette_v := i;
+            end if;
+         end loop;
+
+         btn_v(4) := not (joy(4) and joy(5)) or keys(C_KEY_PLUS) or keys(C_KEY_MINUS);
+         btn_v(3) := not joy(3) or keys(C_KEY_LEFT);
+         btn_v(2) := not joy(2) or keys(C_KEY_RIGHT);
+         btn_v(1) := not joy(1) or keys(C_KEY_UP);
+         btn_v(0) := not joy(0) or keys(C_KEY_DOWN);
+         sw_v     := "00000" & (not joy(5) or keys(C_KEY_MINUS)) &
+                     std_logic_vector(to_unsigned(palette_v, 2));
+
+         -- Two more clock cycles: one for the registers of the keys, and one
+         -- for the palette
+         for i in 1 to C_SCAN + 2 loop
+            wait until rising_edge(clk);
+         end loop;
+
+         for i in 1 to C_SCAN loop
+            wait until falling_edge(clk);
+            assert btn = btn_v
+               report msg & ": btn is " & to_string(btn) & ", expected " & to_string(btn_v)
+               severity error;
+            assert sw = sw_v
+               report msg & ": sw is " & to_string(sw) & ", expected " & to_string(sw_v)
+               severity error;
+         end loop;
+      end procedure check;
+
+      -- Only the key k is pressed
+      function key (k : natural) return std_logic_vector is
+         variable res_v : std_logic_vector(C_NUM_KEYS-1 downto 0) := (others => '0');
+      begin
+         res_v(k) := '1';
+         return res_v;
+      end function key;
+
+      constant C_NO_KEYS : std_logic_vector(C_NUM_KEYS-1 downto 0) := (others => '0');
+
+   begin
+      -- After power-on, the outputs are checked without changing the inputs
+      check(C_NO_KEYS, C_JOY_NONE, "Power-on");
+
+      -- Each key on its own, and released again
+      for k in 0 to C_NUM_KEYS-1 loop
+         check(key(k), C_JOY_NONE, "Key " & to_string(k));
+         check(C_NO_KEYS, C_JOY_NONE, "Key " & to_string(k) & " released");
+      end loop;
+
+      -- The palette keys in another order than above
+      for i in 0 to 3 loop
+         check(key(C_PALETTE_KEYS((i + 2) mod 4)), C_JOY_NONE, "Palette key " & to_string(i));
+         check(C_NO_KEYS, C_JOY_NONE, "Palette key " & to_string(i) & " released");
+      end loop;
+
+      -- Several palette keys at the same time
+      for i in 1 to 15 loop
+         keys_v := C_NO_KEYS;
+         for j in 0 to 3 loop
+            if (i / 2**j) mod 2 = 1 then
+               keys_v(C_PALETTE_KEYS(j)) := '1';
+            end if;
+         end loop;
+         check(keys_v, C_JOY_NONE, "Palette keys " & to_string(i));
+         check(key(C_PALETTE_KEYS(3 - (i mod 4))), C_JOY_NONE, "Palette key after " & to_string(i));
+      end loop;
+
+      -- All the combinations of the joystick inputs
+      for i in 0 to 63 loop
+         check(C_NO_KEYS, std_logic_vector(to_unsigned(i, 6)), "Joystick " & to_string(i));
+      end loop;
+
+      -- Random keys and joystick inputs
+      for i in 1 to 300 loop
+         for k in 0 to C_NUM_KEYS-1 loop
+            uniform(seed1_v, seed2_v, rand_v);
+            keys_v(k) := '1' when rand_v < 0.1 else '0';
+         end loop;
+         for j in 0 to 5 loop
+            uniform(seed1_v, seed2_v, rand_v);
+            joy_v(j) := '0' when rand_v < 0.3 else '1';
+         end loop;
+         check(keys_v, joy_v, "Random " & to_string(i));
+      end loop;
+
+      report "controls_tb: finished";
+      std.env.finish;
+   end process p_test;
 
 end architecture simulation;
