@@ -24,7 +24,8 @@ BOARD =
 # design (src/mega65.vhd). Only the top level modules are different, because
 # some of the pins are different. The bit-file of one revision must not be
 # used on the other one. The keyboard driver and the HDMI output (both from
-# the C64MEGA65 core) are only on the MEGA65.
+# the C64MEGA65 core) are only on the MEGA65. The link to the MAX10 (also
+# from the C64MEGA65 core), which reads the reset button, is only on the R3.
 MEGA65_SRC  = src/keyboard/kb_matrix_ram.vhd
 MEGA65_SRC += src/keyboard/mega65kbd_to_matrix.vhd
 MEGA65_SRC += src/keyboard/matrix_to_keynum.vhd
@@ -38,7 +39,7 @@ MEGA65_SRC += src/mega65.vhd
 
 mega65-r3_PART = xc7a200tfbg484-2
 mega65-r3_TOP  = mega65_r3
-mega65-r3_SRC  = $(MEGA65_SRC) src/mega65_r3.vhd
+mega65-r3_SRC  = $(MEGA65_SRC) src/max10/max10.vhd src/mega65_r3.vhd
 
 mega65-r6_PART = xc7a200tfbg484-2
 mega65-r6_TOP  = mega65_r6

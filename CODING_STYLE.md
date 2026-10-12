@@ -6,8 +6,8 @@ This describes how the VHDL files of the Mandelbrot design (`src`, `sim`, and
 [vsg.yml](vsg.yml), see [Checking the style](#checking-the-style). The rest
 (marked *not checked*) is a convention that the author keeps by hand.
 
-The files copied unchanged from the C64MEGA65 core (`src/hdmi` and
-`src/keyboard`) and the generated `src/vga/font_pkg.vhd` keep their own style
+The files copied unchanged from the C64MEGA65 core (`src/hdmi`,
+`src/keyboard`, and `src/max10`) and the generated `src/vga/font_pkg.vhd` keep their own style
 and are not covered.
 
 ## Files
@@ -233,7 +233,7 @@ Install VSG (`pip install vsg`) and run, in the top folder:
 
 ```sh
 vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' \
-                             ':!src/hdmi' ':!src/keyboard')
+                             ':!src/hdmi' ':!src/keyboard' ':!src/max10')
 ```
 
 Add `--fix` to let VSG fix what it can. Without `-ap`, VSG stops at the first

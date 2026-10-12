@@ -68,7 +68,7 @@ joystick in each port, or with the keyboard, see
 | Joystick port 1: left, right, up, down, or the cursor keys | Pan the picture left, right, up, and down, by 1/320 of the width of the picture (4 pixels) for each update. Panning stops at the edge of the number range (-2 to 2).
 | Joystick port 1: fire, or the `+` key | Zoom in. The centre of the picture stays fixed. Zooming in stops at the smallest pixel size (2^-16).
 | Joystick port 2: fire, or the `-` key | Zoom out. The centre of the picture stays fixed, except when zooming out would move an edge of the view beyond -2 or 2; then the view is moved instead. Zooming out stops when the view can not get larger.
-| Reset button | Resets the design and returns to the initial view. Only on the R6: on the R3 the reset button is read by the MAX10 (a small FPGA on the board), not by the XC7A200T, so the design is only reset after power-on.
+| Reset button | Resets the design and returns to the initial view. On the R3 the reset button is read by the MAX10 (a small FPGA on the board), which sends it to the XC7A200T over a serial link.
 
 While a control is held down, the view is updated about 18 times per second.
 Each update pans by 1/320 of the width (about 5.6% per second), or changes the
@@ -112,7 +112,10 @@ bit-file of one revision must not be used on the other one. The R6 can pull
 each joystick line low from the FPGA, and the design for the R6 must switch
 this off, otherwise the joystick lines can be read as pressed, see
 [`src/mega65_r6.vhd`](src/mega65_r6.vhd). The R3 does not have these
-outputs, and the pins are used for other things.
+outputs, and the pins are used for other things. On the R3 the reset button
+is not connected to the XC7A200T, but to the MAX10, and the design for the
+R3 reads it from the MAX10 over a serial link, see
+[`src/mega65_r3.vhd`](src/mega65_r3.vhd).
 
 ## Nexys 4 DDR
 The same design also runs on the Nexys 4 DDR, which has a Xilinx Artix-7
@@ -398,6 +401,9 @@ copied from other projects, which keep their own licenses:
   Gardner-Stephen, GPL v3.
 * [`src/hdmi/`](src/hdmi): the HDMI output, from The Tyto Project by Adam
   Barnes (via C64MEGA65), LGPL v3.
+* [`src/max10/`](src/max10): the serial link to the MAX10 of the MEGA65 R3,
+  from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul
+  Gardner-Stephen (via C64MEGA65), GPL v3.
 * [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd): the digits of the
   [Spleen](https://github.com/fcambus/spleen) font by Frederic Cambus, BSD
   2-Clause (see [`font/LICENSE.spleen`](font/LICENSE.spleen), and the header
@@ -405,6 +411,7 @@ copied from other projects, which keep their own licenses:
 
 The keyboard driver and the HDMI output are only used on the MEGA65, so a
 bit-file for the MEGA65 includes them, and one for the Nexys 4 DDR does not.
+The link to the MAX10 is only used on the MEGA65 R3.
 `src/clk_rst.vhd` started as the output of the Xilinx Clocking Wizard, but
 has been rewritten by hand.
 
@@ -412,17 +419,18 @@ has been rewritten by hand.
 The files used only in the MAIN clock domain are in [`src/main/`](src/main),
 and those used only in the VGA clock domain are in [`src/vga/`](src/vga). The
 files that are in both clock domains are in [`src/`](src), and the files from
-other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard)
-and [`src/hdmi/`](src/hdmi).
+other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
+[`src/hdmi/`](src/hdmi), and [`src/max10/`](src/max10).
 
 | File             | Description
 | ---------------- | -----------
-| [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions.
+| [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions. The R3 reads the reset button from the MAX10, with `max10`.
 | [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
 | [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate and the view from the MAIN clock domain to the VGA clock domain.
 | [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`.
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
+| [`src/max10/`](src/max10) | Serial link to the MAX10 of the MEGA65 R3, from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul Gardner-Stephen (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `max10` sends a 25 MHz clock to the MAX10, and reads the reset button (and other signals, which are not used) from it. Only used by `mega65_r3.vhd`.
 | [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd) | Top level for the Nexys 4 DDR. The same as `mega65.vhd`, but with the ports of the Nexys 4 DDR (mapped directly to pins on the FPGA), fewer job modules, a smaller display memory, a resolution of 640x480, and no HDMI output.
 | [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, the view as text (shown on the VGA output), and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
 | [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format.
