@@ -1354,9 +1354,15 @@ Both boards are built with Vivado 2025.1, with the same script
 The resource numbers below are from `report_utilization` on the routed design
 (`build/<board>/<board>.dcp`), and the slack is from
 `report_timing_summary` on the same design, i.e. after the post-route
-`phys_opt_design`. The first two subsections give the current results for
-each board, the third gives the power, and the last two describe how the
-design and the main clock got there.
+`phys_opt_design`. The build script writes these reports to
+`build/<board>/utilization.rpt` and `build/<board>/timing.rpt`, and the
+power estimate (see [Power](#power), "busy") to `build/<board>/power.rpt`.
+It only writes the bit-file when the setup and the hold slack are both
+positive, so a run that fails timing (see the variation between runs
+below) gives no bit-file that `make fpga` could load. The first two
+subsections give the current results for each board, the third gives the
+power, and the last two describe how the design and the main clock got
+there.
 
 The iterators use both of their DSPs in every clock cycle, so the 736 DSPs of
 the MEGA65 at 141.64 MHz give 104 billion multiplications per second. On the
@@ -1603,7 +1609,8 @@ only calculated when the view changes (see [The top level](#the-top-level)),
 the iterators do not toggle while they are idle (see
 [Iterator](#iterator)), and the display memory only reads the BRAM that
 holds the pixel and has no reset (see [The top level](#the-top-level)). The numbers below are
-estimates by `report_power` on the routed designs, without simulation data
+estimates by `report_power` on the routed designs (the "busy" numbers are in
+`build/<board>/power.rpt`), without simulation data
 (vectorless). "Busy" uses the default activity of Vivado (most signals
 toggle in 12.5% of the clock cycles), i.e. roughly the design while a
 picture is calculated. "Idle" sets the activity of all the signals in the

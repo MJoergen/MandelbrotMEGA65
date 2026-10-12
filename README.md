@@ -180,7 +180,14 @@ Type `make` to list the supported targets. The most important ones are:
   `/opt/Xilinx/2025.1/Vivado` (the variable `XILINX_DIR`). It takes about 13
   minutes, see [MEGA65](ALGORITHM.md#mega65). Vivado is run in
   `build/mega65-r6/`, so the log (`vivado.log`), the routed checkpoint
-  (`mega65-r6.dcp`), and the other files from Vivado are there too.
+  (`mega65-r6.dcp`), the reports of the routed design (`timing.rpt`,
+  `utilization.rpt`, and `power.rpt`), and the other files from Vivado are
+  there too. The bit-file is only written when the design meets timing:
+  otherwise the build deletes any old bit-file and stops with an error (the
+  checkpoint and the reports are still written). The build also stops after
+  synthesis if it does not find two DSPs for each iterator, because then the
+  DSPs of the iterators are not placed next to each other, see
+  [Iterator](ALGORITHM.md#iterator).
 * `make mega65-r3` does the same for the MEGA65 R3, in `build/mega65-r3/`, and
   generates `build/mega65-r3/mega65-r3.bit`. Use the bit-file of your board
   revision, see [Board revisions](#board-revisions).

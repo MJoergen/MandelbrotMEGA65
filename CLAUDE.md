@@ -19,7 +19,10 @@ m65, Python with numpy).
 * `make formal`: the formal proofs, about 20 seconds.
 * `make mega65-r6`, `make mega65-r3` (about 13 minutes each), `make nexys4ddr`
   (about 6 minutes). Run them in the background, or `make -j3 mega65-r3
-  mega65-r6 nexys4ddr`. The results are in `build/<board>/vivado.log`.
+  mega65-r6 nexys4ddr`. The results are in `build/<board>/vivado.log`, and
+  the reports of the routed design in `build/<board>/timing.rpt`,
+  `utilization.rpt`, and `power.rpt`. A build that fails timing writes no
+  bit-file, and make stops with an error.
 * `sim/model.py` (about 1 minute): bit-accurate model, and the estimated
   time for the picture. `make run TB=main STOP_TIME=200us` and then
   `sim/cmp_rtl.py` compare the simulated design with the model (about
