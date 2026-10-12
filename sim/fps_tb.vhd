@@ -359,11 +359,11 @@ begin
             severity error;
       end loop;
 
-      report "Average test finished";
       if not test_done then
          wait until test_done;
       end if;
-      std.env.stop;
+      report "fps_tb: finished";
+      std.env.finish;
    end process p_avg;
 
 end architecture simulation;

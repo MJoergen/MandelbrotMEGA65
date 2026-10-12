@@ -63,7 +63,7 @@ begin
    begin
       wait until finished = (finished'range => '1');
       report "res_scheduler_tb: finished";
-      std.env.stop;
+      std.env.finish;
    end process p_finish;
 
 

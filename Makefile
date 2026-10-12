@@ -89,7 +89,8 @@ GENERICS =
 
 # Maximum simulation time. This must be longer than the slowest testbench. The
 # testbenches stop by themselves, the slowest of those is vga (about 5.3 ms,
-# for 1280x1024).
+# for 1280x1024). "make sim" counts a testbench that is still running at this
+# time as failed.
 STOP_TIME = 6ms
 
 TB_EXE = $(TB)_tb
@@ -205,20 +206,26 @@ sim:
 	echo "All testbenches passed"
 
 # Simulate a single testbench as part of "make sim", with the output going to
-# build/<name>.log.
+# build/<name>.log. A testbench only passes if it has also reported
+# "<name>_tb: finished": a testbench that hangs (e.g. waiting for a done flag
+# that never comes) runs until STOP_TIME, and then GHDL exits with status 0.
 .PHONY: $(SIM_TARGETS)
 $(SIM_TARGETS): sim-%:
 	@mkdir -p build
 	@echo "=== Simulating $* ==="
 	@start=`date +%s`; \
-	if $(MAKE) --no-print-directory run TB=$* > build/$*.log 2>&1; then \
-	   result="PASS"; \
-	else \
+	note=""; \
+	if ! $(MAKE) --no-print-directory run TB=$* > build/$*.log 2>&1; then \
 	   result="FAIL"; \
+	elif ! grep -q "$*_tb: finished" build/$*.log; then \
+	   result="FAIL"; \
+	   note=", not finished by $(STOP_TIME)"; \
+	else \
+	   result="PASS"; \
 	fi; \
 	secs=$$((`date +%s` - start)); \
-	echo "$$result ($${secs}s)" > build/$*.status; \
-	echo "=== $*: $$result ($${secs}s), log in build/$*.log ==="; \
+	echo "$$result ($${secs}s$$note)" > build/$*.status; \
+	echo "=== $*: $$result ($${secs}s$$note), log in build/$*.log ==="; \
 	[ $$result = PASS ]
 
 ifeq ($(TB),)

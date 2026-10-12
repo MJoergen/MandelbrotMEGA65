@@ -221,7 +221,10 @@ There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `fps`, and one (`redraw`) which checks that `main` only calculates a picture
 when the view changes, and that the pictures end up in the display memory.
 All of them are self-checking, and stop with an error if the result is wrong.
-They stop by themselves when they are finished.
+They stop by themselves when they are finished, and report
+`<name>_tb: finished`. `make sim` only counts a testbench as passed when it
+has reported this, so a testbench that hangs (and runs until the `STOP_TIME`
+of the Makefile, 6 ms) fails, although GHDL then exits without an error.
 
 There is also a testbench for `main`, which is not part of `make sim`, because
 it is slow. It writes the calculated picture to a file, which is compared

@@ -222,7 +222,8 @@ Other naming habits:
 * A testbench is self-checking: it uses `assert` to compare the result with the
   expected value, and reports what went wrong.
 * When everything is done it reports `"<name>_tb: finished"` and calls
-  `std.env.finish`, so the simulation ends by itself.
+  `std.env.finish`, so the simulation ends by itself. `make sim` counts a
+  testbench as failed if the report is missing from its log.
 * Bit-accurate reference models live in a package in `sim`
   (e.g. `iterator_model_pkg.vhd`).
 
@@ -255,6 +256,4 @@ These parts of the code do not follow the conventions above yet:
   (`clk_rst.vhd`, `mega65_r6.vhd`) instead of the `_n` suffix used elsewhere.
 * Constrained array types use `_t` (e.g. `seg_table_t`), except `mem_vector`
   in `sim/overlay_tb.vhd`.
-* `fps_tb.vhd` and `res_scheduler_tb.vhd` end with `std.env.stop` instead of
-  `std.env.finish`, and `fps_tb.vhd` reports a different finish message.
 * 22 lines are over 100 columns, mostly in the testbenches.
