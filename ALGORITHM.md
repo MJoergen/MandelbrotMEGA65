@@ -65,7 +65,7 @@ The modules are instantiated as follows on the MEGA65:
 mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top level, the pins of each board revision)
  +- mega65                          src/mega65.vhd (the design for the MEGA65)
      +- m2m_keyb                    src/keyboard/m2m_keyb.vhd (keyboard driver, in the MAIN clock domain)
-     +- (p_keys)                    (stores the keys that are used)
+     +- controls                    src/main/controls.vhd (maps the joysticks and keys to the buttons and switches)
      +- clk_rst                     src/clk_rst.vhd (MMCM, clock buffers, and resets)
      +- main                        src/main/main.vhd (everything in the MAIN clock domain)
      |   +- viewport                src/main/viewport.vhd (view control from the buttons)
@@ -80,8 +80,7 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      |   +- fps                     src/main/fps.vhd (frame rate, calculated from the time for a picture)
      |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
      +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
-     +- (p_fps_toggle)              (tells the VGA clock domain that the frame rate has changed)
-     +- (p_fps_cdc)                 (moves the frame rate to the VGA clock domain)
+     +- fps_cdc                     src/fps_cdc.vhd (moves the frame rate to the VGA clock domain)
      +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
      |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
      |   +- disp                    src/vga/disp.vhd (VGA output, uses the palettes in src/vga/palette_pkg.vhd)
@@ -91,8 +90,8 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      +- serialiser_10to1_selectio   src/hdmi/serialiser_10to1_selectio.vhd (x 4, the HDMI data and clock)
 ```
 On the Nexys 4 DDR, the top level is `nexys4ddr` (`src/nexys4ddr.vhd`), which
-instantiates `clk_rst`, `main`, `disp_mem`, and `vga` in the same way as
-`mega65` does, but has no keyboard, video DAC, or HDMI output, and drives
+instantiates `clk_rst`, `main`, `disp_mem`, `fps_cdc`, and `vga` in the same
+way as `mega65` does, but has no keyboard, video DAC, or HDMI output, and drives
 the 7-segment display from `seg`.
 
 The number of job modules (and therefore iterators, with two DSPs each) is
@@ -892,7 +891,8 @@ updated at a fixed rate, 18 times per second (every 56 ms), which is given by
 a counter in `main.vhd` that counts `G_CLK_FREQ`/18 clock cycles. At
 each update, the following happens, depending on the buttons that are held
 down. The buttons are named as on the Nexys 4 DDR; on the MEGA65 they come
-from the joysticks and the keyboard (see `src/mega65.vhd`): `BTNC` is the
+from the joysticks and the keyboard (see
+[`src/main/controls.vhd`](src/main/controls.vhd)): `BTNC` is the
 fire buttons and the `+` and `-` keys, and switch 2 is the fire button of
 port 2 and the `-` key, and `BTNL`, `BTNR`, `BTNU`, and `BTND` are the
 directions of port 1 and the cursor keys.
@@ -957,6 +957,13 @@ update is not. It does this for both resolutions, with an instance each:
 the initial view of `main`. The initial view is also checked when the design
 is elaborated: it must be inside the range too.
 
+The mapping of the joysticks and the keys of the MEGA65 has a self-checking
+testbench too ([`sim/controls_tb.vhd`](sim/controls_tb.vhd)). A model of the
+keyboard driver cycles through the 80 keys, and the testbench tries every
+combination of the six joystick lines and the six keys that are used, each
+with a random set of the other keys pressed, and checks the buttons and
+switches after a full cycle of the keyboard driver.
+
 **The frame rate.** The top right corner of the VGA output (and the
 7-segment display of the Nexys 4 DDR) shows the frame rate, i.e. the
 number of pictures per second, rounded down to an integer, with the leading
@@ -1005,12 +1012,12 @@ script [`font/gen_font_pkg.py`](font/gen_font_pkg.py) converts the font to the
 table in [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd), 32 rows of 16 bits
 for each digit. The frame rate (32 bits of digits and 8 bits of blanking) is
 calculated in the MAIN clock domain, so it is moved to the VGA clock domain
-in the design of the board ([`src/mega65.vhd`](src/mega65.vhd), or
-[`src/nexys4ddr.vhd`](src/nexys4ddr.vhd)), so `main` does
-not depend on the VGA clock. `main` sets `fps_valid_o` for one clock cycle
-each time the frame rate changes, and the design then changes a toggle
-signal (`p_fps_toggle`). This is synchronized with two registers
-(`p_fps_cdc`), and when it changes, the frame
+by [`src/fps_cdc.vhd`](src/fps_cdc.vhd), in the design of the board
+([`src/mega65.vhd`](src/mega65.vhd), or
+[`src/nexys4ddr.vhd`](src/nexys4ddr.vhd)), so `main` does not depend on the
+VGA clock. `main` sets `fps_valid_o` for one clock cycle each time the frame
+rate changes, and `fps_cdc` then changes a toggle signal (`p_toggle`). This is
+synchronized with two registers (`p_cdc`), and when it changes, the frame
 rate is copied, so `overlay` only gets signals in the VGA clock domain. The
 frame rate changes only at the end of a picture, so it is constant for much
 longer than the synchronizer takes (a few VGA clock cycles), and it is never
@@ -1024,6 +1031,15 @@ The overlay is a pipeline of five stages after the pixel counters: the position
 in the overlay, the digit, the row of the font, the pixel of the row, and then
 the colour, which replaces the output of `disp`. This adds one clock cycle of
 latency to all the VGA outputs.
+
+The testbench [`sim/fps_cdc_tb.vhd`](sim/fps_cdc_tb.vhd) gives `fps_cdc` a
+new frame rate after a random time (at least ten VGA clock cycles), and
+checks in every VGA clock cycle that nothing is shown before the first frame
+rate, that the frame rate is always either the latest one or the one before
+it (never a mix of the two, and never back to the one before), and that the
+latest one arrives at most one MAIN clock cycle and four VGA clock cycles
+after it was sent. It does this with the clocks of both boards (141.64 MHz
+and 108 MHz, and 120 MHz and 25 MHz).
 
 On the Nexys 4 DDR the frame rate is also shown on the 7-segment display. Its
 digits share the segment signals, so

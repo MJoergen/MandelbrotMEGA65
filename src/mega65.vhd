@@ -22,10 +22,10 @@
 --   of joystick port 1 (fa_*) and the cursor keys pan the view. The fire
 --   button of port 1 and the "+" key zoom in, and the fire button of port 2
 --   (fb_*) and the "-" key zoom out. They are mapped to the inputs btn_i and
---   sw_i of main.vhd, which are the buttons and switches on the Nexys 4 DDR.
---   The keyboard is read by the MiSTer2MEGA65 keyboard driver (m2m_keyb.vhd,
---   in src/keyboard/), in the MAIN clock domain. It also turns on the power
---   LED of the keyboard (green).
+--   sw_i of main.vhd, which are the buttons and switches on the Nexys 4 DDR,
+--   by controls.vhd. The keyboard is read by the MiSTer2MEGA65 keyboard
+--   driver (m2m_keyb.vhd, in src/keyboard/), in the MAIN clock domain. It
+--   also turns on the power LED of the keyboard (green).
 -- * The palette can not be selected, so palette 0 is always used.
 -- * There is no 7-segment display, so the frame rate is only shown on the VGA
 --   and the HDMI output.
@@ -42,12 +42,7 @@
 --
 -- The frame rate is calculated in main.vhd, and shown on the VGA output by
 -- vga.vhd. This is the only signal between the two clock domains, apart from
--- the display memory. It is moved to the VGA clock domain here (p_fps_cdc):
--- fps_toggle is changed (in the MAIN clock domain, p_fps_toggle) each time
--- main.vhd changes fps_digits and fps_blank (fps_valid is high for one clock
--- cycle). fps_toggle is synchronized, and the frame rate is
--- copied when the change is seen. The frame rate is constant for much longer
--- than the synchronizer takes, so it is never copied while it changes. The
+-- the display memory. It is moved to the VGA clock domain by fps_cdc.vhd. The
 -- constraints for this are in mega65-r3.xdc and mega65-r6.xdc.
 
 library ieee;
@@ -166,16 +161,10 @@ architecture structural of mega65 is
    signal main_rst       : std_logic;
 
    -- The keyboard driver cycles through all the keys (key_num), and shows
-   -- whether each of them is pressed (key_pressed_n, active low). The keys
-   -- used are stored here (active high).
+   -- whether each of them is pressed (key_pressed_n, active low), see
+   -- controls.vhd.
    signal key_num        : natural range 0 to 79;
    signal key_pressed_n  : std_logic;
-   signal key_up         : std_logic := '0';
-   signal key_down       : std_logic := '0';
-   signal key_left       : std_logic := '0';
-   signal key_right      : std_logic := '0';
-   signal key_plus       : std_logic := '0';
-   signal key_minus      : std_logic := '0';
 
    signal vga_clk        : std_logic;
    signal vga_rst        : std_logic;
@@ -192,19 +181,10 @@ architecture structural of mega65 is
    signal fps_digits     : std_logic_vector(31 downto 0);
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
-   signal fps_toggle     : std_logic := '0';
 
-   -- The frame rate in the VGA clock domain. Nothing is shown (all digits are
-   -- blanked) until the first frame rate is received.
-   signal vga_fps_meta   : std_logic := '0';
-   signal vga_fps_sync   : std_logic := '0';
-   signal vga_fps_sync_d : std_logic := '0';
-   signal vga_fps_digits : std_logic_vector(31 downto 0) := (others => '0');
-   signal vga_fps_blank  : std_logic_vector( 7 downto 0) := (others => '1');
-
-   attribute async_reg : string;
-   attribute async_reg of vga_fps_meta : signal is "true";
-   attribute async_reg of vga_fps_sync : signal is "true";
+   -- The frame rate in the VGA clock domain
+   signal vga_fps_digits : std_logic_vector(31 downto 0);
+   signal vga_fps_blank  : std_logic_vector( 7 downto 0);
 
    signal vga_hs         : std_logic;
    signal vga_vs         : std_logic;
@@ -268,37 +248,25 @@ begin
          qnice_keys_n_o   => open
       ); -- i_m2m_keyb
 
-   -- The key numbers are the same as in the MiSTer2MEGA65 framework, see e.g.
-   -- matrix_to_keynum.vhd. The MEGA65 has separate keys for cursor up and left
-   -- (73 and 74), unlike the C64, where they are SHIFT with cursor down and
-   -- right (7 and 2).
-   p_keys : process (main_clk)
-   begin
-      if rising_edge(main_clk) then
-         case key_num is
-            when 73     => key_up    <= not key_pressed_n;
-            when 7      => key_down  <= not key_pressed_n;
-            when 74     => key_left  <= not key_pressed_n;
-            when 2      => key_right <= not key_pressed_n;
-            when 40     => key_plus  <= not key_pressed_n;
-            when 43     => key_minus <= not key_pressed_n;
-            when others => null;
-         end case;
-      end if;
-   end process p_keys;
-
 
    --------------------------------------------------
    -- Map the joysticks and keys to the buttons and switches
    --------------------------------------------------
 
-   -- Both fire buttons and both "+" and "-" zoom, switch 2 selects zoom out.
-   btn(4) <= not (fa_fire_n_i and fb_fire_n_i) or key_plus or key_minus;
-   btn(3) <= not fa_left_n_i  or key_left;
-   btn(2) <= not fa_right_n_i or key_right;
-   btn(1) <= not fa_up_n_i    or key_up;
-   btn(0) <= not fa_down_n_i  or key_down;
-   sw     <= "00000" & (not fb_fire_n_i or key_minus) & "00";
+   i_controls : entity work.controls
+      port map (
+         clk_i           => main_clk,
+         key_num_i       => key_num,
+         key_pressed_n_i => key_pressed_n,
+         fa_up_n_i       => fa_up_n_i,
+         fa_down_n_i     => fa_down_n_i,
+         fa_left_n_i     => fa_left_n_i,
+         fa_right_n_i    => fa_right_n_i,
+         fa_fire_n_i     => fa_fire_n_i,
+         fb_fire_n_i     => fb_fire_n_i,
+         btn_o           => btn,
+         sw_o            => sw
+      ); -- i_controls
 
 
    --------------------------------------------------
@@ -382,31 +350,16 @@ begin
    -- Move the frame rate to the VGA clock domain
    --------------------------------------------------
 
-   -- Tells the VGA clock domain that the frame rate has changed. The frame rate
-   -- is constant for much longer than the time it takes to move it to the VGA
-   -- clock domain.
-   p_fps_toggle : process (main_clk)
-   begin
-      if rising_edge(main_clk) then
-         if fps_valid = '1' then
-            fps_toggle <= not fps_toggle;
-         end if;
-      end if;
-   end process p_fps_toggle;
-
-   p_fps_cdc : process (vga_clk)
-   begin
-      if rising_edge(vga_clk) then
-         vga_fps_meta   <= fps_toggle;
-         vga_fps_sync   <= vga_fps_meta;
-         vga_fps_sync_d <= vga_fps_sync;
-
-         if vga_fps_sync /= vga_fps_sync_d then
-            vga_fps_digits <= fps_digits;
-            vga_fps_blank  <= fps_blank;
-         end if;
-      end if;
-   end process p_fps_cdc;
+   i_fps_cdc : entity work.fps_cdc
+      port map (
+         main_clk_i    => main_clk,
+         main_digits_i => fps_digits,
+         main_blank_i  => fps_blank,
+         main_valid_i  => fps_valid,
+         vga_clk_i     => vga_clk,
+         vga_digits_o  => vga_fps_digits,
+         vga_blank_o   => vga_fps_blank
+      ); -- i_fps_cdc
 
 
    --------------------------------------------------

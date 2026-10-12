@@ -63,6 +63,7 @@ SRC += src/main/dispatcher_jobs.vhd
 SRC += src/main/dispatcher_results.vhd
 SRC += src/main/dispatcher.vhd
 SRC += src/disp_mem.vhd
+SRC += src/fps_cdc.vhd
 SRC += src/vga/video_pkg.vhd
 SRC += src/vga/palette_pkg.vhd
 SRC += src/vga/disp.vhd
@@ -71,6 +72,7 @@ SRC += src/vga/overlay.vhd
 SRC += src/vga/pix.vhd
 SRC += src/vga/vga.vhd
 SRC += src/main/viewport.vhd
+SRC += src/main/controls.vhd
 SRC += src/main/fps.vhd
 SRC += src/main/seg.vhd
 SRC += src/main/main.vhd
@@ -78,7 +80,7 @@ SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga redraw overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps
+TBS = vga redraw overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps fps_cdc controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
 # the command line, e.g. "make run TB=iterator".

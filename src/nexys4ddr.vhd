@@ -13,9 +13,8 @@
 --   select the colour palette in vga.vhd (see palette_pkg.vhd). The decimal
 --   point of the 7-segment display is not used, so it is switched off here.
 --
--- The frame rate is moved to the VGA clock domain in the same way as in
--- mega65.vhd (p_fps_toggle and p_fps_cdc). The constraints for this are in
--- nexys4ddr.xdc.
+-- The frame rate is moved to the VGA clock domain by fps_cdc.vhd, as in
+-- mega65.vhd. The constraints for this are in nexys4ddr.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -104,19 +103,10 @@ architecture structural of nexys4ddr is
    signal fps_digits     : std_logic_vector(31 downto 0);
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
-   signal fps_toggle     : std_logic := '0';
 
-   -- The frame rate in the VGA clock domain. Nothing is shown (all digits are
-   -- blanked) until the first frame rate is received.
-   signal vga_fps_meta   : std_logic := '0';
-   signal vga_fps_sync   : std_logic := '0';
-   signal vga_fps_sync_d : std_logic := '0';
-   signal vga_fps_digits : std_logic_vector(31 downto 0) := (others => '0');
-   signal vga_fps_blank  : std_logic_vector( 7 downto 0) := (others => '1');
-
-   attribute async_reg : string;
-   attribute async_reg of vga_fps_meta : signal is "true";
-   attribute async_reg of vga_fps_sync : signal is "true";
+   -- The frame rate in the VGA clock domain
+   signal vga_fps_digits : std_logic_vector(31 downto 0);
+   signal vga_fps_blank  : std_logic_vector( 7 downto 0);
 
 begin
 
@@ -202,32 +192,16 @@ begin
    -- Move the frame rate to the VGA clock domain
    --------------------------------------------------
 
-   -- Tells the VGA clock domain that the frame rate has changed. The frame rate
-   -- is constant for much longer than the time it takes to move it to the VGA
-   -- clock domain.
-   p_fps_toggle : process (main_clk)
-   begin
-      if rising_edge(main_clk) then
-         if fps_valid = '1' then
-            fps_toggle <= not fps_toggle;
-         end if;
-      end if;
-   end process p_fps_toggle;
-
-   -- The same as in mega65.vhd, see there.
-   p_fps_cdc : process (vga_clk)
-   begin
-      if rising_edge(vga_clk) then
-         vga_fps_meta   <= fps_toggle;
-         vga_fps_sync   <= vga_fps_meta;
-         vga_fps_sync_d <= vga_fps_sync;
-
-         if vga_fps_sync /= vga_fps_sync_d then
-            vga_fps_digits <= fps_digits;
-            vga_fps_blank  <= fps_blank;
-         end if;
-      end if;
-   end process p_fps_cdc;
+   i_fps_cdc : entity work.fps_cdc
+      port map (
+         main_clk_i    => main_clk,
+         main_digits_i => fps_digits,
+         main_blank_i  => fps_blank,
+         main_valid_i  => fps_valid,
+         vga_clk_i     => vga_clk,
+         vga_digits_o  => vga_fps_digits,
+         vga_blank_o   => vga_fps_blank
+      ); -- i_fps_cdc
 
 
    --------------------------------------------------
