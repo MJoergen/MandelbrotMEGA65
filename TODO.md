@@ -106,3 +106,9 @@ The last items are not about speed, but they are related to the MEGA65 design.
     The zoom needs a wider field in the text (up to about 18 million, 8
     digits before the point), i.e. more characters in `text_pkg.vhd` and the
     overlay, and a wider division.
+
+17. Investigate whether using HyperRAM is worth it. The maximum read speed is
+    200 MB/s so a resolution of 1920x1280 @ 60 Hz should be possible. It will
+    require rewriting the logic, so that pixels are generated horizontally
+    rather than vertically.
+
