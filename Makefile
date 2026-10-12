@@ -105,6 +105,10 @@ SAVE = sim/$(TB).gtkw
 # can be analyzed and simulated at the same time (see "make sim").
 WORKDIR = build/$(TB)
 
+# The GHDL executable. Set it to try another version of GHDL, e.g.
+# "make sim GHDL=/opt/ghdl-4.1/bin/ghdl" (see the tools in README.md).
+GHDL = ghdl
+
 GHDL_OPTS = --std=08 -frelaxed-rules --workdir=$(WORKDIR)
 
 
@@ -243,9 +247,9 @@ else
 # options to the simulation, e.g. --wave=<file>.
 define SIMULATE
 @mkdir -p $(WORKDIR)
-ghdl -i $(GHDL_OPTS) --work=work $(TB_SRC)
-ghdl -m $(GHDL_OPTS) $(TB_EXE)
-ghdl -r $(GHDL_OPTS) $(TB_EXE) --assert-level=error --stop-time=$(STOP_TIME) $(addprefix -g,$(GENERICS)) $(1)
+$(GHDL) -i $(GHDL_OPTS) --work=work $(TB_SRC)
+$(GHDL) -m $(GHDL_OPTS) $(TB_EXE)
+$(GHDL) -r $(GHDL_OPTS) $(TB_EXE) --assert-level=error --stop-time=$(STOP_TIME) $(addprefix -g,$(GENERICS)) $(1)
 endef
 
 # Simulate a single testbench (TB=<name>) without writing a waveform, because

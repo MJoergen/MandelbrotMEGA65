@@ -59,6 +59,40 @@ architecture simulation of disp_mem_tb is
       return std_logic_vector(to_unsigned((addr*37 + (addr/2**12)*101 + 11) mod 512, 9));
    end function value;
 
+   -- Checks the read enables of the memory of the configuration n in every
+   -- clock cycle of the read port. The read enables between two rising edges
+   -- belong to the read address at the first of them: the block of the
+   -- address is read at the second edge. Addresses beyond the last block read
+   -- no block.
+   procedure check_read_en (
+      n                : natural;
+      signal rd_addr   : in std_logic_vector;
+      signal rd_blk_en : in std_logic_vector
+   ) is
+      variable blk_v : natural := 0;    -- The block of the previous address
+      variable exp_v : std_logic_vector(rd_blk_en'range);
+   begin
+      -- The bounds of the external names are written as numbers, see below
+      assert rd_addr'length = C_CONFIGS(n).addr_bits and
+             rd_blk_en'length = C_CONFIGS(n).blocks
+         report "The external names of configuration " & integer'image(n) &
+                " do not match C_CONFIGS"
+         severity failure;
+
+      loop
+         wait until rising_edge(rd_clk);
+         exp_v := (others => '0');
+         if blk_v <= exp_v'high then
+            exp_v(blk_v) := '1';
+         end if;
+         assert rd_blk_en = exp_v
+            report "Wrong read enables for block " & integer'image(blk_v) &
+                   " with " & integer'image(rd_blk_en'length) & " blocks"
+            severity error;
+         blk_v := to_integer(unsigned(rd_addr)) / 2**12;
+      end loop;
+   end procedure check_read_en;
+
 begin
 
    ---------------------
@@ -271,34 +305,50 @@ begin
             rd_data_o => rd_data
          ); -- i_disp_mem
 
-
-      -------------------------------------
-      -- Only the block of the pixel is read
-      -------------------------------------
-
-      -- The read enables (one for each block) between two rising edges belong
-      -- to the read address at the first of them: the block of the address is
-      -- read at the second edge. Addresses beyond the last block read no
-      -- block. The read enables are inside the memory, so they are read with
-      -- an external name, which must come after the instantiation of the
-      -- memory.
-      p_read_en : process (rd_clk)
-         alias rd_blk_en is << signal i_disp_mem.rd_blk_en : std_logic_vector(C_NUM_BLOCKS-1 downto 0) >>;
-         variable blk_v  : natural := 0;    -- The block of the previous address
-         variable exp_v  : std_logic_vector(C_NUM_BLOCKS-1 downto 0);
-      begin
-         if rising_edge(rd_clk) then
-            exp_v := (others => '0');
-            if blk_v < C_NUM_BLOCKS then
-               exp_v(blk_v) := '1';
-            end if;
-            assert rd_blk_en = exp_v
-               report "Wrong read enables for block " & integer'image(blk_v)
-               severity error;
-            blk_v := to_integer(unsigned(rd_addr)) / 2**12;
-         end if;
-      end process p_read_en;
-
    end generate gen_dut;
+
+
+   -------------------------------------
+   -- Only the block of the pixel is read
+   -------------------------------------
+
+   -- The read enables (one for each block) are inside the memory, so they
+   -- are read with external names, which must come after the instantiation
+   -- of the memory. Each configuration has its own process, with an absolute
+   -- name (with the index of the generate statement), and the bounds written
+   -- as numbers. GHDL 4.1 (the version in Ubuntu 24.04) crashes on an
+   -- external name inside the generate statement, or reads the wrong signal,
+   -- and it gets the bounds wrong when they are calculated from C_CONFIGS.
+   -- check_read_en checks that the numbers match C_CONFIGS.
+   assert C_CONFIGS'length = 3
+      report "Each configuration needs a process p_read_en_<n> below"
+      severity failure;
+
+   p_read_en_0 : process
+      alias rd_addr   is << signal .disp_mem_tb.gen_dut(0).rd_addr :
+                           std_logic_vector(18 downto 0) >>;
+      alias rd_blk_en is << signal .disp_mem_tb.gen_dut(0).i_disp_mem.rd_blk_en :
+                           std_logic_vector(127 downto 0) >>;
+   begin
+      check_read_en(0, rd_addr, rd_blk_en);
+   end process p_read_en_0;
+
+   p_read_en_1 : process
+      alias rd_addr   is << signal .disp_mem_tb.gen_dut(1).rd_addr :
+                           std_logic_vector(18 downto 0) >>;
+      alias rd_blk_en is << signal .disp_mem_tb.gen_dut(1).i_disp_mem.rd_blk_en :
+                           std_logic_vector(127 downto 0) >>;
+   begin
+      check_read_en(1, rd_addr, rd_blk_en);
+   end process p_read_en_1;
+
+   p_read_en_2 : process
+      alias rd_addr   is << signal .disp_mem_tb.gen_dut(2).rd_addr :
+                           std_logic_vector(20 downto 0) >>;
+      alias rd_blk_en is << signal .disp_mem_tb.gen_dut(2).i_disp_mem.rd_blk_en :
+                           std_logic_vector(319 downto 0) >>;
+   begin
+      check_read_en(2, rd_addr, rd_blk_en);
+   end process p_read_en_2;
 
 end architecture simulation;

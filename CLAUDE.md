@@ -13,7 +13,8 @@ their `#N` refer to pull requests of that repository.
 
 ## Commands
 All the tools are installed (Vivado 2025.1, GHDL, VSG, SymbiYosys, GTKWave,
-m65, Python with numpy).
+m65, Python with numpy). The versions that are known to work are in
+README.md (Tools).
 * `make sim`: all testbenches in parallel, about 9 minutes (mostly `vga`).
   `make run TB=<name>` runs one. They must all pass after a VHDL change.
 * `make formal`: the formal proofs, about 20 seconds.

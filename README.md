@@ -172,7 +172,8 @@ by 0.001 ns, and the one before that met it with +0.026 ns. See
 for details.
 
 ## Running
-Type `make` to list the supported targets. The most important ones are:
+Type `make` to list the supported targets. The most important ones are
+(the versions of the tools are in [Tools](#tools)):
 * `make mega65-r6` synthesizes and implements the design for the MEGA65 R6
   using
   [Vivado](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html),
@@ -221,6 +222,32 @@ Type `make` to list the supported targets. The most important ones are:
   (Yices), e.g. from the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build).
   It takes about 20 seconds.
 * `make clean` removes the generated files.
+
+## Tools
+These versions of the tools are known to work. Older versions have not been
+tried, except where it says so.
+
+| Tool | Version | Used by
+| ---- | ------- | -------
+| [Vivado](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html) | 2025.1 | `make mega65-r3`, `make mega65-r6`, `make nexys4ddr`
+| [GHDL](https://github.com/ghdl/ghdl) | 6.0.0 (mcode backend, the release for Ubuntu 24.04), 6.0.0-dev (mcode, built from source in February 2026), and 4.1.0 (mcode, the package in Ubuntu 24.04) | `make sim`, `make run`, `make check`
+| [Yosys](https://github.com/YosysHQ/yosys), [SymbiYosys](https://github.com/YosysHQ/sby) | 0.56, and 0.69 (in the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build) of 2026-10-01) | `make formal`
+| [ghdl-yosys-plugin](https://github.com/ghdl/ghdl-yosys-plugin) | from git (May 2025), built with GHDL 6.0.0-dev, and the one in the OSS CAD Suite of 2026-10-01 | `make formal`
+| [Yices](https://yices.csl.sri.com/) | 2.7.0 | `make formal`
+| [VSG](https://vhdl-style-guide.readthedocs.io/) | 3.35.0 | the coding style, see [`CODING_STYLE.md`](CODING_STYLE.md)
+| Python, numpy | 3.12, numpy 2.5 | `sim/model.py`, `sim/cmp_rtl.py`, `sim/iterator_model.py`
+| [GTKWave](https://github.com/gtkwave/gtkwave) | 3.3.116 | `make check`
+| [m65](https://github.com/MEGA65/mega65-tools) | 20251108 | `make fpga`
+
+The testbenches use external names of VHDL-2008 (`disp_mem_tb`,
+`iterator_tb`, and `redraw_tb`). GHDL 4.1 crashes on an external name inside
+a generate statement, and gets the bounds of its subtype wrong when they are
+not numbers, so `disp_mem_tb` gives each configuration its own process, see
+the comments there. The GHDL of the OSS CAD Suite of 2026-10-01 (7.0.0-dev,
+with the LLVM backend) stops with "NULL access dereferenced" at every
+external name, so these three testbenches fail with it (the others pass, and
+so does `make formal`). The Makefile uses the `ghdl` in the `PATH`; another
+one is selected with e.g. `make sim GHDL=/opt/ghdl-4.1/bin/ghdl`.
 
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
