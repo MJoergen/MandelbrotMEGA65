@@ -9,11 +9,11 @@
 # module is used by cmp_rtl.py to compare the simulated design with the model.
 #
 # Run as a script, it compares the model with the reference for the initial
-# view (640x480, as on the Nexys 4 DDR), and prints how many pixels differ. It
+# view (1280x1024, as on the MEGA65), and prints how many pixels differ. It
 # also estimates the time it takes the design to calculate the picture, and
 # the time the job modules wait for their results to be accepted, see
-# picture_cycles(), and the time for the initial view on the MEGA65
-# (1280x1024). For the times, hw_stop() follows the periodicity detection of
+# picture_cycles(), and the time for the initial view on the Nexys 4 DDR
+# (640x480). For the times, hw_stop() follows the periodicity detection of
 # the iterator, which stops the iteration early for most points in the set, and
 # checks that it gives the same count as hw_count().
 #
@@ -42,20 +42,20 @@ RealArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 
 MAX_COUNT = 511      # Must match C_MAX_COUNT in main.vhd
-NUM_COLS  = 640      # Must match C_VIDEO in nexys4ddr.vhd
-NUM_ROWS  = 480      # Must match C_VIDEO in nexys4ddr.vhd
-ROWS_IN_JOB = 120    # Must match C_ROWS_IN_JOB in nexys4ddr.vhd
-NUM_ITERATORS = 120  # Must match C_NUM_ITERATORS in nexys4ddr.vhd
-PIXELS = 4           # Must match C_PIXELS in nexys4ddr.vhd
+NUM_COLS  = 1280     # Must match C_VIDEO in mega65.vhd
+NUM_ROWS  = 1024     # Must match C_VIDEO in mega65.vhd
+ROWS_IN_JOB = 64     # Must match C_ROWS_IN_JOB in mega65.vhd
+NUM_ITERATORS = 368  # Must match C_NUM_ITERATORS in mega65.vhd
+PIXELS = 4           # Must match C_PIXELS in mega65.vhd
 GROUP_SIZE = 16      # Must match G_GROUP_SIZE in dispatcher.vhd
-# The same for the MEGA65, see mega65.vhd
-MEGA65_NUM_COLS = 1280
-MEGA65_NUM_ROWS = 1024
-MEGA65_ROWS_IN_JOB = 64
-MEGA65_NUM_ITERATORS = 368
-MEGA65_PIXELS = 4
-MEGA65_MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 7.625   # Must match C_MAIN_DIVIDE in mega65.vhd
-MAIN_CLOCK_KHZ = 1200e3 / 10.0   # Must match C_MAIN_DIVIDE in nexys4ddr.vhd
+MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 7.625   # Must match C_MAIN_DIVIDE in mega65.vhd
+# The same for the Nexys 4 DDR, see nexys4ddr.vhd
+NEXYS4DDR_NUM_COLS = 640
+NEXYS4DDR_NUM_ROWS = 480
+NEXYS4DDR_ROWS_IN_JOB = 120
+NEXYS4DDR_NUM_ITERATORS = 120
+NEXYS4DDR_PIXELS = 4
+NEXYS4DDR_MAIN_CLOCK_KHZ = 1200e3 / 10.0   # Must match C_MAIN_DIVIDE in nexys4ddr.vhd
 
 
 def wrap(v: ArrayLike, bits: int) -> IntArray:
@@ -367,17 +367,17 @@ def main() -> None:
     print(f"Estimated time for the picture: {cycles} clock cycles, i.e. "
           f"{cycles / MAIN_CLOCK_KHZ:.2f} ms at {MAIN_CLOCK_KHZ / 1000:.3f} MHz "
           f"({MAIN_CLOCK_KHZ * 1000 / cycles:.0f} pictures per second)")
-    cx, cy = view(cols=MEGA65_NUM_COLS, rows=MEGA65_NUM_ROWS)
+    cx, cy = view(cols=NEXYS4DDR_NUM_COLS, rows=NEXYS4DDR_NUM_ROWS)
     _, stop = hw_stop(cx, cy)
-    cycles, waiting = picture_cycles(stop, MEGA65_NUM_ITERATORS,
-                                     rows_in_job=MEGA65_ROWS_IN_JOB,
-                                     pixels=MEGA65_PIXELS)
-    print(f"On the MEGA65 ({MEGA65_NUM_COLS}x{MEGA65_NUM_ROWS}, "
-          f"{MEGA65_NUM_ITERATORS} job modules, {MEGA65_PIXELS} pixels in "
+    cycles, waiting = picture_cycles(stop, NEXYS4DDR_NUM_ITERATORS,
+                                     rows_in_job=NEXYS4DDR_ROWS_IN_JOB,
+                                     pixels=NEXYS4DDR_PIXELS)
+    print(f"On the Nexys 4 DDR ({NEXYS4DDR_NUM_COLS}x{NEXYS4DDR_NUM_ROWS}, "
+          f"{NEXYS4DDR_NUM_ITERATORS} job modules, {NEXYS4DDR_PIXELS} pixels in "
           f"each write): {cycles} clock cycles, i.e. "
-          f"{cycles / MEGA65_MAIN_CLOCK_KHZ:.2f} ms at "
-          f"{MEGA65_MAIN_CLOCK_KHZ / 1000:.3f} MHz "
-          f"({MEGA65_MAIN_CLOCK_KHZ * 1000 / cycles:.0f} pictures per second)")
+          f"{cycles / NEXYS4DDR_MAIN_CLOCK_KHZ:.2f} ms at "
+          f"{NEXYS4DDR_MAIN_CLOCK_KHZ / 1000:.3f} MHz "
+          f"({NEXYS4DDR_MAIN_CLOCK_KHZ * 1000 / cycles:.0f} pictures per second)")
 
     if args == ["--png"]:
         from PIL import Image

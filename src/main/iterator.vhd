@@ -47,8 +47,8 @@
 -- forever without an overflow, so the iteration stops, and the count is
 -- G_MAX_COUNT. This gives exactly the same count as without the detection.
 --
--- The XC7A100T (Nexys 4 DDR) has 240 DSP slices, and the XC7A200T (MEGA65)
--- has 740. Each copy of this iterator uses two of them.
+-- The XC7A200T (MEGA65) has 740 DSP slices, and the XC7A100T (Nexys 4 DDR)
+-- has 240. Each copy of this iterator uses two of them.
 --
 -- Real numbers are represented in 2.16 fixed point two's complement
 -- form, in the range -2 to 2 (not including 2). Examples

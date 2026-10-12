@@ -2,8 +2,8 @@
 
 1. Remove the reset process of the block RAM. On reset, the display memory
    ([`src/disp_mem.vhd`](src/disp_mem.vhd)) fills all its BRAMs with the value
-   0x055, which takes `G_NUM_BLOCKS`*4096/`G_PIXELS` clock cycles (1.09 ms on
-   the Nexys 4 DDR, and 2.31 ms on the MEGA65), and ignores the writes until it
+   0x055, which takes `G_NUM_BLOCKS`*4096/`G_PIXELS` clock cycles (2.31 ms on
+   the MEGA65, and 1.09 ms on the Nexys 4 DDR), and ignores the writes until it
    is finished. So [`src/main/main.vhd`](src/main/main.vhd) must wait for it
    (`wr_busy_o` and `wr_busy_i`) before it starts the first picture, see
    [The top level](ALGORITHM.md#the-top-level). The first picture overwrites
@@ -21,8 +21,4 @@
 
 4. Offset palette at a certain depth, i.e. set color = depth - offset. And have
    the offset value change slowly with time. This gives a feeling of "moving".
-
-5. Move this folder to a separate repo on GitHub, and make the MEGA65 boards
-   the "first citizen", and the Nexys board an added feature (currently it's
-   the other way around).
 

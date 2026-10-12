@@ -64,9 +64,6 @@
 --   tmds_clk       CLKOUT2   G_TMDS_DIVIDE   VCO/G_TMDS_DIVIDE
 --
 -- All of these are set by the top level module:
--- * Nexys 4 DDR: The VCO is 100 MHz * 12 = 1200 MHz (the maximum for speed
---   grade -1). The VGA clock is 1200/48 = 25 MHz (640x480), and the main clock
---   is 1200/10 = 120 MHz.
 -- * MEGA65: The VCO is 100 MHz / 5 * 54 = 1080 MHz (speed grade -2 allows up
 --   to 1440 MHz), the only VCO frequency which gives the 108 MHz pixel clock
 --   of 1280x1024 exactly. The VGA clock is 1080/10 = 108 MHz, and the main
@@ -74,6 +71,9 @@
 --   1080/2 = 540 MHz, i.e. five times the VGA clock, because the HDMI
 --   serialisers output ten bits in each VGA clock cycle on both edges of the
 --   TMDS clock (see serialiser_10to1_selectio.vhd).
+-- * Nexys 4 DDR: The VCO is 100 MHz * 12 = 1200 MHz (the maximum for speed
+--   grade -1). The VGA clock is 1200/48 = 25 MHz (640x480), and the main clock
+--   is 1200/10 = 120 MHz.
 -- The Nexys 4 DDR has no HDMI output, so the TMDS clock is not used there.
 -- The main clock uses CLKOUT0, because it is the only output with a
 -- fractional divider (in steps of 0.125).

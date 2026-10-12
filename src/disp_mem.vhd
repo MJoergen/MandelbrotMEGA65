@@ -13,8 +13,8 @@
 --
 -- The memory is divided into G_NUM_BLOCKS blocks of 2^12 pixels (one BRAM
 -- each, used as 4096/G_PIXELS entries of 9*G_PIXELS bits, i.e. with the
--- parity bits), e.g. 128 blocks (2^19 pixels) on the Nexys 4 DDR and 320
--- blocks (1280*1024 pixels) on the MEGA65. The blocks are in groups of 8. The
+-- parity bits), e.g. 320 blocks (1280*1024 pixels) on the MEGA65 and 128
+-- blocks (2^19 pixels) on the Nexys 4 DDR. The blocks are in groups of 8. The
 -- write address and data go to the blocks through a tree of registers: first
 -- to a register in each group, and then (if G_BLOCK_REGS is true) to a
 -- register for each block. So each register drives one register in each

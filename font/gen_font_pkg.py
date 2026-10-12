@@ -3,7 +3,7 @@
 # src/vga/overlay.vhd), from the Spleen 16x32 font. Only the digits 0 to 9 are
 # used. Spleen is licensed under the BSD 2-Clause license, see LICENSE.spleen.
 #
-# Usage (from the mandelbrot folder):
+# Usage (from the top directory of the repository):
 #   git clone https://github.com/fcambus/spleen
 #   python3 font/gen_font_pkg.py spleen/spleen-16x32.bdf > src/vga/font_pkg.vhd
 

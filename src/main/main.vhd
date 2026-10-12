@@ -2,7 +2,8 @@
 -- controls the view (from the buttons and switches), runs the dispatcher that
 -- calculates the picture, and writes the result to the display memory.
 --
--- The view is controlled by the buttons and switches on the board:
+-- The view is controlled by the buttons and switches of the Nexys 4 DDR. The
+-- MEGA65 maps its joysticks and keyboard to them, see mega65.vhd:
 --   btn_i(4)         : Zoom in. If sw_i(2) is set then zoom out instead.
 --   btn_i(3 downto 0): Move the view left, right, up, and down.
 -- While a button is pressed, the view is updated 18 times per second, i.e.
@@ -17,10 +18,11 @@
 -- memory is filled with a constant, and it ignores writes until it is
 -- finished (wr_busy_i), so the first picture is started after that.
 --
--- The 7-segment display shows the frame rate, i.e. the clock frequency divided
--- by the time taken by the latest picture, see fps.vhd. This is the number of
--- pictures per second if the picture was recalculated continuously. The frame
--- rate is also output (fps_*_o), and shown on the VGA output by vga.vhd.
+-- The 7-segment display of the Nexys 4 DDR shows the frame rate, i.e. the
+-- clock frequency divided by the time taken by the latest picture, see
+-- fps.vhd. This is the number of pictures per second if the picture was
+-- recalculated continuously. The frame rate is also output (fps_*_o), and
+-- shown on the VGA output by vga.vhd.
 -- fps_valid_o is high for one clock cycle when fps_digits_o and fps_blank_o
 -- are changed. The top level module moves the frame rate to the VGA clock
 -- domain, so this module does not depend on the VGA clock.
@@ -273,11 +275,11 @@ begin
    -- picture is only calculated when the view changes, at most 18 times per
    -- second, so an average over many pictures would take many seconds to
    -- follow a change of the view.
-   -- cnt wraps around after 2^27 clock cycles (1.12 s at 120 MHz), but a
+   -- cnt wraps around after 2^27 clock cycles (0.95 s at 141.64 MHz), but a
    -- picture takes far less: even if every pixel needed the maximum count,
-   -- the model (sim/model.py) gives about 1.4 million clock cycles (11.4 ms)
-   -- on the Nexys 4 DDR, i.e. a frame rate of about 87, and 1.9 million
-   -- (13.2 ms, a frame rate of about 75) on the MEGA65.
+   -- the model (sim/model.py) gives about 1.9 million clock cycles (13.2 ms)
+   -- on the MEGA65, i.e. a frame rate of about 75, and 1.4 million (11.4 ms,
+   -- a frame rate of about 87) on the Nexys 4 DDR.
    i_fps : entity work.fps
       generic map (
          G_CLK_FREQ  => G_CLK_FREQ,

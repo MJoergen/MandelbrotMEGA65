@@ -1,5 +1,9 @@
 XILINX_DIR = /opt/Xilinx/2025.1/Vivado
 
+# The m65 tool from the mega65-tools repository
+# (https://github.com/MEGA65/mega65-tools), used by the "fpga" target.
+M65 = m65
+
 # Name of the design. Used for the Vivado script.
 NAME = mandelbrot
 
@@ -7,13 +11,14 @@ NAME = mandelbrot
 # files, and constraint file (<board>.xdc). The make target <board> generates
 # the bit-file build/<board>/<board>.bit. Vivado is run in build/<board>, so
 # all its files (logs, checkpoint, .Xil, etc.) go there, and the boards can be
-# built at the same time, e.g. "make -j3 nexys4ddr mega65-r3 mega65-r6".
-BOARDS = nexys4ddr mega65-r3 mega65-r6
+# built at the same time, e.g. "make -j3 mega65-r3 mega65-r6 nexys4ddr".
+BOARDS = mega65-r3 mega65-r6 nexys4ddr
 BITS   = $(foreach b,$(BOARDS),build/$(b)/$(b).bit)
 
-nexys4ddr_PART = xc7a100tcsg324-1
-nexys4ddr_TOP  = nexys4ddr
-nexys4ddr_SRC  = src/nexys4ddr.vhd
+# Board programmed by the "fpga" target. Must be specified on the command
+# line, e.g. "make fpga BOARD=mega65-r6", because the bit-file of one MEGA65
+# revision must not be used on the other one.
+BOARD =
 
 # The MEGA65 board revisions R3 and R6 have the same FPGA, and the same
 # design (src/mega65.vhd). Only the top level modules are different, because
@@ -38,6 +43,12 @@ mega65-r3_SRC  = $(MEGA65_SRC) src/mega65_r3.vhd
 mega65-r6_PART = xc7a200tfbg484-2
 mega65-r6_TOP  = mega65_r6
 mega65-r6_SRC  = $(MEGA65_SRC) src/mega65_r6.vhd
+
+# The Nexys 4 DDR has a smaller FPGA, and its own top level module, with the
+# same design as src/mega65.vhd, but smaller.
+nexys4ddr_PART = xc7a100tcsg324-1
+nexys4ddr_TOP  = nexys4ddr
+nexys4ddr_SRC  = src/nexys4ddr.vhd
 
 # List of source files common to all boards. This is the only list: it is
 # also given to the Vivado script (mandelbrot.tcl), followed by the source
@@ -106,10 +117,10 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  help            Show this help text (default)"
-	@echo "  nexys4ddr       Synthesize and implement the design for the Nexys 4 DDR using Vivado (build/nexys4ddr/)"
 	@echo "  mega65-r3       Synthesize and implement the design for the MEGA65 R3 using Vivado (build/mega65-r3/)"
 	@echo "  mega65-r6       Synthesize and implement the design for the MEGA65 R6 using Vivado (build/mega65-r6/)"
-	@echo "  fpga            Program the Nexys 4 DDR board with build/nexys4ddr/nexys4ddr.bit"
+	@echo "  nexys4ddr       Synthesize and implement the design for the Nexys 4 DDR using Vivado (build/nexys4ddr/)"
+	@echo "  fpga            Program the FPGA of a board (BOARD=<board>) with its bit-file using m65"
 	@echo "  sim             Simulate all testbenches in parallel using ghdl (logs in build/)"
 	@echo "  run             Simulate a single testbench (TB=<name>) using ghdl, without writing a waveform"
 	@echo "  check           Simulate a single testbench (TB=<name>) using ghdl, write the waveform, and show it in gtkwave"
@@ -118,6 +129,9 @@ help:
 	@echo ""
 	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator'."
 	@echo "Available testbenches: $(TBS)"
+	@echo ""
+	@echo "Board is selected by BOARD=<board>, e.g. 'make fpga BOARD=mega65-r6'."
+	@echo "Available boards: $(BOARDS)"
 
 
 #####################################
@@ -137,9 +151,29 @@ $(BITS): build/%.bit: $(NAME).tcl $$(notdir $$*).xdc $(SRC) $$($$(notdir $$*)_SR
 	@mkdir -p $(@D)
 	cd $(@D) && bash -c "source $(XILINX_DIR)/settings64.sh ; vivado -mode tcl -source $(abspath $<) -tclargs $(notdir $*) $($(notdir $*)_PART) $($(notdir $*)_TOP) $(abspath $(SRC) $($(notdir $*)_SRC))"
 
+# Program the FPGA of the board BOARD with its bit-file, which is built first
+# if needed. m65 works for all the boards, i.e. also for the Nexys 4 DDR.
 .PHONY: fpga
-fpga: build/nexys4ddr/nexys4ddr.bit
-	djtgcfg prog -d Nexys4DDR -i 0 --file $<
+ifeq ($(BOARD),)
+
+# No board specified, so list the possible ones
+fpga:
+	@echo "Please specify a board using BOARD=<board>, e.g. 'make fpga BOARD=mega65-r6'."
+	@echo "Available boards:"
+	@for b in $(BOARDS); do echo "  $$b"; done
+
+else ifeq ($(filter $(BOARD),$(BOARDS)),)
+
+fpga:
+	@echo "Unknown board '$(BOARD)'. Available boards: $(BOARDS)"
+	@exit 1
+
+else
+
+fpga: build/$(BOARD)/$(BOARD).bit
+	$(M65) -q $<
+
+endif
 
 
 #####################################

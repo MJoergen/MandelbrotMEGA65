@@ -1,32 +1,21 @@
--- This is the top level module. The ports on this entity are mapped directly
--- to pins on the FPGA.
+-- This is the top level module for the Nexys 4 DDR board. The ports on this
+-- entity are mapped directly to pins on the FPGA, see nexys4ddr.xdc.
 --
--- The design calculates the Mandelbrot set, and shows it on the VGA output
--- (640x480 @ 60 Hz). The picture is calculated by the dispatcher and stored in
--- the display memory. A new picture is only calculated when the view changes
--- (see main.vhd), so the design uses little power when the view is not
--- changed.
+-- It is the same design as mega65.vhd (the design for the MEGA65), see the
+-- description there, only the size of the design, the resolution, and the
+-- ports are different:
+-- * The VGA output is 640x480 @ 60 Hz, with a pixel clock of 25 MHz, instead
+--   of 1280x1024. There is no HDMI output.
+-- * The XC7A100T is smaller, so there are fewer job modules, and the display
+--   memory is smaller, see the constants below.
+-- * The buttons, switches, and the 7-segment display are handled by
+--   main.vhd, see the description there, except switches 0 and 1, which
+--   select the colour palette in vga.vhd (see palette_pkg.vhd). The decimal
+--   point of the 7-segment display is not used, so it is switched off here.
 --
--- The design is split into two modules, one for each clock domain: main.vhd
--- (MAIN clock) and vga.vhd (VGA clock). The two domains communicate through
--- the display memory, and the frame rate (see below). This module
--- instantiates the clock and reset generation, the display memory, and the
--- two modules above.
---
--- The buttons, switches, and the 7-segment display are handled by main.vhd,
--- see the description there, except switches 0 and 1, which select the colour
--- palette in vga.vhd (see palette_pkg.vhd). The decimal point of the 7-segment
--- display is not used, so it is switched off here.
---
--- The frame rate is calculated in main.vhd, and also shown on the VGA output by
--- vga.vhd. This is the only signal between the two clock domains, apart from
--- the display memory. It is moved to the VGA clock domain here (p_fps_cdc):
--- fps_toggle is changed (in the MAIN clock domain, p_fps_toggle) each time
--- main.vhd changes fps_digits and fps_blank (fps_valid is high for one clock
--- cycle). fps_toggle is synchronized, and the frame rate is
--- copied when the change is seen. The frame rate is constant for much longer
--- than the synchronizer takes, so it is never copied while it changes. The
--- constraints for this are in nexys4ddr.xdc.
+-- The frame rate is moved to the VGA clock domain in the same way as in
+-- mega65.vhd (p_fps_toggle and p_fps_cdc). The constraints for this are in
+-- nexys4ddr.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -231,6 +220,7 @@ begin
       end if;
    end process p_fps_toggle;
 
+   -- The same as in mega65.vhd, see there.
    p_fps_cdc : process (vga_clk)
    begin
       if rising_edge(vga_clk) then

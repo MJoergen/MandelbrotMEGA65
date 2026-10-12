@@ -4,21 +4,31 @@
 -- both revisions. The top level modules connect them to the pins of the FPGA,
 -- and handle the pins that only one of the revisions has.
 --
--- It is the same design as nexys4ddr.vhd (the top level module for the
--- Nexys 4 DDR board), only the size of the design, the resolution, and the
--- ports are different:
--- * The VGA output is 1280x1024 @ 60 Hz, with a pixel clock of 108 MHz,
---   instead of 640x480. The display memory is 2.5 times as large.
--- * There are no buttons and switches. Instead, the view is controlled by the
---   joysticks and the keyboard: The directions of joystick port 1 (fa_*) and
---   the cursor keys pan the view. The fire button of port 1 and the "+" key
---   zoom in, and the fire button of port 2 (fb_*) and the "-" key zoom out.
+-- The design calculates the Mandelbrot set, and shows it on the VGA and the
+-- HDMI output (1280x1024 @ 60 Hz). The picture is calculated by the
+-- dispatcher and stored in the display memory. A new picture is only
+-- calculated when the view changes (see main.vhd), so the design uses little
+-- power when the view is not changed.
+--
+-- The design is split into two modules, one for each clock domain: main.vhd
+-- (MAIN clock) and vga.vhd (VGA clock). The two domains communicate through
+-- the display memory, and the frame rate (see below). This module
+-- instantiates the clock and reset generation, the display memory, and the
+-- two modules above. The same design, only smaller, also runs on the
+-- Nexys 4 DDR board, see nexys4ddr.vhd.
+--
+-- The ports of the MEGA65:
+-- * The view is controlled by the joysticks and the keyboard: The directions
+--   of joystick port 1 (fa_*) and the cursor keys pan the view. The fire
+--   button of port 1 and the "+" key zoom in, and the fire button of port 2
+--   (fb_*) and the "-" key zoom out. They are mapped to the inputs btn_i and
+--   sw_i of main.vhd, which are the buttons and switches on the Nexys 4 DDR.
 --   The keyboard is read by the MiSTer2MEGA65 keyboard driver (m2m_keyb.vhd,
 --   in src/keyboard/), in the MAIN clock domain. It also turns on the power
 --   LED of the keyboard (green).
 -- * The palette can not be selected, so palette 0 is always used.
 -- * There is no 7-segment display, so the frame rate is only shown on the VGA
---   output.
+--   and the HDMI output.
 -- * The VGA output goes through a video DAC with 8 bits per colour. The DAC
 --   needs a clock, which is the VGA clock inverted, so the DAC samples the
 --   pixel colour in the middle of each pixel. The colour and the sync signals
@@ -29,6 +39,16 @@
 --   mode. vga_to_hdmi.vhd encodes the picture to TMDS symbols, and the
 --   serialisers output them with the TMDS clock (5 * 108 = 540 MHz, on both
 --   edges).
+--
+-- The frame rate is calculated in main.vhd, and shown on the VGA output by
+-- vga.vhd. This is the only signal between the two clock domains, apart from
+-- the display memory. It is moved to the VGA clock domain here (p_fps_cdc):
+-- fps_toggle is changed (in the MAIN clock domain, p_fps_toggle) each time
+-- main.vhd changes fps_digits and fps_blank (fps_valid is high for one clock
+-- cycle). fps_toggle is synchronized, and the frame rate is
+-- copied when the change is seen. The frame rate is constant for much longer
+-- than the synchronizer takes, so it is never copied while it changes. The
+-- constraints for this are in mega65-r3.xdc and mega65-r6.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -379,7 +399,6 @@ begin
       end if;
    end process p_fps_toggle;
 
-   -- The same as in nexys4ddr.vhd, see there.
    p_fps_cdc : process (vga_clk)
    begin
       if rising_edge(vga_clk) then

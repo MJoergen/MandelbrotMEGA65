@@ -8,15 +8,16 @@
 -- The generics are the number of job modules, the number of pixels in each
 -- write, the rows in a job, the size of the picture, the address distance
 -- between two picture columns, and the bits of the address, by default as on
--- the Nexys 4 DDR (nexys4ddr.vhd). They can be set with GENERICS, e.g. as on
--- the MEGA65 (mega65.vhd):
---   GENERICS="G_NUM_ITERATORS=368 G_PIXELS=4 G_ROWS_IN_JOB=64 G_NUM_COLS=1280 G_NUM_ROWS=1024 G_COL_STRIDE=1024 G_ADDR_BITS=21"
+-- the MEGA65 (mega65.vhd). They can be set with GENERICS, e.g. as on the
+-- Nexys 4 DDR (nexys4ddr.vhd):
+--   GENERICS="G_NUM_ITERATORS=120 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19"
 --
 -- The testbench is not self-checking. Instead the output is compared with the
--- bit-accurate model using the script cmp_rtl.py. A complete picture of the
--- Nexys 4 DDR (1.44 ms of simulated time) takes about 40 minutes to simulate
--- (and with make check TB=main writes a waveform of a few GB), but a partial
--- picture can be compared too, e.g.
+-- bit-accurate model using the script cmp_rtl.py. A complete picture takes a
+-- long time to simulate (about 40 minutes for the Nexys 4 DDR, i.e. 1.44 ms
+-- of simulated time, and with make check TB=main a waveform of a few GB), but
+-- a partial picture can be compared too, e.g. (about 14 minutes for the
+-- MEGA65)
 --   make run TB=main STOP_TIME=200us
 --   sim/cmp_rtl.py
 
@@ -27,13 +28,13 @@ use std.textio.all;
 
 entity main_tb is
    generic (
-      G_NUM_ITERATORS : positive := 120;
+      G_NUM_ITERATORS : positive := 368;
       G_PIXELS        : positive := 4;
-      G_ROWS_IN_JOB   : positive := 120;
-      G_NUM_COLS      : positive := 640;
-      G_NUM_ROWS      : positive := 480;
-      G_COL_STRIDE    : positive := 512;
-      G_ADDR_BITS     : positive := 19
+      G_ROWS_IN_JOB   : positive := 64;
+      G_NUM_COLS      : positive := 1280;
+      G_NUM_ROWS      : positive := 1024;
+      G_COL_STRIDE    : positive := 1024;
+      G_ADDR_BITS     : positive := 21
    );
 end entity main_tb;
 
