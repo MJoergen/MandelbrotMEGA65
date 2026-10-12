@@ -92,3 +92,7 @@ are only checked by Vivado.
 * The body is a paragraph on why, then `* ` bullets on what changed, ending
   with what was tested: which testbenches, formal proofs, and builds were
   run, the timing results, and whether it was tested on a board.
+* Work on a branch, and merge it into `main` by fast-forward
+  (`git merge --ff-only`), never with a merge commit. The merge commits in
+  the older history are not the style to copy. If `main` has moved, so that a
+  fast-forward is not possible, ask before rebasing the branch.
