@@ -91,6 +91,12 @@ set_false_path -from [get_ports {fa_up_n_i fa_down_n_i fa_left_n_i fa_right_n_i 
 # from it are not timed.
 set_false_path -from [get_cells i_max10/reset_button_reg]
 
+# The timing of the serial link to the MAX10 is fragile, so the link is placed
+# close to its pins, as in the C64MEGA65 core (MEGA65-R3.xdc).
+create_pblock pblock_max10
+add_cells_to_pblock pblock_max10 [get_cells [list i_max10]]
+resize_pblock pblock_max10 -add {SLICE_X0Y150:SLICE_X7Y174}
+
 # Configuration Bank Voltage Select
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
