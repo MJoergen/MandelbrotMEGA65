@@ -88,7 +88,7 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      |   +- fps                     src/main/fps.vhd (frame rate, calculated from the time for a picture)
      |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
      +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
-     +- fps_cdc                     src/fps_cdc.vhd (moves the frame rate to the VGA clock domain)
+     +- cdc_data                    src/cdc_data.vhd (moves the frame rate to the VGA clock domain)
      +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
      |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
      |   +- disp                    src/vga/disp.vhd (VGA output, uses the palettes in src/vga/palette_pkg.vhd)
@@ -98,7 +98,7 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      +- serialiser_10to1_selectio   src/hdmi/serialiser_10to1_selectio.vhd (x 4, the HDMI data and clock)
 ```
 On the Nexys 4 DDR, the top level is `nexys4ddr` (`src/nexys4ddr.vhd`), which
-instantiates `clk_rst`, `main`, `disp_mem`, `fps_cdc`, and `vga` in the same
+instantiates `clk_rst`, `main`, `disp_mem`, `cdc_data`, and `vga` in the same
 way as `mega65` does, but has no keyboard, video DAC, or HDMI output, and drives
 the 7-segment display from `seg`.
 
@@ -1122,13 +1122,18 @@ script [`font/gen_font_pkg.py`](font/gen_font_pkg.py) converts the font to the
 table in [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd), 32 rows of 16 bits
 for each digit. The frame rate (32 bits of digits and 8 bits of blanking) is
 calculated in the MAIN clock domain, so it is moved to the VGA clock domain
-by [`src/fps_cdc.vhd`](src/fps_cdc.vhd), in the design of the board
+by [`src/cdc_data.vhd`](src/cdc_data.vhd), in the design of the board
 ([`src/mega65.vhd`](src/mega65.vhd), or
 [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd)), so `main` does not depend on the
-VGA clock. `main` sets `fps_valid_o` for one clock cycle each time the frame
-rate changes, and `fps_cdc` then changes a toggle signal (`p_toggle`). This is
-synchronized with two registers (`p_cdc`), and when it changes, the frame
-rate is copied, so `overlay` only gets signals in the VGA clock domain. The
+VGA clock. `cdc_data` is a generic clock domain crossing for a value that
+changes seldom (the ports of the source clock domain start with `s_`, and
+those of the destination with `m_`), and the design gives it the frame rate
+as one value of 40 bits. `main` sets `fps_valid_o` for one clock cycle each
+time the frame rate changes, and `cdc_data` then changes a toggle signal
+(`p_toggle`). This is synchronized with two registers (`p_cdc`), and when it
+changes, the frame rate is copied, so `overlay` only gets signals in the VGA
+clock domain. Until the first frame rate, the output is the initial value
+(`G_INIT`), with all the digits blanked. The
 frame rate changes only at the end of a picture, so it is constant for much
 longer than the synchronizer takes (a few VGA clock cycles), and it is never
 copied while it changes. The constraint in [`mega65-r3.xdc`](mega65-r3.xdc),
@@ -1142,14 +1147,14 @@ in the overlay, the digit, the row of the font, the pixel of the row, and then
 the colour, which replaces the output of `disp`. This adds one clock cycle of
 latency to all the VGA outputs.
 
-The testbench [`sim/fps_cdc_tb.vhd`](sim/fps_cdc_tb.vhd) gives `fps_cdc` a
-new frame rate after a random time (at least ten VGA clock cycles), and
-checks in every VGA clock cycle that nothing is shown before the first frame
-rate, that the frame rate is always either the latest one or the one before
-it (never a mix of the two, and never back to the one before), and that the
-latest one arrives at most one MAIN clock cycle and four VGA clock cycles
-after it was sent. It does this with the clocks of both boards (141.64 MHz
-and 108 MHz, and 120 MHz and 25 MHz).
+The testbench [`sim/cdc_data_tb.vhd`](sim/cdc_data_tb.vhd) gives `cdc_data`
+a new value of 40 bits after a random time (at least ten destination clock
+cycles), and checks in every destination clock cycle that the output is the
+initial value before the first value, that it is always either the latest
+value or the one before it (never a mix of the two, and never back to the
+one before), and that the latest one arrives at most one source clock cycle
+and four destination clock cycles after it was sent. It does this with the
+clocks of both boards (141.64 MHz and 108 MHz, and 120 MHz and 25 MHz).
 
 The testbench [`sim/overlay_tb.vhd`](sim/overlay_tb.vhd) checks the colour of
 every pixel of three frames of the VGA output (with a different value for each
@@ -1475,7 +1480,7 @@ VCO is 1080 MHz instead, see [MEGA65](#mega65). The constraints in
 `nexys4ddr.xdc` are the 100 MHz input clock, a maximum delay
 (`set_max_delay -datapath_only`) for the paths from the MAIN clock to the VGA
 clock, which only carry the frame rate and its toggle signal to the
-synchronizer in `fps_cdc` (see [Overlay](#overlay)), and a false
+synchronizer in `cdc_data` (see [Overlay](#overlay)), and a false
 path (`set_false_path`) from the inputs (the reset, the buttons, and the
 switches), which are asynchronous, and synchronized with two registers. The
 constraint files of the MEGA65 have the same, with the joysticks and the

@@ -13,7 +13,7 @@
 --   select the colour palette in vga.vhd (see palette_pkg.vhd). The decimal
 --   point of the 7-segment display is not used, so it is switched off here.
 --
--- The frame rate is moved to the VGA clock domain by fps_cdc.vhd, as in
+-- The frame rate is moved to the VGA clock domain by cdc_data.vhd, as in
 -- mega65.vhd. The constraints for this are in nexys4ddr.xdc.
 
 library ieee;
@@ -104,7 +104,12 @@ architecture structural of nexys4ddr is
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
 
-   -- The frame rate in the VGA clock domain
+   -- The frame rate (the digits followed by the blanking) in the MAIN clock
+   -- domain, and in the VGA clock domain. Until the first frame rate, all the
+   -- digits are blanked, so nothing is shown.
+   constant C_FPS_INIT   : std_logic_vector(39 downto 0) := X"00000000FF";
+   signal fps            : std_logic_vector(39 downto 0);
+   signal vga_fps        : std_logic_vector(39 downto 0);
    signal vga_fps_digits : std_logic_vector(31 downto 0);
    signal vga_fps_blank  : std_logic_vector( 7 downto 0);
 
@@ -192,16 +197,23 @@ begin
    -- Move the frame rate to the VGA clock domain
    --------------------------------------------------
 
-   i_fps_cdc : entity work.fps_cdc
+   fps <= fps_digits & fps_blank;
+
+   i_cdc_data : entity work.cdc_data
+      generic map (
+         G_DATA_SIZE => fps'length,
+         G_INIT      => C_FPS_INIT
+      )
       port map (
-         main_clk_i    => main_clk,
-         main_digits_i => fps_digits,
-         main_blank_i  => fps_blank,
-         main_valid_i  => fps_valid,
-         vga_clk_i     => vga_clk,
-         vga_digits_o  => vga_fps_digits,
-         vga_blank_o   => vga_fps_blank
-      ); -- i_fps_cdc
+         s_clk_i   => main_clk,
+         s_data_i  => fps,
+         s_valid_i => fps_valid,
+         m_clk_i   => vga_clk,
+         m_data_o  => vga_fps
+      ); -- i_cdc_data
+
+   vga_fps_digits <= vga_fps(39 downto 8);
+   vga_fps_blank  <= vga_fps( 7 downto 0);
 
 
    --------------------------------------------------

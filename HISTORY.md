@@ -316,17 +316,17 @@ them go back in time, starting with the latest one.
 The previous run of `make mega65-r6`, before the buttons and switches were
 synchronized with two registers, the asynchronous inputs were declared as
 false paths, and the clock domain crossing of the frame rate was moved to an
-entity of its own (fps_cdc.vhd), met timing with +0.059 ns (+0.057 ns after
-the routing), and had 21,972 slices, 48,004 LUTs, and 60,288 registers
-(74,629 LUT cells and 59,168 registers after synthesis). Its worst hold path
-(+0.011 ns) was from the result register of a job module (`res_word_r`) to
-the register of its group in `dispatcher_results` (`grp_res_data_r`). The VGA
-clock had +0.161 ns of setup slack (from `pix_y` to `rd_grp_addr`, only
-routing, 8.71 ns of the 9.06 ns), and the paths from the MAIN clock to the
-VGA clock +8.88 ns. The previous run of `make mega65-r3` met timing after the
-routing, with +0.079 ns, with 22,107 slices, 48,005 LUTs, and +0.024 ns of
-hold slack (in `res_cy_r`). Its VGA clock had +0.254 ns of setup slack, and
-the paths from the MAIN clock to the VGA clock +8.94 ns.
+entity of its own (fps_cdc.vhd, now the generic cdc_data.vhd), met timing with
++0.059 ns (+0.057 ns after the routing), and had 21,972 slices, 48,004 LUTs,
+and 60,288 registers (74,629 LUT cells and 59,168 registers after synthesis).
+Its worst hold path (+0.011 ns) was from the result register of a job module
+(`res_word_r`) to the register of its group in `dispatcher_results`
+(`grp_res_data_r`). The VGA clock had +0.161 ns of setup slack (from `pix_y`
+to `rd_grp_addr`, only routing, 8.71 ns of the 9.06 ns), and the paths from
+the MAIN clock to the VGA clock +8.88 ns. The previous run of `make mega65-r3`
+met timing after the routing, with +0.079 ns, with 22,107 slices, 48,005 LUTs,
+and +0.024 ns of hold slack (in `res_cy_r`). Its VGA clock had +0.254 ns of
+setup slack, and the paths from the MAIN clock to the VGA clock +8.94 ns.
 
 The run of `make mega65-r6` before that, with the reset of the display memory
 (see [Display memory](#the-display-memory)), met timing with +0.043 ns

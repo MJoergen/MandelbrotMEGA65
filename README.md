@@ -276,7 +276,7 @@ it does nothing.
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp_mem`,
-`fps`, `fps_cdc`, and `controls`, and two for `main`: `redraw` checks that it
+`fps`, `cdc_data`, and `controls`, and two for `main`: `redraw` checks that it
 only calculates a picture when the view changes, and that the pictures end up
 in the display memory, and `picture` compares every pixel of three small
 pictures (64x48) with the bit-accurate model.
@@ -316,7 +316,7 @@ HDMI output). They are not simulated, and neither are the top levels
 (`src/mega65_r3.vhd`, `src/mega65_r6.vhd`, and `src/nexys4ddr.vhd`), which
 instantiate them. So the logic of the designs of the boards is kept in
 entities of their own, which are simulated: the clock domain crossing of the
-frame rate (`src/fps_cdc.vhd`), and the mapping of the joysticks and the keys
+frame rate (`src/cdc_data.vhd`), and the mapping of the joysticks and the keys
 of the MEGA65 (`src/main/controls.vhd`). What is left in `src/mega65.vhd` is
 the expansion of the colour to 8 bits, the registers of the video DAC, and
 the sync signals for the HDMI output, which are only checked on the board.
@@ -405,8 +405,8 @@ and [`src/hdmi/`](src/hdmi).
 | File             | Description
 | ---------------- | -----------
 | [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions.
-| [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `fps_cdc`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
-| [`src/fps_cdc.vhd`](src/fps_cdc.vhd) | Moves the frame rate from the MAIN clock domain to the VGA clock domain. Used by the designs of both boards.
+| [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
+| [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate from the MAIN clock domain to the VGA clock domain.
 | [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`.
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
