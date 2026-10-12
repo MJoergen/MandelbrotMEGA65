@@ -119,19 +119,26 @@ begin
    p_avg : process (clk_i)
       variable time_v : std_logic_vector(C_AVG_BITS-1 downto 0);
       variable diff_v : std_logic_vector(C_AVG_BITS downto 0);
+      variable step_v : std_logic_vector(C_AVG_BITS-1 downto 0);
    begin
       if rising_edge(clk_i) then
          avg_valid <= valid_i;
          if valid_i = '1' then
-            time_v := time_i & (G_AVG_SHIFT-1 downto 0 => '0');
+            -- The time with G_AVG_SHIFT fractional bits. The vector is
+            -- filled first, because (G_AVG_SHIFT-1 downto 0) is a null range
+            -- when G_AVG_SHIFT is 0, which Vivado does not support.
+            time_v := (others => '0');
+            time_v(C_AVG_BITS-1 downto G_AVG_SHIFT) := time_i;
             if avg_first = '1' then
                avg <= time_v;
             else
                -- The difference is signed, so it is divided by
                -- 2^G_AVG_SHIFT with an arithmetic shift (rounded down).
                diff_v := ('0' & time_v) - ('0' & avg);
-               avg <= avg + ((G_AVG_SHIFT-1 downto 0 => diff_v(C_AVG_BITS)) &
-                             diff_v(C_AVG_BITS-1 downto G_AVG_SHIFT));
+               step_v := (others => diff_v(C_AVG_BITS));
+               step_v(C_AVG_BITS-1-G_AVG_SHIFT downto 0) :=
+                  diff_v(C_AVG_BITS-1 downto G_AVG_SHIFT);
+               avg <= avg + step_v;
             end if;
             avg_first <= '0';
          end if;
