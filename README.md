@@ -21,8 +21,8 @@ For each pixel, which corresponds to a complex number $c$, we iterate
 $z \mapsto z^2 + c$ starting from $z = 0$, and count the number of iterations
 until the real or the imaginary part of $z$ leaves the range -2 to 2 (the range
 of the number format), up to a maximum of 511. This count decides the colour
-of the pixel, using one of four colour palettes (the MEGA65 always uses
-palette 0, see [Controls](#controls)). The points in the set (count 511) have
+of the pixel, using one of four colour palettes (selected with the keys `1`
+to `4` on the MEGA65, see [Controls](#controls)). The points in the set (count 511) have
 their own colour, and the other counts use the lower 8 bits of the count.
 
 The numbers are 18-bit
@@ -61,13 +61,14 @@ A new picture is only calculated when the view changes, and after reset. In
 between, the job modules are idle, and the FPGA uses much less power (see
 [Redraw](ALGORITHM.md#redraw)). The view is controlled with a
 joystick in each port, or with the keyboard, see
-[`src/mega65.vhd`](src/mega65.vhd).
+[`src/main/controls.vhd`](src/main/controls.vhd).
 
 | Control | Description
 | ------- | -----------
 | Joystick port 1: left, right, up, down, or the cursor keys | Pan the picture left, right, up, and down, by 1/320 of the width of the picture (4 pixels) for each update. Panning stops at the edge of the number range (-2 to 2).
 | Joystick port 1: fire, or the `+` key | Zoom in. The centre of the picture stays fixed. Zooming in stops at the smallest pixel size (2^-16).
 | Joystick port 2: fire, or the `-` key | Zoom out. The centre of the picture stays fixed, except when zooming out would move an edge of the view beyond -2 or 2; then the view is moved instead. Zooming out stops when the view can not get larger.
+| The keys `1`, `2`, `3`, and `4` | Select the colour palette 0, 1, 2, or 3 (see below). The palette stays selected when the key is released. If several of these keys are held down, the lowest one wins.
 | Reset button | Resets the design and returns to the initial view. On the R3 the reset button is read by the MAX10 (a small FPGA on the board), which sends it to the XC7A200T over a serial link.
 
 While a control is held down, the view is updated about 18 times per second.
@@ -76,10 +77,14 @@ size of a pixel by about 1.6% (roughly 33% per second). The initial view
 shows the real axis from -1.67 to 1 and the imaginary axis from -1.07 to
 1.07. See [View control](ALGORITHM.md#view-control) for details.
 
-The colour palette can not be selected on the MEGA65, so it is always
-palette 0: the lower 8 bits of the count are the colour (RRRGGGBB), mostly
-blue and green, and the set is white. The other palettes are described in
-[Nexys 4 DDR](#nexys-4-ddr) and in [Colours](ALGORITHM.md#colours).
+The colour palettes are: 0 (the palette after power-on): the lower 8 bits of
+the count are the colour (RRRGGGBB), mostly blue and green, and the set is
+white. 1: rainbow, the hue goes around the colour circle every 16 counts.
+2: fire, black, red, orange, yellow, and white, with the square root of the
+count. 3: blue, white, orange, and dark brown, with the logarithm of the
+count. In the palettes 1 to 3 the set is black. See
+[Colours](ALGORITHM.md#colours) for details. The reset button does not change
+the palette.
 
 The top left corner of the picture shows the view, in white on black: the
 centre of the picture as a complex number, with five digits after the point,
@@ -442,7 +447,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions. The R3 reads the reset button from the MAX10, with `max10`.
 | [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
 | [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate and the view from the MAIN clock domain to the VGA clock domain.
-| [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`.
+| [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`, i.e. the controls of the view, and the palette (keys `1` to `4`).
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
 | [`src/max10/`](src/max10) | Serial link to the MAX10 of the MEGA65 R3, from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul Gardner-Stephen (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `max10` sends a 25 MHz clock to the MAX10, and reads the reset button (and other signals, which are not used) from it. Only used by `mega65_r3.vhd`.

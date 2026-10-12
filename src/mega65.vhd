@@ -24,9 +24,11 @@
 --   (fb_*) and the "-" key zoom out. They are mapped to the inputs btn_i and
 --   sw_i of main.vhd, which are the buttons and switches on the Nexys 4 DDR,
 --   by controls.vhd. The keyboard is read by the MiSTer2MEGA65 keyboard
---   driver (m2m_keyb.vhd, in src/keyboard/), in the MAIN clock domain. It
---   also turns on the power LED of the keyboard (green).
--- * The palette can not be selected, so palette 0 is always used.
+--   driver (m2m_keyb.vhd, in src/keyboard/), in the MAIN clock domain. It also
+--   turns on the power LED of the keyboard (green).
+-- * The keys "1" to "4" select the palettes 0 to 3 (see palette_pkg.vhd).
+--   controls.vhd stores the palette in switches 0 and 1, which are used by
+--   vga.vhd, as on the Nexys 4 DDR.
 -- * There is no 7-segment display, so the frame rate is only shown on the VGA
 --   and the HDMI output.
 -- * The VGA output goes through a video DAC with 8 bits per colour. The DAC

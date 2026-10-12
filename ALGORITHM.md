@@ -999,8 +999,9 @@ clock (on the MEGA65 the joystick lines, combined with the keys), so `main`
 synchronizes them with two registers (with the attribute `async_reg`), like
 the reset in `clk_rst` and the palette switches in `vga`. On the
 Nexys 4 DDR, the switches 0 and 1 select the colour palette, see [Colours](#colours). They are used in the VGA clock domain (in
-`vga`), not in `main`. The switches 3 to 7 are not used. On the MEGA65 these
-switches are always off, so it always uses palette 0.
+`vga`), not in `main`. The switches 3 to 7 are not used. On the MEGA65 the
+switches 0 and 1 are the palette selected with the keys `1` to `4`, and the
+switches 3 to 7 are always off.
 
 The view control has a self-checking testbench
 ([`sim/viewport_tb.vhd`](sim/viewport_tb.vhd)). It holds the buttons down for many
@@ -1016,12 +1017,27 @@ update is not. It does this for both resolutions, with an instance each:
 the initial view of `main`. The initial view is also checked when the design
 is elaborated: it must be inside the range too.
 
-The mapping of the joysticks and the keys of the MEGA65 has a self-checking
-testbench too ([`sim/controls_tb.vhd`](sim/controls_tb.vhd)). A model of the
-keyboard driver cycles through the 80 keys, and the testbench tries every
-combination of the six joystick lines and the six keys that are used, each
-with a random set of the other keys pressed, and checks the buttons and
-switches after a full cycle of the keyboard driver.
+**The joysticks and the keyboard.** On the MEGA65,
+[`src/main/controls.vhd`](src/main/controls.vhd) maps the joysticks and the
+keyboard to the buttons and switches above, in the MAIN clock domain. The
+keyboard driver (`m2m_keyb`, in `src/keyboard/`) cycles through the 80 keys,
+1000 times per second, and shows whether each one is pressed. The keys that
+are used are stored in a register each, which is updated once in each cycle
+through the keys. The keys `1` to `4` select the palettes 0 to 3, and the
+palette is stored in a register (palette 0 after power-on), so it stays
+selected when the key is released. The palette is only changed at the end of
+a cycle through the keys (key 79), when all the keys have been read, so it
+changes only once when one key is pressed while another one is released. If
+several of the keys are held down, the lowest one wins. The joysticks are not
+registered in `controls`, only in `main` (and in `vga` for the palette).
+
+The testbench [`sim/controls_tb.vhd`](sim/controls_tb.vhd) is self-checking.
+It cycles through the keys like the keyboard driver, and checks the buttons
+and switches in every clock cycle of a whole cycle through the keys: after
+power-on, for each of the 80 keys on its own, for each combination of the
+keys `1` to `4`, for all 64 combinations of the joystick inputs, and for 300
+random combinations of keys and joystick inputs. The palette must stay
+selected when its key is released.
 
 ## Frame rate
 The top right corner of the VGA output (and the
@@ -1199,8 +1215,9 @@ the HDMI output, by repeating its bits (e.g. 111 becomes 11111111), so the
 full range is used. The points in the set (count 511) get the colour of the set. For the
 other counts, the lower 8 bits of the count (the value) are converted to the
 colour by one of four palettes in [`src/vga/palette_pkg.vhd`](src/vga/palette_pkg.vhd).
-The MEGA65 always uses palette 0, and on the Nexys 4 DDR the palette is
-selected by switches 0 and 1 (switch 1 is the high bit):
+On the MEGA65 the palette is selected with the keys `1` to `4` (see
+"The joysticks and the keyboard" in [The top level](#the-top-level)), and on
+the Nexys 4 DDR by switches 0 and 1 (switch 1 is the high bit):
 * 0: The value itself is the colour. Most of the pixels outside the set have
   small counts (in the initial view, 92.5% of the pixels outside the set have
   a count below 16),
@@ -1224,8 +1241,9 @@ to change. The colour of each entry is rounded to the nearest of the 8 (or 4)
 levels of each colour component. The tables are implemented in LUTs, and the
 lookup is done in the output register of `disp`, so it adds no delay.
 
-The switches are asynchronous to the VGA clock, so they are synchronized with
-two registers in `vga`.
+The switches (on the MEGA65 the palette register in the MAIN clock domain)
+are asynchronous to the VGA clock, so they are synchronized with two
+registers in `vga`.
 
 The testbench for the VGA output ([`sim/vga_tb.vhd`](sim/vga_tb.vhd)) checks
 the timing and the polarity of the sync signals, and then the colour of every
