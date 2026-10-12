@@ -94,8 +94,7 @@ begin
          seg_an_o  => open,
          wr_addr_o => wr_addr,
          wr_data_o => wr_data,
-         wr_en_o   => wr_en,
-         wr_busy_i => '0'
+         wr_en_o   => wr_en
       ); -- i_main
 
 

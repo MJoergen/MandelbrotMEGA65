@@ -13,9 +13,7 @@
 --
 -- A picture is only calculated when the view has changed, i.e. after reset,
 -- and when the view is changed by the buttons. In between, the dispatcher and
--- the job modules are idle, and use much less power. After reset the display
--- memory is filled with a constant, and it ignores writes until it is
--- finished (wr_busy_i), so the first picture is started after that.
+-- the job modules are idle, and use much less power.
 --
 -- The 7-segment display shows the frame rate, i.e. the clock frequency divided
 -- by the time taken by the latest picture, see fps.vhd. This is the number of
@@ -67,12 +65,10 @@ entity main is
       fps_blank_o  : out std_logic_vector( 7 downto 0);
       fps_valid_o  : out std_logic;
 
-      -- Write port of the display memory. No picture is started while
-      -- wr_busy_i is high, because the display memory ignores the writes then.
+      -- Write port of the display memory
       wr_addr_o    : out std_logic_vector(G_ADDR_BITS-1 downto 0);
       wr_data_o    : out std_logic_vector(9*G_PIXELS-1 downto 0);
-      wr_en_o      : out std_logic;
-      wr_busy_i    : in  std_logic
+      wr_en_o      : out std_logic
    );
 end entity main;
 
@@ -216,12 +212,8 @@ begin
 
          -- Start a new picture when the previous one is finished, and the view
          -- has changed since the previous one was started (or after reset).
-         -- After reset, the display memory ignores the writes until it has
-         -- been filled, so the first picture waits for that. Otherwise most of
-         -- it would be lost, and it is not calculated again until the view
-         -- changes.
          if active = '0' then
-            if view_new = '1' and wr_busy_i = '0' then
+            if view_new = '1' then
                active <= '1';
                start  <= '1';
             end if;
