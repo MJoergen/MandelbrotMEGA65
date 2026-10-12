@@ -370,6 +370,25 @@ count until the next start) is given by assumptions in `job.psl`. So the count
 of each row can be any value, and the iteration can take any number of clock
 cycles. The iterator itself is checked by simulation, see above.
 
+## License
+The design is licensed under the [MIT License](LICENSE), except for the files
+copied from other projects, which keep their own licenses:
+* [`src/keyboard/`](src/keyboard): the MEGA65 keyboard driver, from the
+  [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via
+  [C64MEGA65](https://github.com/MJoergen/C64MEGA65)), originally by Paul
+  Gardner-Stephen, GPL v3.
+* [`src/hdmi/`](src/hdmi): the HDMI output, from The Tyto Project by Adam
+  Barnes (via C64MEGA65), LGPL v3.
+* [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd): the digits of the
+  [Spleen](https://github.com/fcambus/spleen) font by Frederic Cambus, BSD
+  2-Clause (see [`font/LICENSE.spleen`](font/LICENSE.spleen), and the header
+  of the file).
+
+The keyboard driver and the HDMI output are only used on the MEGA65, so a
+bit-file for the MEGA65 includes them, and one for the Nexys 4 DDR does not.
+`src/clk_rst.vhd` started as the output of the Xilinx Clocking Wizard, but
+has been rewritten by hand.
+
 ## Files
 The files used only in the MAIN clock domain are in [`src/main/`](src/main),
 and those used only in the VGA clock domain are in [`src/vga/`](src/vga). The
@@ -414,3 +433,4 @@ and [`src/hdmi/`](src/hdmi).
 | [`CODING_STYLE.md`](CODING_STYLE.md), [`vsg.yml`](vsg.yml) | The VHDL coding style, and the configuration of [VSG](https://vhdl-style-guide.readthedocs.io/) that checks most of it.
 | [`scripts/`](scripts), [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.claude/settings.json`](.claude/settings.json) | Installation of the free tools, the continuous integration on GitHub, and the hook that installs the tools in the cloud environment of Claude Code, see [Tools](#tools).
 | [`TODO.md`](TODO.md) | Ideas for further changes.
+| [`LICENSE`](LICENSE) | The license of the design (MIT), see [License](#license).
