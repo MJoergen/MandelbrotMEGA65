@@ -93,7 +93,6 @@ architecture structural of nexys4ddr is
    signal main_rst       : std_logic;
 
    signal vga_clk        : std_logic;
-   signal vga_rst        : std_logic;
 
    signal wr_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
    signal wr_data        : std_logic_vector(9*C_PIXELS-1 downto 0);
@@ -138,7 +137,7 @@ begin
          main_clk_o => main_clk,
          main_rst_o => main_rst,
          vga_clk_o  => vga_clk,
-         vga_rst_o  => vga_rst
+         vga_rst_o  => open      -- Only the HDMI output of the MEGA65 uses it
       ); -- i_clk_rst
 
 
@@ -243,7 +242,6 @@ begin
       )
       port map (
          clk_i        => vga_clk,
-         rst_i        => vga_rst,
          rd_addr_o    => rd_addr,
          rd_data_i    => rd_data,
          palette_i    => sw_i(1 downto 0),

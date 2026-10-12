@@ -264,7 +264,6 @@ begin
       )
       port map (
          clk_i        => clk,
-         rst_i        => rst,
          rd_addr_o    => rd_addr,
          rd_data_i    => rd_data,
          palette_i    => "00",

@@ -421,7 +421,6 @@ begin
       )
       port map (
          clk_i        => vga_clk,
-         rst_i        => vga_rst,
          rd_addr_o    => rd_addr,
          rd_data_i    => rd_data,
          palette_i    => sw(1 downto 0),

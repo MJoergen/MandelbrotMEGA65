@@ -21,7 +21,6 @@ entity disp is
    );
    port (
       vga_clk_i     : in  std_logic;
-      vga_rst_i     : in  std_logic;
       vga_pix_x_i   : in  std_logic_vector(10 downto 0);
       vga_pix_y_i   : in  std_logic_vector(10 downto 0);
       vga_col_d3_i  : in  std_logic_vector(8 downto 0);

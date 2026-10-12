@@ -26,7 +26,6 @@ entity vga is
    );
    port (
       clk_i        : in  std_logic;                      -- The pixel clock
-      rst_i        : in  std_logic;
 
       -- Read port of the display memory
       rd_addr_o    : out std_logic_vector(G_ADDR_BITS-1 downto 0);
@@ -146,7 +145,6 @@ begin
       )
       port map (
          vga_clk_i     => clk_i,
-         vga_rst_i     => rst_i,
          vga_pix_x_i   => disp_x,
          vga_pix_y_i   => disp_y,
          vga_col_d3_i  => rd_data_i,
