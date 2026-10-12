@@ -9,7 +9,8 @@
 -- a picture column, with the first row in the lowest 9 bits. So the write port
 -- writes G_PIXELS pixels at a time. The write address (wr_addr_i) is that of
 -- the first pixel, i.e. its lowest bits (the position in the word) must be
--- zero. The read port reads a single pixel. G_PIXELS must be a power of two.
+-- zero (this is checked in simulation). The read port reads a single pixel.
+-- G_PIXELS must be a power of two.
 --
 -- The memory is divided into G_NUM_BLOCKS blocks of 2^12 pixels (one BRAM
 -- each, used as 4096/G_PIXELS entries of 9*G_PIXELS bits, i.e. with the
@@ -60,10 +61,10 @@ use work.util_pkg.all;
 
 entity disp_mem is
    generic (
-      G_ADDR_BITS  : positive := 19;     -- Bits of the pixel address
-      G_NUM_BLOCKS : positive := 128;    -- Blocks (BRAMs) of 4096 pixels
-      G_BLOCK_REGS : boolean := true;    -- A write register for each block
-      G_PIXELS     : positive := 1       -- Pixels in each word
+      G_ADDR_BITS  : positive;    -- Bits of the pixel address
+      G_NUM_BLOCKS : positive;    -- Blocks (BRAMs) of 4096 pixels
+      G_BLOCK_REGS : boolean;     -- A write register for each block
+      G_PIXELS     : positive     -- Pixels in each word
    );
    port (
       wr_clk_i  : in  std_logic;
@@ -157,6 +158,23 @@ begin
           C_NUM_WORDS <= 2**C_WORD_BITS
       report "The number of blocks must be a multiple of 8, and fit in the address"
       severity failure;
+
+   assert 2**C_SUB_BITS = G_PIXELS
+      report "G_PIXELS must be a power of two"
+      severity failure;
+
+-- pragma synthesis_off
+   -- The lowest bits of the write address (the position in the word) are
+   -- dropped, so they must be zero
+   p_check_wr_addr : process (wr_clk_i)
+   begin
+      if rising_edge(wr_clk_i) then
+         assert wr_en_i /= '1' or to_integer(wr_addr_i) mod G_PIXELS = 0
+            report "The write address is not the first pixel of a word"
+            severity error;
+      end if;
+   end process p_check_wr_addr;
+-- pragma synthesis_on
 
    -------------------------
    -- Write to pixel memory

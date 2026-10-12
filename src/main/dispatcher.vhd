@@ -36,11 +36,11 @@ entity dispatcher is
       G_NUM_ROWS      : positive;
       G_NUM_COLS      : positive;
       G_COL_STRIDE    : positive;         -- Address distance between columns
-      G_ADDR_BITS     : positive := 19;   -- Bits of the address
+      G_ADDR_BITS     : positive;         -- Bits of the address
       G_ROWS_IN_JOB   : positive;         -- Rows in each job
       G_NUM_ITERATORS : positive;
       G_GROUP_SIZE    : positive := 16;
-      G_PIXELS        : positive := 1     -- Pixels in each write
+      G_PIXELS        : positive          -- Pixels in each write
    );
    port (
       clk_i     : in  std_logic;

@@ -22,7 +22,7 @@ entity vga is
    generic (
       G_MODE       : video_mode_t;
       G_COL_STRIDE : positive;
-      G_ADDR_BITS  : positive := 19
+      G_ADDR_BITS  : positive
    );
    port (
       clk_i        : in  std_logic;                      -- The pixel clock
@@ -90,6 +90,12 @@ begin
    assert G_COL_STRIDE >= G_MODE.v_visible and
           (G_MODE.h_visible-1)*G_COL_STRIDE + G_MODE.v_visible <= 2**G_ADDR_BITS
       report "The picture does not fit in the display memory"
+      severity failure;
+
+   -- The column stride is multiplied as 11 bits, and the address has at most
+   -- the 22 bits of rd_addr
+   assert G_COL_STRIDE < 2**11 and G_ADDR_BITS <= rd_addr'length
+      report "The column stride must be less than 2048, and the address at most 22 bits"
       severity failure;
 
    --------------------------------------------------

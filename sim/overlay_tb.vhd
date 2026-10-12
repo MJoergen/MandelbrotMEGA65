@@ -260,7 +260,8 @@ begin
    i_vga : entity work.vga
       generic map (
          G_MODE       => C_MODE,
-         G_COL_STRIDE => 512
+         G_COL_STRIDE => 512,
+         G_ADDR_BITS  => 19
       )
       port map (
          clk_i        => clk,

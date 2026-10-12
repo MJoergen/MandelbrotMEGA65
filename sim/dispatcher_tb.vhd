@@ -49,6 +49,7 @@ architecture simulation of dispatcher_tb is
 
    -- Address distance between two picture columns, in the three instances
    constant C_STRIDE        : positive := 512;
+   constant C_ADDR_BITS     : positive := 19;
    constant C_SMALL_STRIDE  : positive := C_NUM_ROWS;
    constant C_WIDE_STRIDE   : positive := 20;
 
@@ -294,9 +295,11 @@ begin
          G_NUM_ROWS      => C_NUM_ROWS,
          G_NUM_COLS      => C_NUM_COLS,
          G_COL_STRIDE    => C_STRIDE,
+         G_ADDR_BITS     => C_ADDR_BITS,
          G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
-         G_GROUP_SIZE    => C_GROUP_SIZE
+         G_GROUP_SIZE    => C_GROUP_SIZE,
+         G_PIXELS        => 1
       )
       port map (
          clk_i     => clk,
@@ -318,8 +321,10 @@ begin
          G_NUM_ROWS      => C_NUM_ROWS,
          G_NUM_COLS      => C_SMALL_COLS,
          G_COL_STRIDE    => C_SMALL_STRIDE,
+         G_ADDR_BITS     => C_ADDR_BITS,
          G_ROWS_IN_JOB   => C_SMALL_ROWS,
-         G_NUM_ITERATORS => C_NUM_ITERATORS
+         G_NUM_ITERATORS => C_NUM_ITERATORS,
+         G_PIXELS        => 1
       )
       port map (
          clk_i     => clk,
@@ -341,6 +346,7 @@ begin
          G_NUM_ROWS      => C_NUM_ROWS,
          G_NUM_COLS      => C_NUM_COLS,
          G_COL_STRIDE    => C_WIDE_STRIDE,
+         G_ADDR_BITS     => C_ADDR_BITS,
          G_ROWS_IN_JOB   => C_WIDE_ROWS,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_GROUP_SIZE    => C_GROUP_SIZE,

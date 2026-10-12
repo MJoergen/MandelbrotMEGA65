@@ -20,7 +20,7 @@ entity job is
    generic (
       G_MAX_COUNT : positive;
       G_NUM_ROWS  : positive;
-      G_PIXELS    : positive := 1   -- Rows in each result
+      G_PIXELS    : positive        -- Rows in each result
    );
    port (
       clk_i        : in  std_logic;
@@ -73,6 +73,11 @@ begin
 
    assert G_NUM_ROWS mod G_PIXELS = 0 and 2**log2(G_PIXELS) = G_PIXELS
       report "G_PIXELS must be a power of two, and divide G_NUM_ROWS"
+      severity failure;
+
+   -- The row of a result (res_addr_o) has 9 bits
+   assert G_NUM_ROWS <= 2**res_addr_o'length
+      report "A job can have at most 512 rows"
       severity failure;
 
    p_rst : process (clk_i)
