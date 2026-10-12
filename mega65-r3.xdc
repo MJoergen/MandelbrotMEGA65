@@ -5,6 +5,11 @@
 # Pin assignment
 set_property -dict {PACKAGE_PIN V13  IOSTANDARD LVCMOS33} [get_ports {clk_i}];                  # CLOCK_FPGA_MRCC
 
+# MAX10 FPGA (reads the reset button)
+set_property -dict {PACKAGE_PIN L16  IOSTANDARD LVCMOS33} [get_ports {max10_clkandsync_o}];     # FPGA_TX
+set_property -dict {PACKAGE_PIN K16  IOSTANDARD LVCMOS33} [get_ports {max10_rx_o}];             # FPGA_RX
+set_property -dict {PACKAGE_PIN M13  IOSTANDARD LVCMOS33} [get_ports {max10_tx_i}];             # FPGA_RESET_N
+
 # Joystick
 set_property -dict {PACKAGE_PIN F16  IOSTANDARD LVCMOS33} [get_ports {fa_down_n_i}];            # FA_DOWN
 set_property -dict {PACKAGE_PIN E17  IOSTANDARD LVCMOS33} [get_ports {fa_fire_n_i}];            # FA_FIRE
@@ -72,12 +77,19 @@ create_clock -name sys_clk -period 10.00 [get_ports {clk_i}];                   
 set_max_delay -datapath_only -from [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT0]] -to [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT1]] 10.000
 
 # The inputs are asynchronous to the clocks of the design: they are
-# synchronized with two registers (the reset in clk_rst.vhd, and the joystick
-# lines in main.vhd), or sampled long after they change (the data from the
-# keyboard, once in each cycle of the keyboard clock of about 312 kHz, see
-# mega65kbd_to_matrix.vhd). So they have no input delay, and the paths from
-# them are not timed.
-set_false_path -from [get_ports {fa_up_n_i fa_down_n_i fa_left_n_i fa_right_n_i fa_fire_n_i fb_fire_n_i kb_io2_i}]
+# synchronized with two registers (the joystick lines in main.vhd), or sampled
+# long after they change (the data from the keyboard, once in each cycle of
+# the keyboard clock of about 312 kHz, see mega65kbd_to_matrix.vhd, and the
+# data from the MAX10, half a cycle (20 ns) after the edge of the 25 MHz clock
+# that the FPGA sends to it, see max10.vhd). So they have no input delay, and
+# the paths from them are not timed.
+set_false_path -from [get_ports {fa_up_n_i fa_down_n_i fa_left_n_i fa_right_n_i fa_fire_n_i fb_fire_n_i kb_io2_i max10_tx_i}]
+
+# The reset from the MAX10 is a register clocked by the input clock (see
+# max10.vhd). It is treated as asynchronous to the main clock and the VGA
+# clock: it is synchronized with two registers in clk_rst.vhd, so the paths
+# from it are not timed.
+set_false_path -from [get_cells i_max10/reset_button_reg]
 
 # Configuration Bank Voltage Select
 set_property CFGBVS VCCO [current_design]

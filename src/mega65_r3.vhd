@@ -10,8 +10,11 @@
 --
 -- On the R3 the reset button is not connected to the FPGA. It is read by the
 -- MAX10 (a small FPGA on the board), which sends it to the FPGA over a serial
--- link, together with other signals. This is not implemented, so the design
--- is only reset while the MMCM is not locked, i.e. after power-on.
+-- link, together with other signals. The link is driven by max10.vhd (from
+-- the C64MEGA65 core), clocked by the 100 MHz input clock, as in the
+-- C64MEGA65 core. Its reset output (active low) is only low when the button
+-- has been pressed for 256 clock cycles. The design is reset while it is low,
+-- and after power-on (while the MMCM is not locked), see clk_rst.vhd.
 --
 -- Do not use this design on a later board revision, see mega65_r6.vhd.
 
@@ -20,49 +23,73 @@ use ieee.std_logic_1164.all;
 
 entity mega65_r3 is
    port (
-      clk_i          : in  std_logic;                      -- 100 MHz
+      clk_i              : in  std_logic;                  -- 100 MHz
+
+      -- Serial link to the MAX10, which reads the reset button
+      max10_tx_i         : in  std_logic;
+      max10_rx_o         : out std_logic;
+      max10_clkandsync_o : out std_logic;
 
       -- Joystick ports, active low
-      fa_up_n_i      : in  std_logic;
-      fa_down_n_i    : in  std_logic;
-      fa_left_n_i    : in  std_logic;
-      fa_right_n_i   : in  std_logic;
-      fa_fire_n_i    : in  std_logic;
-      fb_fire_n_i    : in  std_logic;
+      fa_up_n_i          : in  std_logic;
+      fa_down_n_i        : in  std_logic;
+      fa_left_n_i        : in  std_logic;
+      fa_right_n_i       : in  std_logic;
+      fa_fire_n_i        : in  std_logic;
+      fb_fire_n_i        : in  std_logic;
 
       -- MEGA65 keyboard
-      kb_io0_o       : out std_logic;
-      kb_io1_o       : out std_logic;
-      kb_io2_i       : in  std_logic;
+      kb_io0_o           : out std_logic;
+      kb_io1_o           : out std_logic;
+      kb_io2_i           : in  std_logic;
 
       -- VGA via the video DAC
-      vga_red_o      : out std_logic_vector(7 downto 0);
-      vga_green_o    : out std_logic_vector(7 downto 0);
-      vga_blue_o     : out std_logic_vector(7 downto 0);
-      vga_hs_o       : out std_logic;
-      vga_vs_o       : out std_logic;
-      vdac_clk_o     : out std_logic;
-      vdac_sync_n_o  : out std_logic;
-      vdac_blank_n_o : out std_logic;
+      vga_red_o          : out std_logic_vector(7 downto 0);
+      vga_green_o        : out std_logic_vector(7 downto 0);
+      vga_blue_o         : out std_logic_vector(7 downto 0);
+      vga_hs_o           : out std_logic;
+      vga_vs_o           : out std_logic;
+      vdac_clk_o         : out std_logic;
+      vdac_sync_n_o      : out std_logic;
+      vdac_blank_n_o     : out std_logic;
 
       -- HDMI
-      tmds_data_p_o  : out std_logic_vector(2 downto 0);
-      tmds_data_n_o  : out std_logic_vector(2 downto 0);
-      tmds_clk_p_o   : out std_logic;
-      tmds_clk_n_o   : out std_logic;
-      hdmi_ct_hpd_o  : out std_logic;
-      hdmi_ls_oe_o   : out std_logic
+      tmds_data_p_o      : out std_logic_vector(2 downto 0);
+      tmds_data_n_o      : out std_logic_vector(2 downto 0);
+      tmds_clk_p_o       : out std_logic;
+      tmds_clk_n_o       : out std_logic;
+      hdmi_ct_hpd_o      : out std_logic;
+      hdmi_ls_oe_o       : out std_logic
    );
 end entity mega65_r3;
 
 architecture structural of mega65_r3 is
 
+   signal rstn : std_logic;
+
 begin
+
+   i_max10 : entity work.max10
+      port map (
+         pixelclock        => clk_i,
+         cpuclock          => clk_i,
+         led               => open,
+         max10_rx          => max10_rx_o,
+         max10_tx          => max10_tx_i,
+         max10_clkandsync  => max10_clkandsync_o,
+         max10_fpga_commit => open,
+         max10_fpga_date   => open,
+         reset_button      => rstn,
+         dipsw             => open,
+         j21in             => open,
+         j21ddr            => (others => '0'),
+         j21out            => (others => '0')
+      ); -- i_max10
 
    i_mega65 : entity work.mega65
       port map (
          clk_i          => clk_i,
-         rstn_i         => '1',
+         rstn_i         => rstn,
          fa_up_n_i      => fa_up_n_i,
          fa_down_n_i    => fa_down_n_i,
          fa_left_n_i    => fa_left_n_i,

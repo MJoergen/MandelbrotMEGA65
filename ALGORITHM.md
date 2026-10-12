@@ -71,6 +71,7 @@ The following terms are used in this document:
 The modules are instantiated as follows on the MEGA65:
 ```
 mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top level, the pins of each board revision)
+ +- max10                           src/max10/max10.vhd (only on the R3: reads the reset button from the MAX10)
  +- mega65                          src/mega65.vhd (the design for the MEGA65)
      +- m2m_keyb                    src/keyboard/m2m_keyb.vhd (keyboard driver, in the MAIN clock domain)
      +- controls                    src/main/controls.vhd (maps the joysticks and keys to the buttons and switches)
@@ -800,9 +801,8 @@ memory, which are in both clock domains, are in [`src/`](src).
 
 **Reset.** The resets are generated in `clk_rst`, together with the clocks.
 The design is held in reset while the reset button is pressed, and while the
-MMCM is not locked (the MEGA65 R3 does not use its reset button, see
-[`src/mega65_r3.vhd`](src/mega65_r3.vhd), so it is only reset after
-power-on). This signal is synchronized to each clock domain (the main
+MMCM is not locked (on the MEGA65 R3 the reset button is read from the MAX10,
+see [`src/mega65_r3.vhd`](src/mega65_r3.vhd)). This signal is synchronized to each clock domain (the main
 clock and the VGA clock), and the reset is then stretched to eight clock cycles
 after it is released. Only the HDMI output of the MEGA65 (`vga_to_hdmi` and
 the serialisers) uses the VGA reset. `vga` needs no reset: the pixel
@@ -1296,8 +1296,9 @@ each revision has its own top level module
 joystick line, which pulls the line low; the top level of the R6 drives them
 all high, because an unused pin has a weak pull-down, and then the joystick
 lines can be read as pressed. The R3 does not have these outputs, and uses
-some of the pins for other things (e.g. the serial link to the MAX10), so the
-bit-file of one revision must not be used on the other one.
+some of the pins for other things (e.g. the serial link to the MAX10, which
+reads the reset button), so the bit-file of one revision must not be used on
+the other one.
 
 The VGA output is 1280x1024 at 60 Hz, with a 108 MHz pixel clock, and the
 design uses 368 job modules and four pixels in each write to the display

@@ -39,7 +39,7 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
   `sim/cmp_rtl.py` compare the simulated design with the model (about
   14 minutes).
 * VSG, on the files that are checked:
-  `vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard')`.
+  `vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard' ':!src/max10')`.
   It must report no errors. Lines over 100 columns (`length_001`) are only a
   warning: a target, not a hard limit, and about 20 lines already exceed it.
   Do not add new warnings without a reason.
@@ -82,8 +82,8 @@ are only checked by Vivado.
   checks this.
 * Testbenches are self-checking. A new one is added to `TBS` in the Makefile
   and described in ALGORITHM.md.
-* `src/hdmi/` and `src/keyboard/` are copied unchanged from the C64MEGA65
-  core. Do not edit or restyle them.
+* `src/hdmi/`, `src/keyboard/`, and `src/max10/` are copied unchanged from
+  the C64MEGA65 core. Do not edit or restyle them.
 
 ## Commits
 * No `mandelbrot:` prefix (that was for the nexys4ddr repository). The

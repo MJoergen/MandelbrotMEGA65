@@ -45,7 +45,7 @@ jobs:
       - name: Coding style (VSG)
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard')
+          vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard' ':!src/max10')
 
       - name: Constants of the model (make consts)
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
