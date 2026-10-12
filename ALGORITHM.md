@@ -86,13 +86,14 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      |   |   +- dispatcher_results  src/main/dispatcher_results.vhd (collects the results and writes them)
      |   |       +- res_scheduler   src/main/res_scheduler.vhd (selects the job module whose result is accepted)
      |   +- fps                     src/main/fps.vhd (frame rate, calculated from the time for a picture)
+     |   +- view_text               src/main/view_text.vhd (the view as text: the centre and the zoom)
      |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
      +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
-     +- cdc_data                    src/cdc_data.vhd (moves the frame rate to the VGA clock domain)
+     +- cdc_data                    src/cdc_data.vhd (moves the frame rate and the view to the VGA clock domain)
      +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
      |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
      |   +- disp                    src/vga/disp.vhd (VGA output, uses the palettes in src/vga/palette_pkg.vhd)
-     |   +- overlay                 src/vga/overlay.vhd (frame rate overlay, uses the font in src/vga/font_pkg.vhd)
+     |   +- overlay                 src/vga/overlay.vhd (the view and the frame rate, uses the font in src/vga/font_pkg.vhd)
      +- (p_vdac, i_vdac_clk)        (outputs to the video DAC, for the VGA connector)
      +- vga_to_hdmi                 src/hdmi/vga_to_hdmi.vhd (encodes the picture to TMDS symbols, in DVI mode)
      +- serialiser_10to1_selectio   src/hdmi/serialiser_10to1_selectio.vhd (x 4, the HDMI data and clock)
@@ -773,26 +774,27 @@ clock domain:
 * [`src/main/main.vhd`](src/main/main.vhd) runs in the MAIN clock domain
   (141.64 MHz, or 120 MHz on the Nexys 4 DDR). It handles the buttons and
   switches, controls the dispatcher, writes the results to the display
-  memory, and calculates the frame rate. On the MEGA65 the buttons and
-  switches come from the joysticks and the keyboard (whose driver also runs
-  in the MAIN clock domain), and on the Nexys 4 DDR `main` also shows the
-  frame rate on the 7-segment display.
+  memory, calculates the frame rate, and converts the view to text. On the
+  MEGA65 the buttons and switches come from the joysticks and the keyboard
+  (whose driver also runs in the MAIN clock domain), and on the Nexys 4 DDR
+  `main` also shows the frame rate on the 7-segment display.
 * [`src/vga/vga.vhd`](src/vga/vga.vhd) runs in the VGA clock domain (the pixel
   clock, 108 MHz for 1280x1024 on the MEGA65, and 25 MHz for 640x480 on the
   Nexys 4 DDR). It generates the pixel counters, reads the display memory, and
-  generates the VGA output, with the frame rate in the top right corner. On
-  the MEGA65 the VGA output goes to the video DAC (for the VGA connector) and
-  to the HDMI output, whose serialisers use a third clock, the TMDS clock
-  (540 MHz, five times the pixel clock).
+  generates the VGA output, with the view in the top left corner and the
+  frame rate in the top right corner. On the MEGA65 the VGA output goes to
+  the video DAC (for the VGA connector) and to the HDMI output, whose
+  serialisers use a third clock, the TMDS clock (540 MHz, five times the
+  pixel clock).
 
 The top level of the Nexys 4 DDR ([`src/nexys4ddr.vhd`](src/nexys4ddr.vhd))
 does the same, without the keyboard, the video DAC, and the HDMI output.
 
 The two clock domains communicate through the display memory, which has a
 write port in the MAIN clock domain and a read port in the VGA clock domain.
-The only other signals between them are the frame rate and a toggle signal,
-which tells the VGA clock domain that the frame rate has changed, see
-[Overlay](#overlay).
+The only other signals between them are the frame rate, the view as text,
+and a toggle signal, which tells the VGA clock domain that they have changed,
+see [Overlay](#overlay).
 The files used only in the MAIN clock domain are in [`src/main/`](src/main),
 and the files used only in the VGA clock domain are in [`src/vga/`](src/vga).
 The designs of the boards, the clock and reset generation, and the display
@@ -1081,37 +1083,47 @@ each of 1000 random picture times against a model of the average.
 ## Overlay
 The frame rate is shown in the top right corner of the VGA output by
 [`src/vga/overlay.vhd`](src/vga/overlay.vhd), in white on black, with the
-leading zeros not shown (the picture is shown there instead). The digits are
+leading zeros not shown (the picture is shown there instead). The overlay
+shows a line of text at the top of the picture, 8 pixels from the top, the
+left, and the right edge: 79 characters for 1280 pixels (39 for 640 on the
+Nexys 4 DDR), with the view (see *The view as text* below) in the first 25
+characters, and the frame rate in the last 8. The characters in between are
+not shown. A character is 4 bits: the digits, and `.`, `-`, `+`, `i`, and
+`x` (see [`src/text_pkg.vhd`](src/text_pkg.vhd)), and the code 15, which is
+not shown, e.g. for the blanked digits of the frame rate. The characters are
 16x32 pixels, from the [Spleen](https://github.com/fcambus/spleen) font
 (BSD 2-Clause license, see [`font/LICENSE.spleen`](font/LICENSE.spleen)). The
 script [`font/gen_font_pkg.py`](font/gen_font_pkg.py) converts the font to the
 table in [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd), 32 rows of 16 bits
-for each digit. The frame rate (32 bits of digits and 8 bits of blanking) is
-calculated in the MAIN clock domain, so it is moved to the VGA clock domain
-by [`src/cdc_data.vhd`](src/cdc_data.vhd), in the design of the board
+for each character. The frame rate (32 bits of digits and 8 bits of
+blanking) and the view (100 bits of text) are calculated in the MAIN clock
+domain, so they are moved to the VGA clock domain by
+[`src/cdc_data.vhd`](src/cdc_data.vhd), in the design of the board
 ([`src/mega65.vhd`](src/mega65.vhd), or
 [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd)), so `main` does not depend on the
 VGA clock. `cdc_data` is a generic clock domain crossing for a value that
 changes seldom (the ports of the source clock domain start with `s_`, and
 those of the destination with `m_`), and the design gives it the frame rate
-as one value of 40 bits. `main` sets `fps_valid_o` for one clock cycle each
-time the frame rate changes, and `cdc_data` then changes a toggle signal
-(`p_toggle`). This is synchronized with two registers (`p_cdc`), and when it
-changes, the frame rate is copied, so `overlay` only gets signals in the VGA
-clock domain. Until the first frame rate, the output is the initial value
-(`G_INIT`), with all the digits blanked. The
-frame rate changes only at the end of a picture, so it is constant for much
-longer than the synchronizer takes (a few VGA clock cycles), and it is never
-copied while it changes. The constraint in [`mega65-r3.xdc`](mega65-r3.xdc),
+and the view as one value of 140 bits. `main` sets `fps_valid_o` for one
+clock cycle each time the frame rate and the view change, and `cdc_data`
+then changes a toggle signal (`p_toggle`). This is synchronized with two
+registers (`p_cdc`), and when it changes, the frame rate and the view are
+copied, so `overlay` only gets signals in the VGA clock domain. Until the
+first frame rate, the output is the initial value (`G_INIT`), with all the
+characters not shown. The frame rate and the view change only at the end of
+a picture, so they are constant for much longer than the synchronizer takes
+(a few VGA clock cycles), and they are never copied while they change. The
+constraint in [`mega65-r3.xdc`](mega65-r3.xdc),
 [`mega65-r6.xdc`](mega65-r6.xdc), and [`nexys4ddr.xdc`](nexys4ddr.xdc)
 (`set_max_delay -datapath_only`) makes
 sure that it arrives before the toggle signal, and excludes these paths from
 the normal timing between the two clocks. The new
 value is shown from the next frame on, so a frame never shows two values.
 The overlay is a pipeline of five stages after the pixel counters: the position
-in the overlay, the digit, the row of the font, the pixel of the row, and then
-the colour, which replaces the output of `disp`. This adds one clock cycle of
-latency to all the VGA outputs.
+in the overlay, the character, the row of the font, the pixel of the row, and
+then the colour, which replaces the output of `disp`. This adds one clock
+cycle of latency to all the VGA outputs. Before the view was shown, the
+overlay only had the 8 digits of the frame rate.
 
 The testbench [`sim/cdc_data_tb.vhd`](sim/cdc_data_tb.vhd) gives `cdc_data`
 a new value of 40 bits after a random time (at least ten destination clock
@@ -1124,9 +1136,60 @@ clocks of both boards (141.64 MHz and 108 MHz, and 120 MHz and 25 MHz).
 
 The testbench [`sim/overlay_tb.vhd`](sim/overlay_tb.vhd) checks the colour of
 every pixel of three frames of the VGA output (with a different value for each
-pixel), with no frame rate (the initial value), 4 digits, and 8 digits. The
-frame rate is changed in the middle of the overlay, and the new value must
-only be shown in the next frame. It prints the overlay of the last frame.
+pixel), with no view and no frame rate (the initial value), then a view and
+a frame rate of 4 digits, and then a view with all the characters and a
+frame rate of 8 digits. The view and the frame rate are changed in the
+middle of the overlay, and the new value must only be shown in the next
+frame. It prints the overlay of the last frame.
+
+**The view as text.** The top left corner of the VGA output shows the view
+of the picture: the centre as a complex number, and the zoom, e.g.
+`-0.33855-0.00417i   1.00x` for the initial view of the MEGA65. The module
+[`src/main/view_text.vhd`](src/main/view_text.vhd) converts the view to this
+text (25 characters) when a picture is started, with the view that the
+dispatcher takes. `main` keeps the text until the frame rate of the picture
+is ready (`fps_valid_o`), and then outputs it together with the frame rate,
+so the screen always shows the view and the frame rate of the same picture,
+the latest one.
+* The centre is the point of the pixel in column 640 and row 512 (320 and
+  240 on the Nexys 4 DDR), the one that is kept fixed when zooming (see *The
+  view* above), i.e. startx + 640 * stepx and starty + 512 * stepy. The real
+  and the imaginary part are each shown with a sign, one digit before the
+  point, and five after it, rounded to the nearest (one LSB of the 2.16
+  format is 0.000015). The rows go down the screen, so the imaginary part
+  increases downwards.
+* The zoom is the initial size of a pixel (136 LSBs, or 273 on the Nexys 4
+  DDR) divided by stepx, with two digits after the point, rounded to the
+  nearest, and the leading zeros not shown. It is 1.00 for the initial view,
+  from 0.67 when zoomed out as far as possible to 136.00 (273.00) when
+  zoomed in as far as possible. The size of a pixel is an integer number of
+  LSBs, so the zoom has only a few possible values when zoomed in far, e.g.
+  136.00 and 68.00 for a pixel of 1 and 2 LSBs. A zoom above 999.99 is
+  shown as 999.99, but that only happens for a picture of fewer than 175
+  columns.
+
+Like the frame rate, the conversion is done one bit per clock cycle, with at
+most one addition or subtraction of 30 bits per clock cycle: the
+multiplication by the constant column (row) of the centre with shifts and
+additions, then the magnitude of the centre times 100000/2^16 (i.e. times
+3125 and divided by 2^11, with 2^10 added for the rounding), also with shifts
+and additions, the zoom times 100 with a restoring division (with half of
+stepx added to the dividend, for the rounding), and each value to decimal
+with the double dabble algorithm. The conversion takes 130 clock cycles on
+the MEGA65 (0.92 us), much less than a picture.
+
+The testbench [`sim/view_text_tb.vhd`](sim/view_text_tb.vhd) is
+self-checking. It has three instances of `view_text`, with the size of the
+picture and the initial size of a pixel of the MEGA65, of the Nexys 4 DDR,
+and of `redraw_tb` (16x12, where the zoom is always above 999.99, the
+largest value shown), and gives them the initial views, views at the edges of the range (the
+centre as far left and right as possible, with the smallest and the largest
+pixel, at 0 and one LSB from it, and with the largest fraction), and 2000
+random views inside the range. It checks the text of each against a model
+that calculates the centre and the zoom with integers, and prints the text
+of the first views. It also checks that nothing is shown before the first
+conversion, that the text only changes with a pulse of one clock cycle on
+`valid_o`, and that a start during a conversion is ignored.
 
 ## Colours
 The display memory holds the count of each pixel (9 bits). The VGA output has

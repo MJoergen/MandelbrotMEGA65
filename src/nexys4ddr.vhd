@@ -13,8 +13,9 @@
 --   select the colour palette in vga.vhd (see palette_pkg.vhd). The decimal
 --   point of the 7-segment display is not used, so it is switched off here.
 --
--- The frame rate is moved to the VGA clock domain by cdc_data.vhd, as in
--- mega65.vhd. The constraints for this are in nexys4ddr.xdc.
+-- The frame rate and the view are moved to the VGA clock domain by
+-- cdc_data.vhd, as in mega65.vhd. The constraints for this are in
+-- nexys4ddr.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -104,14 +105,19 @@ architecture structural of nexys4ddr is
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
 
-   -- The frame rate (the digits followed by the blanking) in the MAIN clock
-   -- domain, and in the VGA clock domain. Until the first frame rate, all the
-   -- digits are blanked, so nothing is shown.
-   constant C_FPS_INIT   : std_logic_vector(39 downto 0) := X"00000000FF";
-   signal fps            : std_logic_vector(39 downto 0);
-   signal vga_fps        : std_logic_vector(39 downto 0);
+   signal view_text      : std_logic_vector(99 downto 0);
+
+   -- The frame rate (the digits followed by the blanking) and the view (25
+   -- characters) in the MAIN clock domain, and in the VGA clock domain. Until
+   -- the first frame rate, all the digits are blanked, and all the characters
+   -- are 15 (not shown), so nothing is shown.
+   constant C_FPS_INIT   : std_logic_vector(139 downto 0) :=
+      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFF";
+   signal fps            : std_logic_vector(139 downto 0);
+   signal vga_fps        : std_logic_vector(139 downto 0);
    signal vga_fps_digits : std_logic_vector(31 downto 0);
    signal vga_fps_blank  : std_logic_vector( 7 downto 0);
+   signal vga_view_text  : std_logic_vector(99 downto 0);
 
 begin
 
@@ -161,6 +167,7 @@ begin
          fps_digits_o => fps_digits,
          fps_blank_o  => fps_blank,
          fps_valid_o  => fps_valid,
+         view_text_o  => view_text,
          wr_addr_o    => wr_addr,
          wr_data_o    => wr_data,
          wr_en_o      => wr_en
@@ -197,7 +204,7 @@ begin
    -- Move the frame rate to the VGA clock domain
    --------------------------------------------------
 
-   fps <= fps_digits & fps_blank;
+   fps <= fps_digits & fps_blank & view_text;
 
    i_cdc_data : entity work.cdc_data
       generic map (
@@ -212,8 +219,9 @@ begin
          m_data_o  => vga_fps
       ); -- i_cdc_data
 
-   vga_fps_digits <= vga_fps(39 downto 8);
-   vga_fps_blank  <= vga_fps( 7 downto 0);
+   vga_fps_digits <= vga_fps(139 downto 108);
+   vga_fps_blank  <= vga_fps(107 downto 100);
+   vga_view_text  <= vga_fps( 99 downto   0);
 
 
    --------------------------------------------------
@@ -233,6 +241,7 @@ begin
          palette_i    => sw_i(1 downto 0),
          fps_digits_i => vga_fps_digits,
          fps_blank_i  => vga_fps_blank,
+         view_text_i  => vga_view_text,
          vga_hs_o     => vga_hs_o,
          vga_vs_o     => vga_vs_o,
          vga_col_o    => vga_col_o

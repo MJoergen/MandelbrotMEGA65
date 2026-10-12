@@ -1,5 +1,5 @@
--- This is a self-checking testbench for the frame rate overlay (overlay.vhd),
--- as part of the VGA output (vga.vhd).
+-- This is a self-checking testbench for the overlay of the view and the frame
+-- rate (overlay.vhd), as part of the VGA output (vga.vhd).
 --
 -- The video mode is 640x480, with the column followed by the row in the
 -- address (as on the Nexys 4 DDR). The display memory is replaced by a model
@@ -7,13 +7,16 @@
 -- different value for each pixel, (x + 3*y) mod 512, as in vga_tb.vhd. The first palette is used, so
 -- the colour is the lowest 8 bits of the value. The testbench checks that the
 -- colour of each pixel of three frames is either the colour of the picture,
--- or (inside the overlay) the colour of the digit shown there.
+-- or (inside the overlay) the colour of the character shown there. The view
+-- is shown in the top left corner, and the frame rate in the top right
+-- corner, in a line of 39 characters.
 --
--- The frame rate is changed twice, each time in the middle of the overlay, in
--- the frame before the one where the new value is expected:
+-- The view and the frame rate are changed twice, each time in the middle of
+-- the overlay, in the frame before the one where the new value is expected:
 -- * Frame 0: Nothing is shown (the initial value).
--- * Frame 1: 1234, i.e. with four blanked digits.
--- * Frame 2: 90567801, i.e. all eight digits.
+-- * Frame 1: A view, and the frame rate 1234, i.e. with four blanked digits.
+-- * Frame 2: A view with all the characters, and the frame rate 90567801,
+--   i.e. all eight digits.
 -- The overlay of the last frame is printed, for a visual check.
 --
 -- The testbench stops by itself.
@@ -25,6 +28,7 @@ use ieee.numeric_std.all;
 use work.palette_pkg.all;
 use work.font_pkg.all;
 use work.video_pkg.all;
+use work.text_pkg.all;
 
 entity overlay_tb is
 end entity overlay_tb;
@@ -37,9 +41,12 @@ architecture simulation of overlay_tb is
    constant C_V_VISIBLE : natural := C_MODE.v_visible;
    constant C_V_TOTAL   : natural := v_total(C_MODE);
 
-   -- Position and size of the overlay, see overlay.vhd
+   -- Position and size of the overlay, see overlay.vhd and vga.vhd: The view
+   -- in the first C_VIEW_CHARS characters, and the frame rate in the last
+   -- C_DIGITS characters of the line.
    constant C_DIGITS    : natural := 8;
-   constant C_X         : natural := C_H_VISIBLE - 8 - 16*C_DIGITS;
+   constant C_CHARS     : natural := 39;
+   constant C_X         : natural := 8;
    constant C_Y         : natural := 8;
    constant C_WIDTH     : natural := 16;
    constant C_HEIGHT    : natural := 32;
@@ -47,7 +54,12 @@ architecture simulation of overlay_tb is
    constant C_FG        : std_logic_vector(7 downto 0) := X"FF";
    constant C_BG        : std_logic_vector(7 downto 0) := X"00";
 
+   -- The characters of text_pkg.vhd, at the index of their code plus one.
+   -- The code 15 (not shown) is a space.
+   constant C_CODES     : string(1 to 16) := "0123456789.-+ix ";
+
    type value_t is record
+      text   : string(1 to C_VIEW_CHARS);
       digits : std_logic_vector(4*C_DIGITS-1 downto 0);
       blank  : std_logic_vector(C_DIGITS-1 downto 0);
    end record value_t;
@@ -55,9 +67,33 @@ architecture simulation of overlay_tb is
 
    -- The value shown in each frame
    constant C_VALUES    : value_vector(0 to 2) := (
-      (digits => X"00000000", blank => "11111111"),
-      (digits => X"00001234", blank => "11110000"),
-      (digits => X"90567801", blank => "00000000"));
+      (text => "                         ", digits => X"00000000", blank => "11111111"),
+      (text => "-0.74531+0.10234i   1.00x", digits => X"00001234", blank => "11110000"),
+      (text => "+1.23456-7.89012i 345.67x", digits => X"90567801", blank => "00000000"));
+
+   -- The code of a character
+   function code (c : character) return natural is
+   begin
+      for i in C_CODES'range loop
+         if C_CODES(i) = c then
+            return i - 1;
+         end if;
+      end loop;
+      report "Unknown character"
+         severity failure;
+      return 15;
+   end function code;
+
+   -- The view as text, see text_pkg.vhd
+   function to_text (s : string) return std_logic_vector is
+      variable r_v : std_logic_vector(4*C_VIEW_CHARS-1 downto 0);
+   begin
+      for i in 0 to C_VIEW_CHARS-1 loop
+         r_v(4*(C_VIEW_CHARS-1-i)+3 downto 4*(C_VIEW_CHARS-1-i)) :=
+            std_logic_vector(to_unsigned(code(s(s'left + i)), 4));
+      end loop;
+      return r_v;
+   end function to_text;
 
    signal clk        : std_logic;
    signal rst        : std_logic := '1';
@@ -72,6 +108,7 @@ architecture simulation of overlay_tb is
 
    signal fps_digits : std_logic_vector(4*C_DIGITS-1 downto 0) := C_VALUES(0).digits;
    signal fps_blank  : std_logic_vector(C_DIGITS-1 downto 0) := C_VALUES(0).blank;
+   signal view_text  : std_logic_vector(4*C_VIEW_CHARS-1 downto 0) := to_text(C_VALUES(0).text);
 
    -- The value of the pixel (x, y) in the display memory
    function pixel_value (x : integer; y : integer) return std_logic_vector is
@@ -83,15 +120,26 @@ architecture simulation of overlay_tb is
    -- value v is shown
    function expected (x : integer; y : integer; v : value_t) return std_logic_vector is
       variable pos_v   : integer;
+      variable char_v  : integer;
       variable digit_v : integer;
       variable row_v   : std_logic_vector(C_WIDTH-1 downto 0);
    begin
-      if x >= C_X and x < C_X + C_DIGITS*C_WIDTH and y >= C_Y and y < C_Y + C_HEIGHT then
-         -- pos_v is the position of the digit, 0 is the least significant one
-         pos_v := C_DIGITS-1 - (x - C_X) / C_WIDTH;
-         if v.blank(pos_v) = '0' then
-            digit_v := to_integer(unsigned(v.digits(4*pos_v+3 downto 4*pos_v)));
-            row_v   := C_FONT(32*digit_v + y - C_Y);
+      if x >= C_X and x < C_X + C_CHARS*C_WIDTH and y >= C_Y and y < C_Y + C_HEIGHT then
+         -- pos_v is the position of the character, 0 is the leftmost one
+         pos_v  := (x - C_X) / C_WIDTH;
+         char_v := 15;
+         if pos_v < C_VIEW_CHARS then
+            char_v := code(v.text(pos_v + 1));
+         elsif pos_v >= C_CHARS - C_DIGITS then
+            -- digit_v is the position of the digit, 0 is the least
+            -- significant one
+            digit_v := C_CHARS-1 - pos_v;
+            if v.blank(digit_v) = '0' then
+               char_v := to_integer(unsigned(v.digits(4*digit_v+3 downto 4*digit_v)));
+            end if;
+         end if;
+         if char_v /= 15 then
+            row_v := C_FONT(32*char_v + y - C_Y);
             if row_v(C_WIDTH-1 - (x - C_X) mod C_WIDTH) = '1' then
                return C_FG;
             else
@@ -156,7 +204,7 @@ begin
       variable frame_v   : integer;
       variable exp_v     : std_logic_vector(7 downto 0);
       variable errors_v  : natural := 0;
-      variable line_v    : string(1 to C_DIGITS*C_WIDTH);
+      variable line_v    : string(1 to C_CHARS*C_WIDTH);
    begin
       if rising_edge(clk) and rst = '0' then
          if not started_v then
@@ -191,7 +239,7 @@ begin
 
             -- Print the overlay of the last frame
             if frame_v = 2 and y_v >= C_Y and y_v < C_Y + C_HEIGHT and
-               x_v >= C_X and x_v < C_X + C_DIGITS*C_WIDTH
+               x_v >= C_X and x_v < C_X + C_CHARS*C_WIDTH
             then
                if vga_col = C_FG then
                   line_v(x_v - C_X + 1) := '#';
@@ -200,7 +248,7 @@ begin
                else
                   line_v(x_v - C_X + 1) := ' ';
                end if;
-               if x_v = C_X + C_DIGITS*C_WIDTH - 1 then
+               if x_v = C_X + C_CHARS*C_WIDTH - 1 then
                   report line_v;
                end if;
             end if;
@@ -218,13 +266,14 @@ begin
    end process p_check;
 
 
-   -- Change the frame rate in the middle of the overlay, in the frame before
-   -- the one where it is expected. The frame rate is changed twice in frame 0,
-   -- and only the last change must be shown in frame 1. The inputs are in the
-   -- VGA clock domain, as from the synchronizer in nexys4ddr.vhd.
+   -- Change the view and the frame rate in the middle of the overlay, in the
+   -- frame before the one where it is expected. They are changed twice in
+   -- frame 0, and only the last change must be shown in frame 1. The inputs
+   -- are in the VGA clock domain, as from the synchronizer in nexys4ddr.vhd.
    p_fps : process
       procedure set_value (v : value_t) is
       begin
+         view_text  <= to_text(v.text);
          fps_digits <= v.digits;
          fps_blank  <= v.blank;
       end procedure set_value;
@@ -243,7 +292,7 @@ begin
       -- 33 lines before the first line
       wait until rising_edge(vga_vs);
       wait_line(33 + 20);
-      set_value((digits => X"00000077", blank => "11111100"));
+      set_value((text => "+0.00000+0.00000i 111.11x", digits => X"00000077", blank => "11111100"));
       wait_line(100);
       set_value(C_VALUES(1));
       wait until rising_edge(vga_vs);
@@ -270,6 +319,7 @@ begin
          palette_i    => "00",
          fps_digits_i => fps_digits,
          fps_blank_i  => fps_blank,
+         view_text_i  => view_text,
          vga_hs_o     => vga_hs,
          vga_vs_o     => vga_vs,
          vga_col_o    => vga_col

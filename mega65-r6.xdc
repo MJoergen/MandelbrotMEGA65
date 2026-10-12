@@ -81,11 +81,11 @@ set_property -dict {PACKAGE_PIN AB8  IOSTANDARD LVCMOS33} [get_ports {hdmi_ls_oe
 # Clock definition
 create_clock -name sys_clk -period 10.00 [get_ports {clk_i}];                          # 100 MHz
 
-# The frame rate is moved from the MAIN clock domain to the VGA clock domain
-# with a toggle signal, which is synchronized, see cdc_data.vhd. These are the
-# only paths from the MAIN clock to the VGA clock. Their delay only has to be
-# shorter than the synchronizer (two VGA clock cycles), so the relation between
-# the two clocks is ignored.
+# The frame rate and the view are moved from the MAIN clock domain to the VGA
+# clock domain with a toggle signal, which is synchronized, see cdc_data.vhd.
+# These are the only paths from the MAIN clock to the VGA clock. Their delay
+# only has to be shorter than the synchronizer (two VGA clock cycles), so the
+# relation between the two clocks is ignored.
 set_max_delay -datapath_only -from [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT0]] -to [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT1]] 10.000
 
 # The inputs are asynchronous to the clocks of the design: they are

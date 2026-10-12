@@ -81,11 +81,19 @@ palette 0: the lower 8 bits of the count are the colour (RRRGGGBB), mostly
 blue and green, and the set is white. The other palettes are described in
 [Nexys 4 DDR](#nexys-4-ddr) and in [Colours](ALGORITHM.md#colours).
 
+The top left corner of the picture shows the view, in white on black: the
+centre of the picture as a complex number, with five digits after the point,
+and the zoom, which is 1.00 for the initial view, e.g.
+`-0.33855-0.00417i   1.00x`. The zoom is the initial size of a pixel divided
+by the current one, so it goes from 0.67 (zoomed out as far as possible) to
+136.00 (zoomed in as far as possible, 273.00 on the Nexys 4 DDR). The rows go
+down the screen, so the imaginary part increases downwards.
+
 The frame rate, i.e. the number of pictures the design could calculate per
 second, rounded down to an integer, is shown in the top right corner of the
-picture, in white on black. It is the clock frequency divided by the time
-taken by the latest picture (the one on the screen), and it is updated after
-every picture.
+picture. It is the clock frequency divided by the time taken by the latest
+picture (the one on the screen). The view and the frame rate are both those of
+the latest picture, and they are updated after every picture.
 
 ## Video output
 The picture is 1280x1024 at 60 Hz, with a pixel clock of 108 MHz. It is
@@ -281,7 +289,7 @@ it does nothing.
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp_mem`,
-`fps`, `cdc_data`, and `controls`, and two for `main`: `redraw` checks that it
+`fps`, `view_text`, `cdc_data`, and `controls`, and two for `main`: `redraw` checks that it
 only calculates a picture when the view changes, and that the pictures end up
 in the display memory, and `picture` compares every pixel of three small
 pictures (64x48) with the bit-accurate model.
@@ -411,15 +419,16 @@ and [`src/hdmi/`](src/hdmi).
 | ---------------- | -----------
 | [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions.
 | [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
-| [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate from the MAIN clock domain to the VGA clock domain.
+| [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate and the view from the MAIN clock domain to the VGA clock domain.
 | [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`.
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
 | [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd) | Top level for the Nexys 4 DDR. The same as `mega65.vhd`, but with the ports of the Nexys 4 DDR (mapped directly to pins on the FPGA), fewer job modules, a smaller display memory, a resolution of 640x480, and no HDMI output.
-| [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
+| [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, the view as text (shown on the VGA output), and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
 | [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format.
 | [`src/main/fps.vhd`](src/main/fps.vhd), [`src/main/seg.vhd`](src/main/seg.vhd) | Frame rate. `fps` divides the clock frequency by the time taken by the latest picture (it can also average the time, but `main` does not use that), and converts the result to decimal, and `seg` multiplexes the digits on the 7-segment display of the Nexys 4 DDR.
-| [`src/vga/vga.vhd`](src/vga/vga.vhd) | Everything in the VGA clock domain: pixel counters, VGA output, and the frame rate overlay.
+| [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal.
+| [`src/vga/vga.vhd`](src/vga/vga.vhd) | Everything in the VGA clock domain: pixel counters, VGA output, and the overlay of the view and the frame rate.
 | [`src/main/iterator.vhd`](src/main/iterator.vhd) | Iterates the Mandelbrot function for a single point, one iteration in each clock cycle, using two DSPs.
 | [`src/main/job.vhd`](src/main/job.vhd) | A job module. Calculates one job (64 rows of a picture column, or 120 on the Nexys 4 DDR) at a time, using one iterator.
 | [`src/main/dispatcher.vhd`](src/main/dispatcher.vhd) | Controls the calculation of the entire picture: hands out the jobs to the idle job modules, and collects the results. Instantiates the job modules, between its two parts below.
@@ -432,7 +441,7 @@ and [`src/hdmi/`](src/hdmi).
 | [`src/vga/pix.vhd`](src/vga/pix.vhd), [`src/vga/disp.vhd`](src/vga/disp.vhd) | VGA output. `pix` generates the pixel counters, and `disp` generates the sync signals and the pixel colour.
 | [`src/vga/video_pkg.vhd`](src/vga/video_pkg.vhd) | The video modes, i.e. the resolution and the timing of the VGA output: 1280x1024 (MEGA65) and 640x480 (Nexys 4 DDR), both at 60 Hz.
 | [`src/vga/palette_pkg.vhd`](src/vga/palette_pkg.vhd) | The four colour palettes, which convert the count of a pixel to its colour.
-| [`src/vga/overlay.vhd`](src/vga/overlay.vhd), [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd) | Frame rate overlay. `overlay` shows the frame rate in the top right corner of the picture, with the digits of the font in `font_pkg`.
+| [`src/vga/overlay.vhd`](src/vga/overlay.vhd), [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd), [`src/text_pkg.vhd`](src/text_pkg.vhd) | Overlay of the view and the frame rate. `overlay` shows a line of text at the top of the picture (the view on the left, and the frame rate on the right), with the font in `font_pkg`. `text_pkg` defines the characters (the digits and `.-+ix`).
 | [`font/`](font) | The script that generates `font_pkg.vhd` from the [Spleen](https://github.com/fcambus/spleen) 16x32 font, and the license of the font (BSD 2-Clause, see [`font/LICENSE.spleen`](font/LICENSE.spleen)). The font itself (version 2.2.0) is not in this repository; the script says how to get it.
 | [`src/util_pkg.vhd`](src/util_pkg.vhd) | The function `log2`, the number of bits needed for a range of values, used in both clock domains.
 | [`src/clk_rst.vhd`](src/clk_rst.vhd) | Clock and reset generation: the main clock for the calculation (141.64 MHz, or 120 MHz on the Nexys 4 DDR), the pixel clock for VGA (108 MHz for 1280x1024, 25 MHz for 640x480), each with a synchronous reset, and the TMDS clock for the HDMI output of the MEGA65 (540 MHz).
