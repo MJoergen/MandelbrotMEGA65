@@ -125,13 +125,17 @@ architecture structural of clk_rst is
    signal locked         : std_logic;
    signal rstn           : std_logic;
 
+   -- The resets are high from the configuration of the FPGA until the
+   -- reset has been stretched, also in the first clock cycle.
    signal main_clk       : std_logic;
    signal main_rstn_sync : std_logic_vector(1 downto 0) := "00";
    signal main_rst_delay : std_logic_vector(7 downto 0) := X"FF";
+   signal main_rst_r     : std_logic := '1';
 
    signal vga_clk        : std_logic;
    signal vga_rstn_sync  : std_logic_vector(1 downto 0) := "00";
    signal vga_rst_delay  : std_logic_vector(7 downto 0) := X"FF";
+   signal vga_rst_r      : std_logic := '1';
 
    -- The registers of the reset synchronizers
    attribute async_reg : string;
@@ -145,6 +149,11 @@ begin
    --------------------------------------------------
 
    -- Unused outputs are left unconnected, and unused inputs are tied off.
+   -- The reset of the MMCM (RST) is tied off too: the MMCM starts when the
+   -- FPGA is configured, and the 100 MHz input clock of the boards runs all
+   -- the time. If the input clock stopped and came back, the MMCM would not
+   -- be reset, and might not lock again. The design is held in reset while
+   -- the MMCM is not locked, see below.
    i_mmcm_adv : MMCME2_ADV
       generic map (
          BANDWIDTH            => "OPTIMIZED",
@@ -233,7 +242,7 @@ begin
          main_rstn_sync <= main_rstn_sync(0) & rstn;
 
          main_rst_delay <= main_rst_delay(6 downto 0) & "0";
-         main_rst_o     <= main_rst_delay(7);
+         main_rst_r     <= main_rst_delay(7);
 
          if main_rstn_sync(1) = '0' then
             main_rst_delay <= X"FF";
@@ -247,7 +256,7 @@ begin
          vga_rstn_sync <= vga_rstn_sync(0) & rstn;
 
          vga_rst_delay <= vga_rst_delay(6 downto 0) & "0";
-         vga_rst_o     <= vga_rst_delay(7);
+         vga_rst_r     <= vga_rst_delay(7);
 
          if vga_rstn_sync(1) = '0' then
             vga_rst_delay <= X"FF";
@@ -256,6 +265,8 @@ begin
    end process p_vga_rst;
 
    main_clk_o <= main_clk;
+   main_rst_o <= main_rst_r;
    vga_clk_o  <= vga_clk;
+   vga_rst_o  <= vga_rst_r;
 
 end architecture structural;
