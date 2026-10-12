@@ -53,11 +53,17 @@ set_property -dict { PACKAGE_PIN N17 IOSTANDARD LVCMOS33 } [get_ports { btn_i[4]
 create_clock -name sys_clk -period 10.00 [get_ports {clk_i}];                          # 100 MHz
 
 # The frame rate is moved from the MAIN clock domain to the VGA clock domain
-# with a toggle signal, which is synchronized, see nexys4ddr.vhd. These are the
+# with a toggle signal, which is synchronized, see fps_cdc.vhd. These are the
 # only paths from the MAIN clock to the VGA clock. Their delay only has to be
 # shorter than the synchronizer (two VGA clock cycles), so the relation between
 # the two clocks is ignored.
 set_max_delay -datapath_only -from [get_clocks -of_objects [get_pins i_clk_rst/i_mmcm_adv/CLKOUT0]] -to [get_clocks -of_objects [get_pins i_clk_rst/i_mmcm_adv/CLKOUT1]] 10.000
+
+# The inputs are asynchronous to the clocks of the design: they are
+# synchronized with two registers (the reset in clk_rst.vhd, the buttons and
+# switches in main.vhd, and the switches of the palette in vga.vhd). So they
+# have no input delay, and the paths from them are not timed.
+set_false_path -from [get_ports {rstn_i btn_i[*] sw_i[*]}]
 
 # Configuration Bank Voltage Select
 set_property CFGBVS VCCO [current_design]

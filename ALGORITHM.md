@@ -1622,12 +1622,15 @@ iterators failed timing by 0.07 to 0.17 ns, and at 117.1 MHz (divided by
 of the MMCM, because it is the only output with a fractional divider. The
 MMCM also generates the 25 MHz VGA clock (divided by 48). On the MEGA65 the
 VCO is 1080 MHz instead, see [MEGA65](#mega65). The constraints in
-`nexys4ddr.xdc` are the 100 MHz input clock, and a maximum delay
+`nexys4ddr.xdc` are the 100 MHz input clock, a maximum delay
 (`set_max_delay -datapath_only`) for the paths from the MAIN clock to the VGA
 clock, which only carry the frame rate and its toggle signal to the
-synchronizer in the top level (see [The top level](#the-top-level)). Apart
-from these, the two clocks only meet in the display memory, which has a
-separate clock for each port.
+synchronizer in `fps_cdc` (see [The top level](#the-top-level)), and a false
+path (`set_false_path`) from the inputs (the reset, the buttons, and the
+switches), which are asynchronous, and synchronized with two registers. The
+constraint files of the MEGA65 have the same, with the joysticks and the
+data from the keyboard as the inputs. Apart from these, the two clocks only
+meet in the display memory, which has a separate clock for each port.
 
 The complete run of `make nexys4ddr` takes about 6 minutes (synthesis about
 2 minutes, placement about 1.5 minutes, routing about 1 minute), on a
