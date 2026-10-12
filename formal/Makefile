@@ -4,6 +4,7 @@ DUTS  = res_scheduler
 DUTS += job_scheduler
 DUTS += job
 DUTS += dispatcher_jobs
+DUTS += dispatcher_results
 
 # One stamp file per DUT, touched only when sby exits successfully.
 STAMPS = $(addsuffix .stamp,$(DUTS))

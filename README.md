@@ -311,7 +311,8 @@ instantiate them.
 
 ## Formal verification
 There are formal proofs in [`formal/`](formal) for `res_scheduler`,
-`job_scheduler`, `job`, and `dispatcher_jobs`. The properties of each module are in a PSL file
+`job_scheduler`, `job`, `dispatcher_jobs`, and `dispatcher_results`. The
+properties of each module are in a PSL file
 (`<name>.psl`), which is bound to the module, so the modules themselves are not
 changed. Each module is proved for a few sets of generics (see `<name>.sby`),
 with k-induction, and cover statements check that the interesting cases are
@@ -342,6 +343,18 @@ reachable. The properties are:
   the step in cy does not change while it is busy. The job modules are not
   included; their busy flags are given by assumptions. A new picture must
   only be started when the previous one is done, as `main` does.
+* `dispatcher_results` (with `res_scheduler`): At most one job module is
+  acknowledged in each clock cycle, and only one that has a result. Each
+  acknowledged result is written exactly once, two clock cycles after the
+  acknowledge, to the address from the table of the jobs (the picture column
+  and the block) and the row of the result, with the counts of the result,
+  and nothing else is written. When a job module is selected by
+  `res_scheduler` in clock cycle c, its ready flag is low from c+2, as
+  `res_scheduler` requires. The job modules and `dispatcher_jobs` are not
+  included; their results and the table of the jobs are given by
+  assumptions (as `job.psl` and `dispatcher_jobs.psl` prove them). Only the
+  reset at the start is covered: a reset during a picture also resets the
+  job modules, which then lose their results without an acknowledge.
 
 For `job`, the iterator is replaced by a stub
 ([`formal/iterator_stub.vhd`](formal/iterator_stub.vhd)) whose outputs are
