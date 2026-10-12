@@ -4,6 +4,11 @@ XILINX_DIR = /opt/Xilinx/2025.1/Vivado
 # (https://github.com/MEGA65/mega65-tools), used by the "fpga" target.
 M65 = m65
 
+# The coretool from the mega65-tools repository, used by the "cor" target. It
+# is a Python script, src/tools/coretool in that repository, and is used as
+# it is, e.g. "make cor CORETOOL=~/mega65-tools/src/tools/coretool".
+CORETOOL = coretool
+
 # Name of the design. Used for the Vivado script.
 NAME = mandelbrot
 
@@ -14,6 +19,16 @@ NAME = mandelbrot
 # built at the same time, e.g. "make -j3 mega65-r3 mega65-r6 nexys4ddr".
 BOARDS = mega65-r3 mega65-r6 nexys4ddr
 BITS   = $(foreach b,$(BOARDS),build/$(b)/$(b).bit)
+
+# The MEGA65 boards, which also get a core file (build/<board>/<board>.cor)
+# from the "cor" target. The name of the target in coretool is the board name
+# without the dash, i.e. mega65r3 and mega65r6. The name and the version are
+# shown by MEGAFLASH (at most 31 characters each). The version is the current
+# commit, with "-dirty" if there are uncommitted changes.
+MEGA65_BOARDS = mega65-r3 mega65-r6
+CORS          = $(foreach b,$(MEGA65_BOARDS),build/$(b)/$(b).cor)
+COR_NAME      = Mandelbrot
+COR_VERSION   = $(shell git describe --always --dirty 2>/dev/null)
 
 # Board programmed by the "fpga" target. Must be specified on the command
 # line, e.g. "make fpga BOARD=mega65-r6", because the bit-file of one MEGA65
@@ -128,6 +143,7 @@ help:
 	@echo "  mega65-r3       Synthesize and implement the design for the MEGA65 R3 using Vivado (build/mega65-r3/)"
 	@echo "  mega65-r6       Synthesize and implement the design for the MEGA65 R6 using Vivado (build/mega65-r6/)"
 	@echo "  nexys4ddr       Synthesize and implement the design for the Nexys 4 DDR using Vivado (build/nexys4ddr/)"
+	@echo "  cor             Make the core files of the MEGA65 boards using coretool (build/mega65-r3/mega65-r3.cor, build/mega65-r6/mega65-r6.cor)"
 	@echo "  fpga            Program the FPGA of a board (BOARD=<board>) with its bit-file using m65"
 	@echo "  sim             Simulate all testbenches in parallel using ghdl (logs in build/)"
 	@echo "  run             Simulate a single testbench (TB=<name>) using ghdl, without writing a waveform"
@@ -160,6 +176,16 @@ $(BOARDS): %: build/$$*/$$*.bit
 $(BITS): build/%.bit: $(NAME).tcl $$(notdir $$*).xdc $(SRC) $$($$(notdir $$*)_SRC)
 	@mkdir -p $(@D)
 	cd $(@D) && bash -c "source $(XILINX_DIR)/settings64.sh ; vivado -mode tcl -source $(abspath $<) -tclargs $(notdir $*) $($(notdir $*)_PART) $($(notdir $*)_TOP) $(abspath $(SRC) $($(notdir $*)_SRC))"
+
+# Make the core files of the MEGA65 boards, which are flashed into a slot with
+# MEGAFLASH. Each bit-file is built first, if needed. As with the bit-files,
+# the core file of one MEGA65 revision must not be used on the other one.
+.PHONY: cor
+cor: $(CORS)
+
+$(CORS): build/%.cor: build/%.bit
+	$(CORETOOL) --quiet --force --build $@ --bit $< --target $(subst -,,$(notdir $*)) \
+	   --bit-name "$(COR_NAME)" --bit-version "$(COR_VERSION)"
 
 # Program the FPGA of the board BOARD with its bit-file, which is built first
 # if needed. m65 works for all the boards, i.e. also for the Nexys 4 DDR.

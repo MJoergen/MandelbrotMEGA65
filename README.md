@@ -205,6 +205,20 @@ Type `make` to list the supported targets. The most important ones are
   `nexys4ddr`. Without `BOARD` it lists the boards. The `m65` tool is from the
   [mega65-tools](https://github.com/MEGA65/mega65-tools) repository, and must
   be in the `PATH` (or set the variable `M65`).
+* `make cor` makes the core files of the MEGA65 boards,
+  `build/mega65-r3/mega65-r3.cor` and `build/mega65-r6/mega65-r6.cor`, from
+  their bit-files (which are built first, if needed), using `coretool`. A core
+  file is flashed into a slot with MEGAFLASH (hold No Scroll while switching
+  on the MEGA65), so the design starts without a JTAG cable. MEGAFLASH shows
+  the name `Mandelbrot` and the version, which is the commit
+  (`git describe --always --dirty`, e.g. `c1e432c`); set `COR_NAME` or
+  `COR_VERSION` to change them. The core file also holds the board revision
+  (`mega65r3` or `mega65r6`); flash the one of your board revision, see
+  [Board revisions](#board-revisions). The
+  `coretool` is the Python script `src/tools/coretool` of the
+  [mega65-tools](https://github.com/MEGA65/mega65-tools) repository, and must
+  be in the `PATH` (or set the variable `CORETOOL`, e.g.
+  `make cor CORETOOL=~/mega65-tools/src/tools/coretool`).
 * `make sim` runs all the testbenches in parallel, without opening the
   waveform viewer, see [below](#simulation). This requires
   [GHDL](https://github.com/ghdl/ghdl). It uses one job per CPU (set
@@ -245,6 +259,7 @@ tried, except where it says so.
 | Python, numpy | 3.12, numpy 2.5 | `sim/model.py`, `sim/cmp_rtl.py`, `sim/iterator_model.py`
 | [GTKWave](https://github.com/gtkwave/gtkwave) | 3.3.116 | `make check`
 | [m65](https://github.com/MEGA65/mega65-tools) | 20251108 | `make fpga`
+| [coretool](https://github.com/MEGA65/mega65-tools) | from git (commit 44c63d2, 2026-10-05), Python 3.12 | `make cor`
 | pdflatex (TeX Live, with TikZ), pdftoppm (Poppler) | TeX Live 2023, Poppler 24.02 | `make diagrams`
 
 The testbenches use external names of VHDL-2008 (`disp_mem_tb`,
