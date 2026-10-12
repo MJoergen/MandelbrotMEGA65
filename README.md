@@ -259,8 +259,8 @@ not installed.
 
 **Continuous integration.** On every push and pull request,
 [GitHub Actions](.github/workflows/ci.yml) installs the tools with this
-script, and runs `make formal`, VSG, and `make sim` (about 10 minutes in
-all). The builds for the boards need Vivado, so they are not run there. The
+script, and runs `make formal`, VSG, `make consts`, and `make sim` (about
+10 minutes in all). The builds for the boards need Vivado, so they are not run there. The
 logs of the simulation and of the formal verification are kept with the run.
 
 **Claude Code.** The cloud environment of Claude Code has none of the tools,
@@ -273,9 +273,10 @@ it does nothing.
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp_mem`,
-`fps`, `fps_cdc`, and `controls`, and one (`redraw`) which checks that `main`
+`fps`, `fps_cdc`, and `controls`, and two for `main`: `redraw` checks that it
 only calculates a picture when the view changes, and that the pictures end up
-in the display memory.
+in the display memory, and `picture` compares every pixel of three small
+pictures (64x48) with the bit-accurate model.
 All of them are self-checking, and stop with an error if the result is wrong.
 They stop by themselves when they are finished, and report
 `<name>_tb: finished`. `make sim` only counts a testbench as passed when it
@@ -298,7 +299,9 @@ testbench, where the same simulated time gives about 50000 pixels in about
 make run TB=main STOP_TIME=200us GENERICS="G_NUM_ITERATORS=120 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19"
 sim/cmp_rtl.py
 ```
-See [Iterator](ALGORITHM.md#iterator) for details.
+See [Iterator](ALGORITHM.md#iterator) for details. `make consts` checks that
+the constants of the boards in the model and in the defaults of `main_tb` are
+the same as in the design.
 
 The simulation does not need any Xilinx libraries. The DSPs in the iterators
 are inferred by Vivado from plain VHDL, see [Multiplier](ALGORITHM.md#multiplier).

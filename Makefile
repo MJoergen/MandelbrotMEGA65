@@ -80,7 +80,7 @@ SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga redraw overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps fps_cdc controls
+TBS = vga redraw picture overlay dispatcher disp_mem iterator viewport job job_scheduler res_scheduler fps fps_cdc controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
 # the command line, e.g. "make run TB=iterator".
@@ -133,6 +133,7 @@ help:
 	@echo "  run             Simulate a single testbench (TB=<name>) using ghdl, without writing a waveform"
 	@echo "  check           Simulate a single testbench (TB=<name>) using ghdl, write the waveform, and show it in gtkwave"
 	@echo "  formal          Run the formal verification using SymbiYosys (in formal/)"
+	@echo "  consts          Check that the constants of the model match the design"
 	@echo "  clean           Remove generated files"
 	@echo ""
 	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator'."
@@ -278,6 +279,12 @@ endif
 .PHONY: formal
 formal:
 	$(MAKE) -C formal
+
+# Check that the constants of the boards in sim/model.py and in the defaults
+# of sim/main_tb.vhd are the same as in the design (see sim/check_consts.py).
+.PHONY: consts
+consts:
+	python3 sim/check_consts.py
 
 .PHONY: clean
 clean:

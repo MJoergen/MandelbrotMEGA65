@@ -277,6 +277,21 @@ modules, on the Nexys 4 DDR (about 5 minutes). With `make check TB=main` it
 also writes a waveform file (about 370 MB for the Nexys 4 DDR). This
 testbench is not part of `make sim`.
 
+The testbench [`sim/picture_tb.vhd`](sim/picture_tb.vhd) does the same
+check inside the testbench, with the VHDL model, for a small picture (64x48,
+with 8 job modules, four pixels in each write, and jobs of 12 rows), so it is
+part of `make sim`. It checks every pixel of three pictures (the initial
+view, then the view after zooming in and panning, and then after zooming
+out): each pixel is written exactly once, the picture is complete when the
+frame rate is updated, and the count of each pixel is the count of the
+model. The view of each picture is read from `main` with external names.
+
+The board constants in `sim/model.py` and the defaults of the generics of
+`sim/main_tb.vhd` are copies of those in `src/mega65.vhd` (and the model also
+has those of `src/nexys4ddr.vhd`). `make consts` runs
+[`sim/check_consts.py`](sim/check_consts.py), which reads the constants
+from the VHDL files and checks that the copies are the same.
+
 The iterator calculates one iteration in each clock cycle, using two DSPs
 (see [Multiplier](#multiplier)). The registers P of the two DSPs hold x and
 y (the first one x, the second one y/2, both in 4.32 bit representation), and

@@ -18,11 +18,13 @@ known to work are in README.md (Tools). In the cloud environment of Claude
 Code, the SessionStart hook (`.claude/settings.json`) installs the free tools
 with `scripts/install-tools.sh` (the first time about 770 MB), so `make sim`,
 `make formal`, and VSG can be run there, but not the builds (no Vivado). The
-CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, and `make sim` on
-every push and pull request.
+CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
+`make sim` on every push and pull request.
 * `make sim`: all testbenches in parallel, about 9 minutes (mostly `vga`).
   `make run TB=<name>` runs one. They must all pass after a VHDL change.
 * `make formal`: the formal proofs, about 20 seconds.
+* `make consts`: checks that the constants in `sim/model.py` and
+  `sim/main_tb.vhd` match the design, about 1 second.
 * `make mega65-r6`, `make mega65-r3` (about 13 minutes each), `make nexys4ddr`
   (about 6 minutes). Run them in the background, or `make -j3 mega65-r3
   mega65-r6 nexys4ddr`. The results are in `build/<board>/vivado.log`, and
@@ -69,7 +71,8 @@ are only checked by Vivado.
 * The bit-accurate model must follow `src/main/iterator.vhd`: it is in
   `sim/iterator_model.py`, `sim/model.py`, and `sim/iterator_model_pkg.vhd`.
   The board constants in `sim/model.py` and the defaults of `sim/main_tb.vhd`
-  must match `src/mega65.vhd` (see the "Must match" comments).
+  must match `src/mega65.vhd` (see the "Must match" comments); `make consts`
+  checks this.
 * Testbenches are self-checking. A new one is added to `TBS` in the Makefile
   and described in ALGORITHM.md.
 * `src/hdmi/` and `src/keyboard/` are copied unchanged from the C64MEGA65

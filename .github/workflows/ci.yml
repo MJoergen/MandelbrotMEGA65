@@ -1,9 +1,10 @@
 # Runs the formal verification (make formal), the check of the coding style
-# (VSG), and the simulation (make sim) on every push and pull request, with
-# the free tools installed by scripts/install-tools.sh. Vivado is not free, so
-# the builds for the boards are not run here.
+# (VSG), the check of the constants of the model (make consts), and the
+# simulation (make sim) on every push and pull request, with the free tools
+# installed by scripts/install-tools.sh. Vivado is not free, so the builds for
+# the boards are not run here.
 #
-# The three checks run one after the other, and each of them also runs when
+# The checks run one after the other, and each of them also runs when
 # an earlier one has failed (but not when the tools could not be installed).
 # The logs of the simulation and of the formal verification are kept as an
 # artifact of the run.
@@ -45,6 +46,10 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard')
+
+      - name: Constants of the model (make consts)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: make consts
 
       - name: Simulation (make sim)
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
