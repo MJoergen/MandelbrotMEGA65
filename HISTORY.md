@@ -313,7 +313,22 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the buttons and switches were
+The previous run of `make mega65-r6`, before the view was shown in the top
+left corner, the palette was selected with the keys `1` to `4`, and the R3
+read the reset button from the MAX10, met timing with +0.070 ns (+0.069 ns
+after the routing), and had 21,814 slices, 47,954 LUTs, and 60,294 registers
+(74,636 LUT cells and 59,188 registers after synthesis). Its worst setup path
+was in an iterator (3.57 ns), and its worst hold path (+0.022 ns) in
+`res_cy_r`. The VGA clock had +0.219 ns of setup slack (from `pix_y` to
+`rd_grp_addr`, only routing, 8.67 ns), and the 40 paths from the MAIN clock
+to the VGA clock (the frame rate and its toggle signal) +8.87 ns. The
+previous run of `make mega65-r3`, which did not use the reset button and had
+49 IOBs, met timing with +0.033 ns (+0.005 ns after the routing), with
+22,031 slices, 47,976 LUTs, and +0.025 ns of hold slack (in `res_cy_r`). Its
+VGA clock had +0.165 ns of setup slack, and the paths from the MAIN clock to
+the VGA clock +8.82 ns.
+
+The run of `make mega65-r6` before that, before the buttons and switches were
 synchronized with two registers, the asynchronous inputs were declared as
 false paths, and the clock domain crossing of the frame rate was moved to an
 entity of its own (fps_cdc.vhd, now the generic cdc_data.vhd), met timing with
@@ -323,9 +338,9 @@ Its worst hold path (+0.011 ns) was from the result register of a job module
 (`res_word_r`) to the register of its group in `dispatcher_results`
 (`grp_res_data_r`). The VGA clock had +0.161 ns of setup slack (from `pix_y`
 to `rd_grp_addr`, only routing, 8.71 ns of the 9.06 ns), and the paths from
-the MAIN clock to the VGA clock +8.88 ns. The previous run of `make mega65-r3`
-met timing after the routing, with +0.079 ns, with 22,107 slices, 48,005 LUTs,
-and +0.024 ns of hold slack (in `res_cy_r`). Its VGA clock had +0.254 ns of
+the MAIN clock to the VGA clock +8.88 ns. The run of `make mega65-r3` before
+that met timing after the routing, with +0.079 ns, with 22,107 slices,
+48,005 LUTs, and +0.024 ns of hold slack (in `res_cy_r`). Its VGA clock had +0.254 ns of
 setup slack, and the paths from the MAIN clock to the VGA clock +8.94 ns.
 
 The run of `make mega65-r6` before that, with the reset of the display memory
@@ -502,7 +517,14 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before the buttons and switches were
+The previous run of `make nexys4ddr`, before the view was shown in the top
+left corner, used 10,217 slices (64%), 16,510 LUTs, and 26,690 registers
+(20,752 LUT cells and 26,706 registers after synthesis). It met timing with
++0.037 ns (+0.016 ns after the routing), with +0.050 ns of hold slack (from
+the data register of a block of the display memory to its BRAM), and the
+40 paths from the MAIN clock to the VGA clock had +8.35 ns of slack.
+
+The run of `make nexys4ddr` before that, before the buttons and switches were
 synchronized with two registers and the asynchronous inputs were declared as
 false paths, used 10,069 slices (64%), 16,533 LUTs, and 26,684 registers
 (20,752 LUT cells and 26,686 registers after synthesis). It met timing with
@@ -739,10 +761,16 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, before the buttons were synchronized with two registers,
+The previous runs, before the view was shown in the top left corner, the
+palette was selected with the keys, and the R3 read the reset button from the
+MAX10, gave 3.47 W busy and 0.74 W idle on the R6 (3.51 W and 0.74 W on the
+R3), and 1.22 W and 0.36 W on the Nexys 4 DDR. Of the busy power on the R6,
+the main clock domain used 2.82 W, and the signals 0.98 W.
+
+The runs before that, before the buttons were synchronized with two registers,
 gave 3.53 W busy and 0.74 W idle on the R6 (3.48 W and 0.74 W on the R3), and
 1.21 W and 0.36 W on the Nexys 4 DDR. Their busy power on the MEGA65 had
-1.04 W in the signals. The runs before that, with the reset of the display
+1.04 W in the signals. The runs before those, with the reset of the display
 memory, gave about the same: 3.50 W and 0.74 W on the R6 (3.54 W
 and 0.75 W on the R3), and 1.20 W and 0.37 W on the Nexys 4 DDR.
 

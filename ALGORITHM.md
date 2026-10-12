@@ -1397,17 +1397,17 @@ multiple of the 120 rows of the Nexys 4 DDR). A run of `make mega65-r6` gives:
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 736      | 740       | 99
 | Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
-| Slices           | 21,814   | 33,650    | 65
-| LUTs             | 47,954   | 134,600   | 36
-| Registers        | 60,294   | 269,200   | 22
+| Slices           | 22,151   | 33,650    | 66
+| LUTs             | 48,267   | 134,600   | 36
+| Registers        | 60,887   | 269,200   | 23
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.070 ns (TNS 0)
-| Hold (WHS)  | +0.022 ns (THS 0)
+| Setup (WNS) | +0.086 ns (TNS 0)
+| Hold (WHS)  | +0.025 ns (THS 0)
 
 The "Report Cell Usage" table in `build/mega65-r6/vivado.log` gives the cell
-counts after synthesis instead: 74,636 LUT cells and 59,188 registers. The
+counts after synthesis instead: 75,017 LUT cells and 59,781 registers. The
 number of LUT cells is larger than the number of LUTs used, because two
 small LUT cells can share one LUT (the placer does this, "LUT Combining").
 
@@ -1416,28 +1416,30 @@ is at 141.64 MHz, and includes the HDMI output (in DVI mode, with the
 serialisers from the C64MEGA65 core, see [`src/mega65.vhd`](src/mega65.vhd)).
 The worst setup path of the main clock is in an iterator, from the register
 P of its second DSP, through the adder for x+y or x-y, to the input of its
-first DSP (3.57 ns, plus about 3.3 ns in the DSP from its input to its
+first DSP (3.71 ns, plus about 3.3 ns in the DSP from its input to its
 register P), see [Iterator](#iterator). The timing was met after the routing
-(+0.069 ns). The routes of the dispatcher and of the display memory to all
+(+0.085 ns). The routes of the dispatcher and of the display memory to all
 the job modules and BRAMs, which were the worst paths with the iterator with
-a single DSP, are no longer critical. The worst hold path (+0.022 ns) is in
+a single DSP, are no longer critical. The worst hold path (+0.025 ns) is in
 the adder of the row number (`res_cy_r`) of a job module. The VGA clock has
-+0.219 ns of setup slack: its worst path is from the row counter (`pix_y` in
-`pix`) to the read address of one of the groups of the display memory
-(`rd_grp_addr`), only routing (8.67 ns). The read enables of the BRAMs, which
-are decoded from `rd_grp_blk`, are not on these long paths. The 40 paths from
-the MAIN clock to the VGA clock (the frame rate and its toggle signal) have
-+8.87 ns of slack, and `report_cdc` reports all of them as safe. The TMDS
++0.212 ns of setup slack: its worst path is from the column counter (`pix_x`
+in `pix`) to the number of the block of one of the groups of the display
+memory (`rd_grp_blk`), only routing (8.73 ns). The read enables of the BRAMs,
+which are decoded from `rd_grp_blk`, are not on these long paths. The 117
+paths from the MAIN clock to the VGA clock (the frame rate, the view, and
+their toggle signal to `cdc_data`, and the palette from `controls` to `vga`)
+have +7.68 ns of slack, and `report_cdc` reports all of them as safe. The TMDS
 clock (540 MHz) has +0.259 ns of pulse width slack, on its BUFG. The colour
 and sync outputs to the video DAC are registered in the IOBs.
 
 A run of `make mega65-r3` gives almost the same: the design is the same,
-except that the R3 does not use the reset button, and has 49 IOBs instead of
-62. It uses 22,031 slices and 47,976 LUTs. In this run the timing was met
-with +0.033 ns (+0.005 ns after the routing), and the hold slack is
-+0.025 ns (in `res_cy_r`). The VGA clock has +0.165 ns of setup slack (from
-`pix_y` to `rd_grp_addr`), and the paths from the MAIN clock to the VGA
-clock +8.82 ns.
+except that the R3 reads the reset button from the MAX10 (with `max10`, in
+the clock domain of the 100 MHz input clock, and with one more BUFG), and has
+52 IOBs instead of 62. It uses 22,231 slices and 48,369 LUTs. In this run the
+timing was met with +0.066 ns (+0.063 ns after the routing), and the hold
+slack is +0.022 ns (in `res_cy_r`). The VGA clock has +0.161 ns of setup
+slack (from `pix_y` to `rd_grp_addr`), the paths from the MAIN clock to the
+VGA clock +8.28 ns, and the input clock (in `max10`) +5.35 ns.
 
 The setup slack depends on the placement of the iterators, and varies by
 about 0.1 ns between runs. At 144 MHz (1080 MHz divided by 7.5) it varied
@@ -1483,16 +1485,16 @@ which meets timing with a 120 MHz main clock.
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 240      | 240       | 100
 | Block RAM        | 128 RAMB36 + 1 RAMB18 | 135 RAMB36 | about 95
-| Slices           | 10,217   | 15,850    | 64
-| LUTs             | 16,510   | 63,400    | 26
-| Registers        | 26,690   | 126,800   | 21
+| Slices           | 9,352    | 15,850    | 59
+| LUTs             | 16,815   | 63,400    | 27
+| Registers        | 27,276   | 126,800   | 22
 | Clock buffers    | 3 BUFG, 1 MMCM | |
 
 The available numbers are the totals for the XC7A100T. The 120 job modules
 use all the DSPs, but less than two thirds of the slices.
 
 The "Report Cell Usage" table in `build/nexys4ddr/vivado.log` gives the cell counts after
-synthesis instead: 20,752 LUT cells (LUT1 to LUT6) and 26,706 registers (FDRE
+synthesis instead: 21,127 LUT cells (LUT1 to LUT6) and 27,292 registers (FDRE
 and FDSE cells), see [MEGA65](#mega65).
 
 The display memory has 2^19 pixels of 9 bits (the count), i.e. 128 blocks of
@@ -1505,16 +1507,16 @@ The timing after routing is:
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.037 ns (TNS 0)
-| Hold (WHS)  | +0.050 ns (THS 0)
+| Setup (WNS) | +0.004 ns (TNS 0)
+| Hold (WHS)  | +0.010 ns (THS 0)
 
-In this run the timing was met after the routing (+0.016 ns). The worst
+In this run the timing was met after the routing (+0.003 ns). The worst
 setup path is in an iterator, from the register P of its second DSP, through
 the adder for x+y or x-y (a LUT and five CARRY4), to the input of its first
 DSP, see [Iterator](#iterator). The worst hold path is from the data register
-of a block of the display memory to its BRAM. The 40 paths from the MAIN
-clock to the VGA clock (the frame rate and its toggle signal) have +8.35 ns
-of slack against the maximum delay of 10 ns, and `report_cdc` reports all of
+of a block of the display memory to its BRAM. The 115 paths from the MAIN
+clock to the VGA clock (the frame rate, the view, and their toggle signal)
+have +8.50 ns of slack against the maximum delay of 10 ns, and `report_cdc` reports all of
 them as safe.
 
 The 120 MHz main clock (period 8.33 ns) is generated from the 100 MHz input
@@ -1527,12 +1529,14 @@ MMCM also generates the 25 MHz VGA clock (divided by 48). On the MEGA65 the
 VCO is 1080 MHz instead, see [MEGA65](#mega65). The constraints in
 `nexys4ddr.xdc` are the 100 MHz input clock, a maximum delay
 (`set_max_delay -datapath_only`) for the paths from the MAIN clock to the VGA
-clock, which only carry the frame rate and its toggle signal to the
-synchronizer in `cdc_data` (see [Overlay](#overlay)), and a false
+clock, which only carry the frame rate, the view, and their toggle signal to
+the synchronizer in `cdc_data` (see [Overlay](#overlay)), and a false
 path (`set_false_path`) from the inputs (the reset, the buttons, and the
 switches), which are asynchronous, and synchronized with two registers. The
 constraint files of the MEGA65 have the same, with the joysticks and the
-data from the keyboard as the inputs. Apart from these, the two clocks only
+data from the keyboard as the inputs; there the paths from the MAIN clock to
+the VGA clock also carry the palette (from `controls`), which `vga`
+synchronizes with two registers. Apart from these, the two clocks only
 meet in the display memory, which has a separate clock for each port.
 
 The complete run of `make nexys4ddr` takes about 6 minutes (synthesis about
@@ -1555,10 +1559,10 @@ design between the pictures:
 
 | Board | Busy | Idle | Main (busy / idle) | Display memory (busy / idle)
 | ----- | ---- | ---- | ------------------ | ----------------------------
-| MEGA65 R6   | 3.47 W | 0.74 W | 2.82 W / 0.21 W | 0.15 W / 0.05 W
-| Nexys 4 DDR | 1.22 W | 0.36 W | 0.84 W / 0.08 W | 0.13 W / 0.03 W
+| MEGA65 R6   | 3.51 W | 0.75 W | 2.85 W / 0.21 W | 0.15 W / 0.05 W
+| Nexys 4 DDR | 1.21 W | 0.36 W | 0.83 W / 0.09 W | 0.12 W / 0.03 W
 
-The MEGA65 R3 gives almost the same (3.51 W and 0.74 W). The MEGA65 builds
+The MEGA65 R3 gives almost the same (3.53 W and 0.75 W). The MEGA65 builds
 are at 141.64 MHz, with the HDMI output. While a button is held down, the
 design is busy for about 4.6% of the time on the MEGA65 and 2% on the
 Nexys 4 DDR, and otherwise it is idle. The values of x and y in the iterators
@@ -1566,7 +1570,7 @@ change in almost every clock cycle while they are busy, so the real busy
 power is probably higher than the estimate, and the saving larger.
 
 On the MEGA65 the busy power is mostly the DSPs (1.19 W), the signals
-(0.98 W), and the logic (0.55 W), almost all in the job modules. The idle
+(1.01 W), and the logic (0.55 W), almost all in the job modules. The idle
 power is mostly the clocks (0.25 W), the I/O (0.17 W, the VGA and HDMI
 outputs), the static power (0.16 W), and the MMCM (0.13 W). The block RAM
 uses 0.004 W, and the signals 0.02 W.
