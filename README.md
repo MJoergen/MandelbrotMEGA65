@@ -249,6 +249,27 @@ external name, so these three testbenches fail with it (the others pass, and
 so does `make formal`). The Makefile uses the `ghdl` in the `PATH`; another
 one is selected with e.g. `make sim GHDL=/opt/ghdl-4.1/bin/ghdl`.
 
+The script [`scripts/install-tools.sh`](scripts/install-tools.sh) installs
+the free tools in `~/.cache/mandelbrot-tools` (or another directory given as
+its argument), and prints the directories to add to the `PATH`: the OSS CAD
+Suite of 2026-10-01 for `make formal`, the GHDL 6.0.0 release (mcode) for
+`make sim`, and VSG 3.35.0 and numpy in a Python virtual environment. The
+first run downloads about 770 MB. Vivado is not free to download, so it is
+not installed.
+
+**Continuous integration.** On every push and pull request,
+[GitHub Actions](.github/workflows/ci.yml) installs the tools with this
+script, and runs `make formal`, VSG, and `make sim` (about 10 minutes in
+all). The builds for the boards need Vivado, so they are not run there. The
+logs of the simulation and of the formal verification are kept with the run.
+
+**Claude Code.** The cloud environment of Claude Code has none of the tools,
+so the project settings ([`.claude/settings.json`](.claude/settings.json))
+run [`scripts/claude-session-start.sh`](scripts/claude-session-start.sh)
+when a session starts. In the cloud environment it installs the free tools
+with the script above, and adds them to the `PATH` of the session; elsewhere
+it does nothing.
+
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp_mem`, and
@@ -369,4 +390,5 @@ and [`src/hdmi/`](src/hdmi).
 | [`mandelbrot.xlsx`](mandelbrot.xlsx) | Spreadsheet used during the design. It iterates the example point -1+0.5i from [the iterator section](ALGORITHM.md#iterator) using real numbers.
 | [`ALGORITHM.md`](ALGORITHM.md) | Detailed explanation of the algorithm and the design.
 | [`CODING_STYLE.md`](CODING_STYLE.md), [`vsg.yml`](vsg.yml) | The VHDL coding style, and the configuration of [VSG](https://vhdl-style-guide.readthedocs.io/) that checks most of it.
+| [`scripts/`](scripts), [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`.claude/settings.json`](.claude/settings.json) | Installation of the free tools, the continuous integration on GitHub, and the hook that installs the tools in the cloud environment of Claude Code, see [Tools](#tools).
 | [`TODO.md`](TODO.md) | Ideas for further changes.

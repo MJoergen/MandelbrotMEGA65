@@ -12,9 +12,14 @@ MJoergen/nexys4ddr. Commits from before the split refer to that folder, and
 their `#N` refer to pull requests of that repository.
 
 ## Commands
-All the tools are installed (Vivado 2025.1, GHDL, VSG, SymbiYosys, GTKWave,
-m65, Python with numpy). The versions that are known to work are in
-README.md (Tools).
+On the author's machine all the tools are installed (Vivado 2025.1, GHDL,
+VSG, SymbiYosys, GTKWave, m65, Python with numpy). The versions that are
+known to work are in README.md (Tools). In the cloud environment of Claude
+Code, the SessionStart hook (`.claude/settings.json`) installs the free tools
+with `scripts/install-tools.sh` (the first time about 770 MB), so `make sim`,
+`make formal`, and VSG can be run there, but not the builds (no Vivado). The
+CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, and `make sim` on
+every push and pull request.
 * `make sim`: all testbenches in parallel, about 9 minutes (mostly `vga`).
   `make run TB=<name>` runs one. They must all pass after a VHDL change.
 * `make formal`: the formal proofs, about 20 seconds.
