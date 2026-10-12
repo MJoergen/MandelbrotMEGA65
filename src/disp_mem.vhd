@@ -28,12 +28,10 @@
 -- ignored.
 --
 -- The write port has three clock cycles of latency, or two without the
--- registers of the blocks. On reset (wr_rst_i), the
--- entire memory is filled with the value 0x055, which takes
--- G_NUM_BLOCKS*4096/G_PIXELS clock cycles. Writes on the write port are
--- ignored while this is in progress, and wr_busy_o is high. It goes high in
--- the clock cycle after wr_rst_i, and writes are accepted again as soon as it
--- is low.
+-- registers of the blocks. The memory has no reset: it is cleared (all
+-- pixels 0) when the FPGA is configured, and a reset keeps its contents, i.e.
+-- the previous picture stays until the first picture after the reset has
+-- overwritten it. Neither port has a reset.
 --
 -- The read port has four clock cycles of latency: The read address goes to a
 -- register in each group, which drives the 8 BRAMs of the group, then the
@@ -41,8 +39,7 @@
 -- the pixel is selected from the groups. Without the registers of the read
 -- address, it would drive all the BRAMs, which are spread over the whole
 -- FPGA: with 320 blocks this took 8.2 ns of the 9.26 ns at 108 MHz. Selecting
--- the pixel from all the blocks in one clock cycle would be too slow too. The
--- read reset (rd_rst_i) is not used.
+-- the pixel from all the blocks in one clock cycle would be too slow too.
 --
 -- Only the BRAM that holds the pixel is read, i.e. the read enables of all
 -- the other BRAMs are low. Reading all the BRAMs in every clock cycle used
@@ -68,14 +65,11 @@ entity disp_mem is
    );
    port (
       wr_clk_i  : in  std_logic;
-      wr_rst_i  : in  std_logic;
       wr_addr_i : in  std_logic_vector(G_ADDR_BITS-1 downto 0);
       wr_data_i : in  std_logic_vector(9*G_PIXELS-1 downto 0);
       wr_en_i   : in  std_logic;
-      wr_busy_o : out std_logic;   -- The memory is being filled
       --
       rd_clk_i  : in  std_logic;
-      rd_rst_i  : in  std_logic;
       rd_addr_i : in  std_logic_vector(G_ADDR_BITS-1 downto 0);
       rd_data_o : out std_logic_vector( 8 downto 0)
    );
@@ -123,8 +117,6 @@ architecture rtl of disp_mem is
    signal wr_addr      : std_logic_vector(C_WORD_BITS-1 downto 0);
    signal wr_data      : word_t;
    signal wr_en        : std_logic;
-   signal wr_addr_rst  : std_logic_vector(C_WORD_BITS-1 downto 0);
-   signal wr_rst       : std_logic := '0';
 
    -- The write port of each group and of each block (registers, or wires
    -- from the group if G_BLOCK_REGS is false). The address and data
@@ -181,33 +173,11 @@ begin
    p_write_ctrl : process (wr_clk_i)
    begin
       if rising_edge(wr_clk_i) then
-
          wr_addr <= wr_addr_i(G_ADDR_BITS-1 downto C_SUB_BITS);
          wr_data <= wr_data_i;
          wr_en   <= wr_en_i;
-
-         if wr_rst = '1' then
-            wr_addr <= wr_addr_rst;
-            for i in 0 to G_PIXELS-1 loop
-               wr_data(9*i+8 downto 9*i) <= "001010101";
-            end loop;
-            wr_en   <= '1';
-
-            wr_addr_rst <= wr_addr_rst + 1;
-
-            if wr_addr_rst = C_NUM_WORDS-1 then
-               wr_rst <= '0';
-            end if;
-         end if;
-
-         if wr_rst_i = '1' then
-            wr_addr_rst <= (others => '0');
-            wr_rst      <= '1';
-         end if;
       end if;
    end process p_write_ctrl;
-
-   wr_busy_o <= wr_rst;
 
    p_write_grp : process (wr_clk_i)
    begin
@@ -230,7 +200,8 @@ begin
 
    gen_blk : for b in 0 to C_NUM_BLOCKS-1 generate
       constant C_GROUP : natural := b / C_GROUP_SIZE;
-      signal mem       : mem_t;
+      -- Cleared when the FPGA is configured
+      signal mem       : mem_t := (others => (others => '0'));
       -- The write enable of the block, from the register of the group
       signal blk_en_s : std_logic;
    begin

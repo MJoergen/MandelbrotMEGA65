@@ -15,18 +15,14 @@
 --   for an address beyond the last block.
 -- * Writes to addresses outside the memory (when it has fewer blocks than the
 --   address allows) are ignored, i.e. they do not change any pixel.
--- * The reset fills the whole memory with 0x055, and then writes work again.
---   wr_busy_o is high for exactly the time this takes, and the writes start
---   right after it goes low.
+-- * A word that is never written reads as 0 in every block, i.e. the memory
+--   starts cleared (it has no reset).
 --
 -- This is done for these configurations, each with its own instance:
 -- * 128 blocks (2^19 pixels, as on the Nexys 4 DDR), with one and four pixels
 --   in each word, and a register for each block.
 -- * 320 blocks with 21 bits of address (as on the MEGA65), with four
 --   pixels in each word, and no register for each block.
--- * 8 blocks with 21 bits of address, with four pixels in each word, no
---   register for each block, and the reset. The reset takes G_NUM_BLOCKS*4096/G_PIXELS clock cycles, so it is
---   only used with this small memory.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -44,18 +40,13 @@ architecture simulation of disp_mem_tb is
       blocks    : positive;   -- Blocks (BRAMs) in the memory
       addr_bits : positive;   -- Bits of the address
       blk_regs  : boolean;    -- A register for each block
-      reset     : boolean;    -- Use the reset
    end record config_t;
    type config_vector is array (natural range <>) of config_t;
 
    constant C_CONFIGS : config_vector := (
-      (pixels => 1, blocks => 128, addr_bits => 19, blk_regs => true,  reset => false),
-      (pixels => 4, blocks => 128, addr_bits => 19, blk_regs => true,  reset => false),
-      (pixels => 4, blocks => 320, addr_bits => 21, blk_regs => false, reset => false),
-      (pixels => 4, blocks =>   8, addr_bits => 21, blk_regs => false, reset => true));
-
-   -- The value of each pixel after the reset
-   constant C_RESET_VALUE : std_logic_vector(8 downto 0) := "001010101";
+      (pixels => 1, blocks => 128, addr_bits => 19, blk_regs => true),
+      (pixels => 4, blocks => 128, addr_bits => 19, blk_regs => true),
+      (pixels => 4, blocks => 320, addr_bits => 21, blk_regs => false));
 
    signal wr_clk   : std_logic;
    signal rd_clk   : std_logic;
@@ -101,7 +92,6 @@ begin
       constant C_BLK_REGS   : boolean := C_CONFIGS(n).blk_regs;
       -- The read latency
       constant C_LAT        : positive := 4;
-      constant C_RESET      : boolean := C_CONFIGS(n).reset;
       -- Words in each block
       constant C_WORDS      : natural := 2**12 / C_PIX;
       -- Word offsets in each block. The word at C_WORDS/2 is never written.
@@ -110,11 +100,9 @@ begin
       -- The blocks outside the memory that the address allows
       constant C_OUTSIDE    : natural := 2**(C_ADDR_BITS-12) - C_NUM_BLOCKS;
 
-      signal wr_rst     : std_logic := '0';
       signal wr_addr    : std_logic_vector(C_ADDR_BITS-1 downto 0) := (others => '0');
       signal wr_data    : std_logic_vector(9*C_PIX-1 downto 0) := (others => '0');
       signal wr_en      : std_logic := '0';
-      signal wr_busy    : std_logic;
       signal rd_addr    : std_logic_vector(C_ADDR_BITS-1 downto 0) := (others => '0');
       signal rd_data    : std_logic_vector( 8 downto 0);
       signal write_done : boolean := false;
@@ -162,32 +150,8 @@ begin
             wr_en   <= en;
          end procedure write;
 
-         variable busy_cycles_v : natural;
-
       begin
          wait for 100 ns;
-
-         -- The reset fills the memory. Writes are ignored while it is in
-         -- progress, i.e. while wr_busy is high, so wait for that. It is high
-         -- from the rising edge where the reset is seen, for one clock cycle
-         -- for each word of the memory. The first write below comes in the
-         -- clock cycle after it goes low.
-         if C_RESET then
-            wait until rising_edge(wr_clk);
-            wr_rst <= '1';
-            wait until rising_edge(wr_clk);
-            wr_rst <= '0';
-            busy_cycles_v := 0;
-            loop
-               wait until rising_edge(wr_clk);
-               exit when wr_busy = '0';
-               busy_cycles_v := busy_cycles_v + 1;
-            end loop;
-            assert busy_cycles_v = C_NUM_BLOCKS*C_WORDS
-               report "wr_busy_o was high for " & integer'image(busy_cycles_v) &
-                      " clock cycles, expected " & integer'image(C_NUM_BLOCKS*C_WORDS)
-               severity error;
-         end if;
 
          -- A wrong value, to be overwritten. Consecutive writes in the same
          -- block.
@@ -232,30 +196,28 @@ begin
       ----------------------------
 
       -- An address is given in each clock cycle, and the value is checked
-      -- C_LAT clock cycles later. All the pixels of each word are read. After
-      -- the reset, the pixels of a word that is never written are read too.
+      -- C_LAT clock cycles later. All the pixels of each word are read. First
+      -- a pixel of the word that is never written is read in each block.
       p_read : process
          variable exp_addr_v : natural;
          variable addr_v     : natural;
       begin
          wait until write_done;
 
-         if C_RESET then
-            for i in 0 to C_NUM_BLOCKS+C_LAT-1 loop
-               wait until rising_edge(rd_clk);
-               wait for 1 ns;
-               if i >= C_LAT then
-                  assert rd_data = C_RESET_VALUE
-                     report "Wrong value after reset in block " & integer'image(i-C_LAT) &
-                            ": got " & integer'image(to_integer(unsigned(rd_data)))
-                     severity error;
-               end if;
-               if i < C_NUM_BLOCKS then
-                  addr_v := i * 2**12 + (C_WORDS/2) * C_PIX + i mod C_PIX;
-                  rd_addr <= std_logic_vector(to_unsigned(addr_v, C_ADDR_BITS));
-               end if;
-            end loop;
-         end if;
+         for i in 0 to C_NUM_BLOCKS+C_LAT-1 loop
+            wait until rising_edge(rd_clk);
+            wait for 1 ns;
+            if i >= C_LAT then
+               assert rd_data = "000000000"
+                  report "Wrong value of a word never written in block " & integer'image(i-C_LAT) &
+                         ": got " & integer'image(to_integer(unsigned(rd_data)))
+                  severity error;
+            end if;
+            if i < C_NUM_BLOCKS then
+               addr_v := i * 2**12 + (C_WORDS/2) * C_PIX + i mod C_PIX;
+               rd_addr <= std_logic_vector(to_unsigned(addr_v, C_ADDR_BITS));
+            end if;
+         end loop;
 
          for i in 0 to C_NUM_ADDR*C_PIX+C_LAT-1 loop
             wait until rising_edge(rd_clk);
@@ -301,13 +263,10 @@ begin
          )
          port map (
             wr_clk_i  => wr_clk,
-            wr_rst_i  => wr_rst,
             wr_addr_i => wr_addr,
             wr_data_i => wr_data,
             wr_en_i   => wr_en,
-            wr_busy_o => wr_busy,
             rd_clk_i  => rd_clk,
-            rd_rst_i  => '0',
             rd_addr_i => rd_addr,
             rd_data_o => rd_data
          ); -- i_disp_mem

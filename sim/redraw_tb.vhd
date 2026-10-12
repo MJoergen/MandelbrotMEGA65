@@ -12,12 +12,9 @@
 -- * Each picture writes exactly the number of words of a picture, and nothing
 --   is written between the pictures.
 -- * The frame rate is updated once for each picture.
--- * No picture is started while the display memory (disp_mem.vhd) is being
---   filled after reset, because it ignores the writes then. After the first
---   picture, and after the last one, every pixel of the picture in the display
---   memory, read on its read port, is the value written by main. Before main
---   waited for the display memory, the first picture was started at once, and
---   most of it was lost.
+-- * After the first picture, and after the last one, every pixel of the
+--   picture in the display memory (disp_mem.vhd), read on its read port, is
+--   the value written by main.
 -- The buttons are held down for exactly one update at a time, so the view
 -- changes at most once between two pictures. The updates are: none (so the
 -- view does not change, and nothing must be written), pan right, zoom in, zoom
@@ -26,9 +23,9 @@
 --
 -- The update pulse, the start of a picture, and the view are inside main.vhd,
 -- so they are read with external names. A small picture with a few job modules
--- and a small display memory (8 blocks, which takes 16384 clock cycles to fill)
--- are used, and the update rate (G_CLK_FREQ/18) is much higher than on the
--- board, to keep the simulation short.
+-- and a small display memory (8 blocks) are used, and the update rate
+-- (G_CLK_FREQ/18) is much higher than on the board, to keep the simulation
+-- short.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -78,7 +75,6 @@ architecture simulation of redraw_tb is
    signal wr_addr   : std_logic_vector(C_ADDR_BITS-1 downto 0);
    signal wr_data   : std_logic_vector(9*C_PIXELS-1 downto 0);
    signal wr_en     : std_logic;
-   signal wr_busy   : std_logic;
    signal rd_addr   : std_logic_vector(C_ADDR_BITS-1 downto 0) := (others => '0');
    signal rd_data   : std_logic_vector(8 downto 0);
 
@@ -145,8 +141,7 @@ begin
          fps_valid_o  => fps_valid,
          wr_addr_o    => wr_addr,
          wr_data_o    => wr_data,
-         wr_en_o      => wr_en,
-         wr_busy_i    => wr_busy
+         wr_en_o      => wr_en
       ); -- i_main
 
    -- The same display memory as on the MEGA65 (no write registers for the
@@ -160,13 +155,10 @@ begin
       )
       port map (
          wr_clk_i  => clk,
-         wr_rst_i  => rst,
          wr_addr_i => wr_addr,
          wr_data_i => wr_data,
          wr_en_i   => wr_en,
-         wr_busy_o => wr_busy,
          rd_clk_i  => clk,
-         rd_rst_i  => '0',
          rd_addr_i => rd_addr,
          rd_data_o => rd_data
       ); -- i_disp_mem
@@ -226,9 +218,6 @@ begin
             -- The dispatcher takes the view when it sees the start, i.e. at
             -- this rising edge.
             if start = '1' then
-               assert wr_busy = '0'
-                  report "A picture was started while the display memory was being filled"
-                  severity error;
                if pictures > 0 then
                   assert pic_words_v = C_WORDS
                      report "A picture was started before the previous one was finished"
@@ -245,10 +234,9 @@ begin
 
             -- The viewport module sees the update at this rising edge, so
             -- view_s is the view before the update. The first picture is
-            -- started after the display memory has been filled, which takes
-            -- several updates, so this is only checked from the first finished
-            -- picture.
-            if upd = '1' and finished > 0 then
+            -- started at once after reset, and is finished before the first
+            -- update.
+            if upd = '1' then
                assert pictures > 0 and pic_words_v = C_WORDS
                   report "The picture is not finished at the next update"
                   severity error;
@@ -333,10 +321,9 @@ begin
       begin
          wait until rst = '0';
 
-         -- The first picture after reset. It is started when the display
-         -- memory has been filled, and p_check checks at the next update that
-         -- it has the current view.
-         wait until finished = 1 for 2 * C_MEM_BLOCKS*4096/C_PIXELS * 10 ns;
+         -- The first picture after reset. It is started at once, and p_check
+         -- checks at the next update that it has the current view.
+         wait until finished = 1 for C_UPD_PERIOD * 10 ns;
          assert finished = 1
             report "The first picture is not finished"
             severity failure;

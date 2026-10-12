@@ -185,7 +185,6 @@ architecture structural of mega65 is
    signal wr_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
    signal wr_data        : std_logic_vector(9*C_PIXELS-1 downto 0);
    signal wr_en          : std_logic;
-   signal wr_busy        : std_logic;
 
    signal rd_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
    signal rd_data        : std_logic_vector( 8 downto 0);
@@ -352,8 +351,7 @@ begin
          fps_valid_o  => fps_valid,
          wr_addr_o    => wr_addr,
          wr_data_o    => wr_data,
-         wr_en_o      => wr_en,
-         wr_busy_i    => wr_busy
+         wr_en_o      => wr_en
       ); -- i_main
 
 
@@ -370,14 +368,11 @@ begin
       )
       port map (
          wr_clk_i  => main_clk,
-         wr_rst_i  => main_rst,
          wr_addr_i => wr_addr,
          wr_data_i => wr_data,
          wr_en_i   => wr_en,
-         wr_busy_o => wr_busy,
          --
          rd_clk_i  => vga_clk,
-         rd_rst_i  => vga_rst,
          rd_addr_i => rd_addr,
          rd_data_o => rd_data
       ); -- i_disp_mem

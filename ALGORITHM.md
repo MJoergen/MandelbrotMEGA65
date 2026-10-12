@@ -741,9 +741,8 @@ MMCM is not locked (the MEGA65 R3 does not use its reset button, see
 [`src/mega65_r3.vhd`](src/mega65_r3.vhd), so it is only reset after
 power-on). This signal is synchronized to each clock domain (the main
 clock and the VGA clock), and the reset is then stretched to eight clock cycles
-after it is released. The VGA reset is connected to the `vga`
-module and to the read port of the display memory, but neither of them uses it
-at present.
+after it is released. The VGA reset is connected to the `vga` module, but it
+does not use it at present. The display memory has no reset (see below).
 
 **The display memory.** The display memory
 ([`src/disp_mem.vhd`](src/disp_mem.vhd)) has `G_NUM_BLOCKS`*4096 pixels of 9
@@ -810,38 +809,41 @@ inside the memory. It does this for 1 and 4 pixels in each word with 128
 blocks, and for 4 pixels with 320 blocks, 21 bits of address, and no
 registers for the blocks, where it also checks that writes beyond the last
 block are ignored, and that a read beyond the last block enables no BRAM.
-On reset, the whole memory is filled with the value 0x055, which takes `G_NUM_BLOCKS`*4096/`G_PIXELS` clock
-cycles (2.31 ms on the MEGA65, and 1.09 ms on the Nexys 4 DDR). The write port
-ignores the writes while this is in progress, and `wr_busy_o` is high, so
-`main` does not start the first picture until it is finished (see below).
-This is checked with a memory of only 8 blocks, where the testbench also
-checks that `wr_busy_o` is high for exactly this number of clock cycles, and
-that writes work right after it goes low.
+It also checks that a word that is never written reads as 0 in every block.
+
+The display memory has no reset. The BRAMs are cleared when the FPGA is
+configured (the count 0, black in palette 0), and a reset keeps their
+contents, so the previous picture stays on the screen until the first picture
+after the reset has overwritten it. The first picture overwrites every pixel
+of the picture anyway. Before, a reset filled the whole memory with the value
+0x055, which took `G_NUM_BLOCKS`*4096/`G_PIXELS` clock cycles (2.31 ms on the
+MEGA65, and 1.09 ms on the Nexys 4 DDR). The write port ignored the writes
+while this was in progress, so `main` had to wait for it (`wr_busy_o`) before
+it started the first picture. Without the filling, the wait, the busy signal,
+and the address counter and the multiplexer on the write port are gone.
 
 The rest of this section describes `main`.
 
-**When a picture is calculated.** A new picture is only started when the
-view has changed since the previous picture was started, and after reset.
-The view is updated 18 times per second, also when no button is held down
-(see *The view* below), so `main` keeps a copy of the view of the latest
-picture (`pic_startx`, `pic_starty`, `pic_stepx`, and `pic_stepy`), which it
-takes when the dispatcher takes the view, i.e. when start is high. The view
-is compared with this copy, and the result of the comparison (72 bits) is
+**When a picture is calculated.** A new picture is only started when the view
+has changed since the previous picture was started, and after reset. The view
+is updated 18 times per second, also when no button is held down (see *The
+view* below), so `main` keeps a copy of the view of the latest picture
+(`pic_startx`, `pic_starty`, `pic_stepx`, and `pic_stepy`), which it takes
+when the dispatcher takes the view, i.e. when start is high. The view is
+compared with this copy, and the result of the comparison (72 bits) is
 registered (`view_new`). When the signal done\_o from the dispatcher goes
-high, the signal active is cleared, and when `view_new` is set (and the
-display memory is not being filled, see below), active is set again
-together with a pulse on start. The dispatcher clears done\_o when it sees
-the start, so done\_o is ignored while start is high. If the view changes
+high, the signal active is cleared, and when `view_new` is set, active is set
+again together with a pulse on start. The dispatcher clears done\_o when it
+sees the start, so done\_o is ignored while start is high. If the view changes
 during a picture, a new picture is started as soon as that one is finished,
 and several changes during a picture give only one new picture.
-After reset, the first picture waits until the display memory has been
-filled (`wr_busy_i`, see above), because the display memory ignores the
-writes until then. When the picture was recalculated continuously, this did
-not matter, because the next picture overwrote the lost pixels, but now the
-picture is not calculated again until the view changes: on the MEGA65 (then
-at 144 MHz) the filling (2.28 ms) took almost as long as the first picture
-(2.49 ms), so the screen showed the colour of 0x055 (green) except for the
-last rows of the picture, until the view was changed.
+The first picture is started at once after reset. When the display memory
+was filled after reset (see above), the first picture had to wait until it
+was finished, because the display memory ignored the writes until then.
+Before that wait was added, on the MEGA65 (then at 144 MHz) the filling
+(2.28 ms) took almost as long as the first picture (2.49 ms), so the screen
+showed the colour of 0x055 (green) except for the last rows of the picture,
+until the view was changed.
 
 Before, a new picture was started as soon as the previous one was finished,
 so the picture was recalculated continuously (402 pictures per second for
@@ -856,22 +858,18 @@ estimate of the power.
 
 The testbench [`sim/redraw_tb.vhd`](sim/redraw_tb.vhd) is self-checking. It
 runs `main` and the display memory with a small picture (16x12, five job
-modules), a small display memory (8 blocks, which take 16384 clock cycles to
-fill), and a short time between the updates of the view (4000 clock cycles,
-longer than a picture),
-and holds the buttons down for one update at a time: no buttons, pan right,
-zoom in, zoom out, and pan left until the left edge of the view is at -2. It
-checks that each picture is started with a view that differs from the view
-of the previous picture, that at each update the latest picture is finished
-and has the current view (i.e. every change of the view gave a picture),
-that nothing is written between the pictures, and that the frame rate is
-updated once for each picture. It also checks that no picture is started
-while the display memory is being filled, and reads the display memory
-after the first picture and after the last one: every pixel must be the value
-written by `main`. Without the wait for the display memory, every pixel of
-the first picture reads back as 0x055. The update pulse, the start, and the
-view are inside `main`, so the testbench reads them with external names
-(VHDL-2008).
+modules), a small display memory (8 blocks), and a short time between the
+updates of the view (4000 clock cycles, longer than a picture), and holds the
+buttons down for one update at a time: no buttons, pan right, zoom in, zoom
+out, and pan left until the left edge of the view is at -2. It checks that
+each picture is started with a view that differs from the view of the previous
+picture, that at each update the latest picture is finished and has the
+current view (i.e. every change of the view gave a picture), that nothing is
+written between the pictures, and that the frame rate is updated once for each
+picture. It also reads the display memory after the first picture and after
+the last one: every pixel must be the value written by `main`. The update
+pulse, the start, and the view are inside `main`, so the testbench reads them
+with external names (VHDL-2008).
 
 **The view.** The view is given by the position of the top left corner of the
 picture (startx, starty), and the size of a pixel (stepx, stepy). The initial
