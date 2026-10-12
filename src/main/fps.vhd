@@ -1,8 +1,9 @@
 -- This module converts the time taken by a picture (in clock cycles) to the
--- frame rate in pictures per second, as a decimal number for the 7-segment
--- display.
+-- frame rate in pictures per second, as a decimal number. It is shown in the
+-- top right corner of the VGA output (overlay.vhd), and on the Nexys 4 DDR
+-- also on the 7-segment display (seg.vhd).
 --
--- The time of a picture varies a little, so the time is averaged first, with
+-- The time can be averaged first (main.vhd does not, G_AVG_SHIFT is 0), with
 -- an exponentially weighted moving average: For each new time (a pulse on
 -- valid_i), the difference between the time and the average is divided by
 -- 2^G_AVG_SHIFT and added to the average. The first time after reset sets the
