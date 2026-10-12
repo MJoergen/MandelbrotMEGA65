@@ -6,6 +6,13 @@ and links here where a part had an earlier version. The design was first
 developed on the Nexys 4 DDR, and the MEGA65 was added later, so most of the
 history is about the Nexys 4 DDR, at 640x480.
 
+The design was developed in the `mandelbrot/` folder of
+[MJoergen/nexys4ddr](https://github.com/MJoergen/nexys4ddr), and moved to
+this repository on 12 October 2026. The last version there is
+[mandelbrot/ at cb97f12](https://github.com/MJoergen/nexys4ddr/tree/cb97f12898373688fc146e128c3e287b1dd40c6c/mandelbrot).
+The commits from before the move refer to that folder, and their `#N` refer
+to the pull requests of that repository.
+
 ## Contents
 * [The iterator](#the-iterator)
 * [The dispatcher](#the-dispatcher)
