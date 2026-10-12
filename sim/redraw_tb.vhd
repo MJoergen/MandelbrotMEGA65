@@ -312,8 +312,9 @@ begin
          variable changed_v : boolean;
 
          -- Hold the buttons down (and switch 2, zoom out) for exactly one
-         -- update. They are set long before the update (at least two clock
-         -- cycles, because main.vhd registers them), and released after it.
+         -- update. They are set long before the update (at least three clock
+         -- cycles, because main.vhd synchronizes them with two registers), and
+         -- released after it.
          -- changed_v is set if the update changed the view.
          procedure do_update (
             b        : std_logic_vector(4 downto 0);
@@ -540,7 +541,7 @@ begin
 
          -- Hold pan right down for three updates. The first picture is
          -- started at once after reset, and takes much longer than three
-         -- updates. main.vhd registers the buttons, so they are released
+         -- updates. main.vhd synchronizes the buttons, so they are released
          -- just after the third update, when the update has taken them.
          fast_btn <= "00100";
          for i in 1 to 3 loop

@@ -1053,8 +1053,11 @@ pixel), with no frame rate (the initial value), 4 digits, and 8 digits. The
 frame rate is changed in the middle of the overlay, and the new value must
 only be shown in the next frame. It prints the overlay of the last frame.
 
-**Other inputs.** On the Nexys 4 DDR, the switches 0 and 1 select the colour
-palette, see [Colours](#colours). They are used in the VGA clock domain (in
+**Other inputs.** The buttons and switches are asynchronous to the MAIN
+clock (on the MEGA65 the joystick lines, combined with the keys), so `main`
+synchronizes them with two registers (with the attribute `async_reg`), like
+the reset in `clk_rst` and the palette switches in `vga`. On the
+Nexys 4 DDR, the switches 0 and 1 select the colour palette, see [Colours](#colours). They are used in the VGA clock domain (in
 `vga`), not in `main`. The switches 3 to 7 are not used. On the MEGA65 these
 switches are always off, so it always uses palette 0.
 

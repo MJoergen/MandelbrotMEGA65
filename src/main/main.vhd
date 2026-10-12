@@ -127,8 +127,19 @@ architecture structural of main is
    constant C_UPD_PERIOD : natural := G_CLK_FREQ / 18;
    signal upd_cnt        : natural range 0 to C_UPD_PERIOD-1 := 0;
    signal upd            : std_logic;
-   signal btn_r          : std_logic_vector(4 downto 0);
-   signal sw_r           : std_logic_vector(7 downto 0);
+
+   -- The buttons and switches are asynchronous (on the MEGA65 the joysticks,
+   -- combined with the keys), so they are synchronized with two registers.
+   signal btn_meta       : std_logic_vector(4 downto 0);
+   signal btn_sync       : std_logic_vector(4 downto 0);
+   signal sw_meta        : std_logic_vector(7 downto 0);
+   signal sw_sync        : std_logic_vector(7 downto 0);
+
+   attribute async_reg : string;
+   attribute async_reg of btn_meta : signal is "true";
+   attribute async_reg of btn_sync : signal is "true";
+   attribute async_reg of sw_meta  : signal is "true";
+   attribute async_reg of sw_sync  : signal is "true";
 
 begin
 
@@ -149,8 +160,10 @@ begin
    p_btn : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         btn_r <= btn_i;
-         sw_r  <= sw_i;
+         btn_meta <= btn_i;
+         btn_sync <= btn_meta;
+         sw_meta  <= sw_i;
+         sw_sync  <= sw_meta;
       end if;
    end process p_btn;
 
@@ -172,8 +185,8 @@ begin
          clk_i      => clk_i,
          rst_i      => rst_i,
          upd_i      => upd,
-         btn_i      => btn_r,
-         zoom_out_i => sw_r(2),
+         btn_i      => btn_sync,
+         zoom_out_i => sw_sync(2),
          startx_o   => startx,
          starty_o   => starty,
          stepx_o    => stepx,
