@@ -54,7 +54,8 @@ second), still above the 60 Hz of the VGA output, see
 the multiplier, the iterator (including how overflow is detected), the jobs,
 the dispatcher, and the timing and resource usage. [HISTORY.md](HISTORY.md)
 has the history of the design: the earlier versions of its parts, and the
-results of the earlier builds.
+results of the earlier builds. The design was first developed in the
+`mandelbrot/` folder of [MJoergen/nexys4ddr](https://github.com/MJoergen/nexys4ddr).
 
 ## Controls
 A new picture is only calculated when the view changes, and after reset. In
