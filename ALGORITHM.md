@@ -940,12 +940,14 @@ The view control has a self-checking testbench
 updates, and checks after every update that the view is inside the range, that
 the size of a pixel is at least one LSB, that the view is the one expected
 from a simple model, and that the outputs all change in the same clock cycle.
-It also checks that panning and zooming reach the ends of the range and stop
-there, that zooming in keeps the centre exactly fixed, and that a pulse on
-upd\_i during an update (which takes 17 clock cycles for the 640x480 of the
-testbench) is ignored, but one just
-after the update is not. The initial view is checked when the design is
-elaborated: it must be inside the range too.
+It also checks the initial view, that panning and zooming reach the ends of
+the range and stop there, that zooming in keeps the centre exactly fixed, and
+that a pulse on upd\_i during an update is ignored, but one just after the
+update is not. It does this for both resolutions, with an instance each:
+640x480 (a pan step of 2 pixels, and an update of 17 clock cycles) and
+1280x1024 (a pan step of 4 pixels, and an update of 18 clock cycles), with
+the initial view of `main`. The initial view is also checked when the design
+is elaborated: it must be inside the range too.
 
 **The frame rate.** The top right corner of the VGA output (and the
 7-segment display of the Nexys 4 DDR) shows the frame rate, i.e. the
