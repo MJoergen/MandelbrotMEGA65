@@ -269,7 +269,7 @@ begin
    -- Change the view and the frame rate in the middle of the overlay, in the
    -- frame before the one where it is expected. They are changed twice in
    -- frame 0, and only the last change must be shown in frame 1. The inputs
-   -- are in the VGA clock domain, as from the synchronizer in nexys4ddr.vhd.
+   -- are in the VGA clock domain, as from cdc_data.vhd in core.vhd.
    p_fps : process
       procedure set_value (v : value_t) is
       begin

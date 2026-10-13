@@ -191,8 +191,8 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 21,603 (64%)        | 33,650    | 9,269 (58%)              | 15,850
-| LUTs               | 45,747 (34%)        | 134,600   | 15,846 (25%)             | 63,400
+| Slices             | 21,785 (65%)        | 33,650    | 9,294 (59%)              | 15,850
+| LUTs               | 45,783 (34%)        | 134,600   | 15,838 (25%)             | 63,400
 | Registers          | 60,881 (23%)        | 269,200   | 27,260 (21%)             | 126,800
 
 The performance and timing are:
@@ -203,25 +203,27 @@ The performance and timing are:
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
 | Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.076 ns                                | +0.046 ns
-| Hold slack      | +0.005 ns                                | +0.006 ns
+| Setup slack     | +0.008 ns                                | +0.090 ns
+| Hold slack      | +0.027 ns                                | +0.014 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the R3
-met timing with +0.070 ns (21,883 slices, +0.058 ns hold slack). The builds
-before the palette could move had +0.047 ns on the R6 (22,223 slices, 45,752
-LUTs), +0.091 ns on the R3, and +0.034 ns on the Nexys 4 DDR (15,844 LUTs). The
-builds before the BRAMs selected the pixel in the word had +0.041 ns on the R6
-(22,391 slices, 48,336 LUTs), +0.070 ns on the R3, and +0.051 ns on the
-Nexys 4 DDR (16,859 LUTs). The builds before the palettes used all 9 bits of
-the count had +0.086 ns on the R6 (22,151 slices, 48,267 LUTs), +0.066 ns on
-the R3, and +0.004 ns on the Nexys 4 DDR (16,815 LUTs). The builds before them,
-before the view was shown in the top left corner, the palette was selected with
-the keys `1` to `4`, and the R3 read the reset button from the MAX10, met
-timing with +0.070 ns on the R6 (21,814 slices), +0.033 ns on the R3, and
-+0.037 ns on the Nexys 4 DDR (10,217 slices). At 144 MHz the R3 had failed
-timing by 0.076 ns, so the main clock was reduced to 141.64 MHz, which gives
-0.116 ns more setup slack. See [Resources and timing
-closure](ALGORITHM.md#resources-and-timing-closure) for details, and
+met timing with +0.074 ns (21,564 slices, +0.028 ns hold slack). The builds
+before the design that is the same on all the boards was moved into `core.vhd`
+had +0.076 ns on the R6 (21,603 slices, 45,747 LUTs), +0.070 ns on the R3, and
++0.046 ns on the Nexys 4 DDR (15,846 LUTs). The builds before the palette could
+move had +0.047 ns on the R6 (22,223 slices, 45,752 LUTs), +0.091 ns on the R3,
+and +0.034 ns on the Nexys 4 DDR (15,844 LUTs). The builds before the BRAMs
+selected the pixel in the word had +0.041 ns on the R6 (22,391 slices, 48,336
+LUTs), +0.070 ns on the R3, and +0.051 ns on the Nexys 4 DDR (16,859 LUTs). The
+builds before the palettes used all 9 bits of the count had +0.086 ns on the R6
+(22,151 slices, 48,267 LUTs), +0.066 ns on the R3, and +0.004 ns on the
+Nexys 4 DDR (16,815 LUTs). The builds before them, before the view was shown in
+the top left corner, the palette was selected with the keys `1` to `4`, and the
+R3 read the reset button from the MAX10, met timing with +0.070 ns on the R6
+(21,814 slices), +0.033 ns on the R3, and +0.037 ns on the Nexys 4 DDR (10,217
+slices). At 144 MHz the R3 had failed timing by 0.076 ns, so the main clock was
+reduced to 141.64 MHz, which gives 0.116 ns more setup slack. See [Resources
+and timing closure](ALGORITHM.md#resources-and-timing-closure) for details, and
 [HISTORY.md](HISTORY.md#builds-of-the-mega65) for the earlier builds.
 
 ## Running
@@ -386,8 +388,9 @@ MMCM and the clock buffers), and so does the design of the MEGA65
 HDMI output). They are not simulated, and neither are the top levels
 (`src/mega65_r3.vhd`, `src/mega65_r6.vhd`, and `src/nexys4ddr.vhd`), which
 instantiate them. So the logic of the designs of the boards is kept in
-entities of their own, which are simulated: the clock domain crossing of the
-frame rate (`src/cdc_data.vhd`), and the mapping of the joysticks and the keys
+entities of their own, which are simulated: the part that is the same on all
+the boards (`src/core.vhd`, which includes the clock domain crossing of the
+frame rate in `src/cdc_data.vhd`), and the mapping of the joysticks and the keys
 of the MEGA65 (`src/main/controls.vhd`). What is left in `src/mega65.vhd` is
 the expansion of the colour to 8 bits, the registers of the video DAC, and
 the sync signals for the HDMI output, which are only checked on the board.
@@ -480,13 +483,14 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | File             | Description
 | ---------------- | -----------
 | [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions. The R3 reads the reset button from the MAX10, with `max10`.
-| [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
+| [`src/core.vhd`](src/core.vhd) | The design that is the same on all the boards, without Xilinx primitives: instantiates the two modules for the clock domains below, the display memory, and `cdc_data`. Its generics are the constants of the board.
+| [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation and `core`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
 | [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate and the view from the MAIN clock domain to the VGA clock domain.
 | [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`, i.e. the controls of the view, the palette (keys `1` to `4`), and the movement of the palette (space bar).
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
 | [`src/max10/`](src/max10) | Serial link to the MAX10 of the MEGA65 R3, from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul Gardner-Stephen (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `max10` sends a 25 MHz clock to the MAX10, and reads the reset button (and other signals, which are not used) from it. Only used by `mega65_r3.vhd`.
-| [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd) | Top level for the Nexys 4 DDR. The same as `mega65.vhd`, but with the ports of the Nexys 4 DDR (mapped directly to pins on the FPGA), fewer job modules, a smaller display memory, a resolution of 640x480, and no HDMI output.
+| [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd) | Top level for the Nexys 4 DDR. The same as `mega65.vhd` (it also instantiates `core`), but with the ports of the Nexys 4 DDR (mapped directly to pins on the FPGA), fewer job modules, a smaller display memory, a resolution of 640x480, and no HDMI output.
 | [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, the view as text (shown on the VGA output), and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
 | [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format. It holds the state machine and instantiates `viewport_axis` ([`src/main/viewport_axis.vhd`](src/main/viewport_axis.vhd)) once for x and once for y, which calculates the view along one axis. The states are in [`src/main/viewport_pkg.vhd`](src/main/viewport_pkg.vhd).
 | [`src/main/fps.vhd`](src/main/fps.vhd), [`src/main/seg.vhd`](src/main/seg.vhd) | Frame rate. `fps` divides the clock frequency by the time taken by the latest picture, and converts the result to decimal, and `seg` multiplexes the digits on the 7-segment display of the Nexys 4 DDR.

@@ -70,41 +70,42 @@ The following terms are used in this document:
 ## Instantiation hierarchy
 The modules are instantiated as follows on the MEGA65:
 ```
-mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top level, the pins of each board revision)
- +- max10                           src/max10/max10.vhd (only on the R3: reads the reset button from the MAX10)
- +- mega65                          src/mega65.vhd (the design for the MEGA65)
-     +- m2m_keyb                    src/keyboard/m2m_keyb.vhd (keyboard driver, in the MAIN clock domain)
-     +- controls                    src/main/controls.vhd (maps the joysticks and keys to the buttons and switches)
-     +- clk_rst                     src/clk_rst.vhd (MMCM, clock buffers, and resets)
-     +- main                        src/main/main.vhd (everything in the MAIN clock domain)
-     |   +- viewport                src/main/viewport.vhd (view control from the buttons; state machine, types in src/main/viewport_pkg.vhd)
-     |   |   +- viewport_axis (x 2) src/main/viewport_axis.vhd (the view along one axis, one for x and one for y)
-     |   +- dispatcher              src/main/dispatcher.vhd (types in src/main/dispatcher_pkg.vhd)
-     |   |   +- dispatcher_jobs     src/main/dispatcher_jobs.vhd (gives out the jobs, and the done flag)
-     |   |   |   +- job_scheduler   src/main/job_scheduler.vhd (selects the job module to receive a job)
-     |   |   +- job     (x 368)     src/main/job.vhd (the job modules)
-     |   |   |   +- iterator        src/main/iterator.vhd
-     |   |   |       +- (DSP48E1)   (x 2, inferred in p_dsp, multiplier and adder)
-     |   |   +- dispatcher_results  src/main/dispatcher_results.vhd (collects the results and writes them)
-     |   |       +- res_scheduler   src/main/res_scheduler.vhd (selects the job module whose result is accepted)
-     |   +- fps                     src/main/fps.vhd (frame rate, calculated from the time for a picture)
-     |   +- view_text               src/main/view_text.vhd (the view as text: the centre and the zoom)
-     |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
-     +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
-     |   +- disp_blk                src/disp_blk.vhd (one block of the display memory, a BRAM)
-     +- cdc_data                    src/cdc_data.vhd (moves the frame rate and the view to the VGA clock domain)
-     +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
-     |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
-     |   +- disp                    src/vga/disp.vhd (VGA output, uses the palettes in src/vga/palette_pkg.vhd)
-     |   +- overlay                 src/vga/overlay.vhd (the view and the frame rate, uses the font in src/vga/font_pkg.vhd)
-     +- (p_vdac, i_vdac_clk)        (outputs to the video DAC, for the VGA connector)
-     +- vga_to_hdmi                 src/hdmi/vga_to_hdmi.vhd (encodes the picture to TMDS symbols, in DVI mode)
-     +- serialiser_10to1_selectio   src/hdmi/serialiser_10to1_selectio.vhd (x 4, the HDMI data and clock)
+mega65_r6 (or mega65_r3)                src/mega65_r6.vhd, src/mega65_r3.vhd (top level, the pins of each board revision)
+ +- max10                               src/max10/max10.vhd (only on the R3: reads the reset button from the MAX10)
+ +- mega65                              src/mega65.vhd (the design for the MEGA65)
+     +- m2m_keyb                        src/keyboard/m2m_keyb.vhd (keyboard driver, in the MAIN clock domain)
+     +- controls                        src/main/controls.vhd (maps the joysticks and keys to the buttons and switches)
+     +- clk_rst                         src/clk_rst.vhd (MMCM, clock buffers, and resets)
+     +- core                            src/core.vhd (the part that is the same on all the boards, without Xilinx primitives)
+         +- main                        src/main/main.vhd (everything in the MAIN clock domain)
+         |   +- viewport                src/main/viewport.vhd (view control from the buttons; state machine, types in src/main/viewport_pkg.vhd)
+         |   |   +- viewport_axis (x 2) src/main/viewport_axis.vhd (the view along one axis, one for x and one for y)
+         |   +- dispatcher              src/main/dispatcher.vhd (types in src/main/dispatcher_pkg.vhd)
+         |   |   +- dispatcher_jobs     src/main/dispatcher_jobs.vhd (gives out the jobs, and the done flag)
+         |   |   |   +- job_scheduler   src/main/job_scheduler.vhd (selects the job module to receive a job)
+         |   |   +- job     (x 368)     src/main/job.vhd (the job modules)
+         |   |   |   +- iterator        src/main/iterator.vhd
+         |   |   |       +- (DSP48E1)   (x 2, inferred in p_dsp, multiplier and adder)
+         |   |   +- dispatcher_results  src/main/dispatcher_results.vhd (collects the results and writes them)
+         |   |       +- res_scheduler   src/main/res_scheduler.vhd (selects the job module whose result is accepted)
+         |   +- fps                     src/main/fps.vhd (frame rate, calculated from the time for a picture)
+         |   +- view_text               src/main/view_text.vhd (the view as text: the centre and the zoom)
+         |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
+         +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
+         |   +- disp_blk                src/disp_blk.vhd (one block of the display memory, a BRAM)
+         +- cdc_data                    src/cdc_data.vhd (moves the frame rate and the view to the VGA clock domain)
+         +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
+         |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
+         |   +- disp                    src/vga/disp.vhd (VGA output, uses the palettes in src/vga/palette_pkg.vhd)
+         |   +- overlay                 src/vga/overlay.vhd (the view and the frame rate, uses the font in src/vga/font_pkg.vhd)
+     +- (p_vdac, i_vdac_clk)            (outputs to the video DAC, for the VGA connector)
+     +- vga_to_hdmi                     src/hdmi/vga_to_hdmi.vhd (encodes the picture to TMDS symbols, in DVI mode)
+     +- serialiser_10to1_selectio       src/hdmi/serialiser_10to1_selectio.vhd (x 4, the HDMI data and clock)
 ```
 On the Nexys 4 DDR, the top level is `nexys4ddr` (`src/nexys4ddr.vhd`), which
-instantiates `clk_rst`, `main`, `disp_mem`, `cdc_data`, and `vga` in the same
-way as `mega65` does, but has no keyboard, video DAC, or HDMI output, and drives
-the 7-segment display from `seg`.
+instantiates `clk_rst` and `core` in the same way as `mega65` does, but has no
+keyboard, video DAC, or HDMI output, and drives the 7-segment display from
+`seg`.
 
 The number of job modules (and therefore iterators, with two DSPs each) is
 set by the generic `G_NUM_ITERATORS` of `main`, which the design sets to 368
@@ -792,9 +793,9 @@ So:
 ## The top level
 The design for the MEGA65 ([`src/mega65.vhd`](src/mega65.vhd)), which is the
 same for both board revisions (see [MEGA65](#mega65)), instantiates the
-clock and reset generation ([`src/clk_rst.vhd`](src/clk_rst.vhd)) and the
-display memory, and splits the rest of the design into one module for each
-clock domain:
+clock and reset generation ([`src/clk_rst.vhd`](src/clk_rst.vhd)) and
+[`src/core.vhd`](src/core.vhd), which holds what is the same on all the
+boards: the display memory, and one module for each clock domain:
 * [`src/main/main.vhd`](src/main/main.vhd) runs in the MAIN clock domain
   (141.64 MHz, or 120 MHz on the Nexys 4 DDR). It handles the buttons and
   switches, controls the dispatcher, writes the results to the display
@@ -1154,8 +1155,7 @@ for each character. The frame rate (32 bits of digits and 8 bits of
 blanking) and the view (100 bits of text) are calculated in the MAIN clock
 domain, so they are moved to the VGA clock domain by
 [`src/cdc_data.vhd`](src/cdc_data.vhd), in the design of the board
-([`src/mega65.vhd`](src/mega65.vhd), or
-[`src/nexys4ddr.vhd`](src/nexys4ddr.vhd)), so `main` does not depend on the
+([`src/core.vhd`](src/core.vhd)), so `main` does not depend on the
 VGA clock. `cdc_data` is a generic clock domain crossing for a value that
 changes seldom (the ports of the source clock domain start with `s_`, and
 those of the destination with `m_`), and the design gives it the frame rate
@@ -1292,9 +1292,12 @@ same for the whole picture. When the movement is turned off, the offset stays
 where it is, and it is 0 after power-on. The pictures do not change in any
 other way, so the dispatcher and the display memory are not involved, and the
 movement does not recalculate anything. The offset is subtracted before the
-table lookup, in the same clock cycle: on the MEGA65 the path from the display
-memory through the subtraction and the table to the colour register takes
-8.09 ns, with +0.977 ns of slack at 108 MHz.
+table lookup, in the same clock cycle. On the MEGA65 the path from the display
+memory through the subtraction and the table to the colour register is close
+to the worst path of the VGA clock: it took 8.09 ns (+0.977 ns of slack at
+108 MHz) in the first build with the movement, and 8.94 ns (+0.176 ns) in the
+current one, see [MEGA65](#mega65). If it fails timing, the subtraction can be
+moved to the clock cycle before, with a register for the index.
 
 The switches (on the MEGA65 the palette register in the MAIN clock domain)
 are asynchronous to the VGA clock, so they are synchronized with two
@@ -1458,17 +1461,17 @@ multiple of the 120 rows of the Nexys 4 DDR). A run of `make mega65-r6` gives:
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 736      | 740       | 99
 | Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
-| Slices           | 21,603   | 33,650    | 64
-| LUTs             | 45,747   | 134,600   | 34
+| Slices           | 21,785   | 33,650    | 65
+| LUTs             | 45,783   | 134,600   | 34
 | Registers        | 60,881   | 269,200   | 23
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.076 ns (TNS 0)
-| Hold (WHS)  | +0.005 ns (THS 0)
+| Setup (WNS) | +0.008 ns (TNS 0)
+| Hold (WHS)  | +0.027 ns (THS 0)
 
 The "Report Cell Usage" table in `build/mega65-r6/vivado.log` gives the cell
-counts after synthesis instead: 72,537 LUT cells and 59,775 registers. The
+counts after synthesis instead: 72,549 LUT cells and 59,775 registers. The
 number of LUT cells is larger than the number of LUTs used, because two
 small LUT cells can share one LUT (the placer does this, "LUT Combining").
 
@@ -1476,19 +1479,21 @@ This run is at 141.64 MHz, and includes the HDMI output (in DVI mode, with the
 serialisers from the C64MEGA65 core, see [`src/mega65.vhd`](src/mega65.vhd)).
 The worst setup path of the main clock is in an iterator, from the register P
 of its second DSP, through the adder for x+y or x-y, to the input of its first
-DSP (3.62 ns, plus about 3.3 ns in the DSP from its input to its register P),
-see [Iterator](#iterator). The timing was met after the routing (+0.076 ns).
-The routes of the dispatcher and of the display memory to all the job modules
-and BRAMs, which were the worst paths with the iterator with a single DSP, are
-no longer critical. The worst hold path (+0.005 ns) is in the shift register of
-the keyboard driver (`m2m_keyb`). The VGA clock has +0.162 ns of setup slack:
-its worst path is from the row counter (`pix_y` in `pix`) to the read address
-of one of the groups of the display memory (`rd_grp_addr`), almost only routing
-(8.56 ns of 8.94 ns). The read enables of the BRAMs, which are decoded from
-`rd_grp_blk`, are not on these long paths, and neither is the palette (see
-[Colours](#colours)). The 118 paths from the MAIN clock to the VGA clock (the
-frame rate, the view, and their toggle signal to `cdc_data`, and the palette
-and its movement from `controls` to `vga`) have +8.51 ns of slack, and
+DSP (3.64 ns, plus about 3.3 ns in the DSP from its input to its register P),
+see [Iterator](#iterator). The timing was met after the routing, but only just
+(+0.008 ns, within the variation between runs, see below). The routes of the
+dispatcher and of the display memory to all the job modules and BRAMs, which
+were the worst paths with the iterator with a single DSP, are no longer
+critical. The worst hold path (+0.027 ns) is in the adder of the row number
+(`res_cy_r`) of a job module. The VGA clock has +0.153 ns of setup slack: its
+worst path is from the column counter (`pix_x` in `pix`) to the number of the
+block in one of the groups of the display memory (`rd_grp_blk`), almost only
+routing (8.77 ns of 9.20 ns). The read enables of the BRAMs, which are decoded
+from `rd_grp_blk`, are not on these long paths. The path through the palette
+is close behind (+0.176 ns, see [Colours](#colours)). The 118 paths from the
+MAIN clock to the VGA clock (the frame rate, the view, and their toggle signal
+to `cdc_data`, and the palette and its movement from `controls` to `vga`) have
++8.41 ns of slack, and
 `report_cdc` reports all of them as safe. The TMDS clock (540 MHz) has
 +0.259 ns of pulse width slack, on its BUFG. The colour and sync outputs to the
 video DAC are registered in the IOBs.
@@ -1496,10 +1501,10 @@ video DAC are registered in the IOBs.
 A run of `make mega65-r3` gives almost the same: the design is the same,
 except that the R3 reads the reset button from the MAX10 (with `max10`, in
 the clock domain of the 100 MHz input clock, and with one more BUFG), and has
-52 IOBs instead of 62. It uses 21,883 slices and 45,862 LUTs. In this run the
-timing was met with +0.070 ns, and the hold slack is +0.058 ns. The VGA clock
-has +0.273 ns of setup slack, the paths from the MAIN clock to the VGA clock
-+8.52 ns, and the input clock (in `max10`) +5.77 ns.
+52 IOBs instead of 62. It uses 21,564 slices and 45,843 LUTs. In this run the
+timing was met with +0.074 ns, and the hold slack is +0.028 ns. The VGA clock
+has +0.213 ns of setup slack, the paths from the MAIN clock to the VGA clock
++8.57 ns, and the input clock (in `max10`) +5.94 ns.
 
 The setup slack depends on the placement of the iterators, and varies by
 about 0.1 ns between runs. At 144 MHz (1080 MHz divided by 7.5) it varied
@@ -1545,8 +1550,8 @@ which meets timing with a 120 MHz main clock.
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 240      | 240       | 100
 | Block RAM        | 128 RAMB36 + 1 RAMB18 | 135 RAMB36 | about 95
-| Slices           | 9,269    | 15,850    | 58
-| LUTs             | 15,846   | 63,400    | 25
+| Slices           | 9,294    | 15,850    | 59
+| LUTs             | 15,838   | 63,400    | 25
 | Registers        | 27,260   | 126,800   | 21
 | Clock buffers    | 3 BUFG, 1 MMCM | |
 
@@ -1567,17 +1572,17 @@ The timing after routing is:
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.046 ns (TNS 0)
-| Hold (WHS)  | +0.006 ns (THS 0)
+| Setup (WNS) | +0.090 ns (TNS 0)
+| Hold (WHS)  | +0.014 ns (THS 0)
 
-In this run the timing was met after the routing (+0.046 ns). The worst
-setup path is in an iterator, from the register P of its second DSP, through
-the adder for x+y or x-y (a LUT and five CARRY4), to the input of its first
-DSP, see [Iterator](#iterator). The worst hold path is from the data register
-of a block of the display memory to its BRAM. The 115 paths from the MAIN
-clock to the VGA clock (the frame rate, the view, and their toggle signal)
-have +8.08 ns of slack against the maximum delay of 10 ns, and `report_cdc` reports all of
-them as safe.
+In this run the timing was met after the routing (+0.090 ns). The worst setup
+path is in an iterator, from the register P of its first DSP (in other runs the
+second one), through the adder for x+y or x-y (a LUT and five CARRY4), to the
+input of its first DSP, see [Iterator](#iterator). The worst hold path is from
+the data register of a block of the display memory to its BRAM. The 115 paths
+from the MAIN clock to the VGA clock (the frame rate, the view, and their
+toggle signal) have +8.55 ns of slack against the maximum delay of 10 ns, and
+`report_cdc` reports all of them as safe.
 
 The 120 MHz main clock (period 8.33 ns) is generated from the 100 MHz input
 clock by the MMCM: it is multiplied by 12, which gives 1200 MHz (the maximum
@@ -1619,10 +1624,10 @@ design between the pictures:
 
 | Board | Busy | Idle | Main (busy / idle) | Display memory (busy / idle)
 | ----- | ---- | ---- | ------------------ | ----------------------------
-| MEGA65 R6   | 3.47 W | 0.73 W | 2.82 W / 0.21 W | 0.15 W / 0.04 W
+| MEGA65 R6   | 3.47 W | 0.73 W | 2.83 W / 0.21 W | 0.14 W / 0.04 W
 | Nexys 4 DDR | 1.20 W | 0.36 W | 0.82 W / 0.08 W | 0.13 W / 0.03 W
 
-The MEGA65 R3 gives almost the same (3.50 W and 0.74 W). The MEGA65 builds
+The MEGA65 R3 gives almost the same (3.49 W and 0.74 W). The MEGA65 builds
 are at 141.64 MHz, with the HDMI output. While a button is held down, the
 design is busy for about 4.6% of the time on the MEGA65 and 2% on the
 Nexys 4 DDR, and otherwise it is idle. The values of x and y in the iterators
@@ -1630,7 +1635,7 @@ change in almost every clock cycle while they are busy, so the real busy
 power is probably higher than the estimate, and the saving larger.
 
 On the MEGA65 the busy power is mostly the DSPs (1.19 W), the signals
-(1.01 W), and the logic (0.55 W), almost all in the job modules. The idle
+(0.99 W), and the logic (0.55 W), almost all in the job modules. The idle
 power is mostly the clocks (0.25 W), the I/O (0.17 W, the VGA and HDMI
 outputs), the static power (0.16 W), and the MMCM (0.13 W). The block RAM
 uses 0.004 W, and the signals 0.02 W.

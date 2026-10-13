@@ -97,6 +97,7 @@ SRC += src/main/fps.vhd
 SRC += src/main/view_text.vhd
 SRC += src/main/seg.vhd
 SRC += src/main/main.vhd
+SRC += src/core.vhd
 SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that

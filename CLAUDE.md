@@ -52,7 +52,8 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
 
 GHDL can not analyze `src/clk_rst.vhd`, `src/mega65*.vhd`, or
 `src/nexys4ddr.vhd` (they need the Xilinx unisim library), so the top levels
-are only checked by Vivado.
+are only checked by Vivado. The design below them, `src/core.vhd`, is
+simulated by `core_tb`.
 
 ## Conventions
 * VHDL follows [CODING_STYLE.md](CODING_STYLE.md): naming, alignment, and

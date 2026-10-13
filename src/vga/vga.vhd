@@ -42,8 +42,8 @@ entity vga is
       -- Moves the palette, see disp.vhd. This is asynchronous too.
       move_i       : in  std_logic;
 
-      -- The frame rate, moved from the MAIN clock domain in the top level
-      -- (mega65.vhd or nexys4ddr.vhd), see overlay.vhd
+      -- The frame rate, moved from the MAIN clock domain in core.vhd,
+      -- see overlay.vhd
       fps_digits_i : in  std_logic_vector(31 downto 0);
       fps_blank_i  : in  std_logic_vector( 7 downto 0);
 

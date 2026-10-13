@@ -332,7 +332,18 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the palette could move, met
+The previous run of `make mega65-r6`, before the design that is the same on
+all the boards was moved into `core.vhd` (which adds a level to the
+hierarchy, `i_core`), met timing with +0.076 ns, and had 21,603 slices, 45,747
+LUTs, and 60,881 registers (72,537 LUT cells and 59,775 registers after
+synthesis), and +0.005 ns of hold slack (in the shift register of the keyboard
+driver). Its VGA clock had +0.162 ns of setup slack (from the row counter
+`pix_y` to `rd_grp_addr`), the path through the palette +0.977 ns, and the
+118 paths from the MAIN clock to the VGA clock +8.51 ns. The previous run of
+`make mega65-r3` met timing with +0.070 ns, with 21,883 slices, 45,862 LUTs,
++0.058 ns of hold slack, and +0.273 ns of setup slack for the VGA clock.
+
+The run of `make mega65-r6` before that, before the palette could move, met
 timing with +0.047 ns, and had 22,223 slices, 45,752 LUTs, and 60,864
 registers (72,491 LUT cells and 59,758 registers after synthesis), and
 +0.007 ns of hold slack (between two registers of `view_text`). Its VGA clock
@@ -569,7 +580,13 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before the palette could move, met
+The previous run of `make nexys4ddr`, before the design that is the same on
+all the boards was moved into `core.vhd`, met timing with +0.046 ns, with
+9,269 slices, 15,846 LUTs, 27,260 registers (20,160 LUT cells and 27,276
+registers after synthesis), and +0.006 ns of hold slack. The 115 paths from the
+MAIN clock to the VGA clock had +8.08 ns of slack.
+
+The run of `make nexys4ddr` before that, before the palette could move, met
 timing with +0.034 ns, with 10,391 slices, 15,844 LUTs, 27,246 registers
 (20,119 LUT cells and 27,262 registers after synthesis), and +0.015 ns of
 hold slack. The 115 paths from the MAIN clock to the VGA clock had +8.18 ns
@@ -831,7 +848,11 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, before the palette could move, gave 3.52 W busy and 0.74 W
+The previous runs, before the design that is the same on all the boards was
+moved into `core.vhd`, gave 3.47 W busy and 0.73 W idle on the R6 (3.50 W and
+0.74 W on the R3), and 1.20 W busy and 0.36 W idle on the Nexys 4 DDR.
+
+The runs before that, before the palette could move, gave 3.52 W busy and 0.74 W
 idle on the R6 (3.51 W and 0.74 W on the R3), and 1.22 W busy and 0.36 W idle
 on the Nexys 4 DDR.
 

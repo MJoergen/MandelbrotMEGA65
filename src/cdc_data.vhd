@@ -18,8 +18,7 @@
 -- the two clocks.
 --
 -- The design uses it to move the frame rate and the view from the MAIN clock
--- domain (main.vhd) to the VGA clock domain (overlay.vhd), see mega65.vhd and
--- nexys4ddr.vhd.
+-- domain (main.vhd) to the VGA clock domain (overlay.vhd), see core.vhd.
 
 library ieee;
 use ieee.std_logic_1164.all;

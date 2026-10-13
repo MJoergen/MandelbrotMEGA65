@@ -10,12 +10,12 @@
 -- calculated when the view changes (see main.vhd), so the design uses little
 -- power when the view is not changed.
 --
--- The design is split into two modules, one for each clock domain: main.vhd
--- (MAIN clock) and vga.vhd (VGA clock). The two domains communicate through
--- the display memory, and the frame rate (see below). This module
--- instantiates the clock and reset generation, the display memory, and the
--- two modules above. The same design, only smaller, also runs on the
--- Nexys 4 DDR board, see nexys4ddr.vhd.
+-- The part that is the same on all the boards is in core.vhd (the MAIN clock
+-- domain, the display memory, and the VGA clock domain). This module holds the
+-- constants of the MEGA65 and instantiates the clock and reset generation,
+-- core, and what is specific to the MEGA65: the keyboard, the joysticks, the
+-- video DAC, and the HDMI output. The same design, only smaller, also runs on
+-- the Nexys 4 DDR board, see nexys4ddr.vhd.
 --
 -- The ports of the MEGA65:
 -- * The view is controlled by the joysticks and the keyboard: The directions
@@ -45,11 +45,8 @@
 --   serialisers output them with the TMDS clock (5 * 108 = 540 MHz, on both
 --   edges).
 --
--- The frame rate and the view (as text) are calculated in main.vhd, and shown
--- on the VGA output by vga.vhd. They are the only signals between the two
--- clock domains, apart from the display memory. They are moved to the VGA
--- clock domain by cdc_data.vhd. The constraints for this are in mega65-r3.xdc
--- and mega65-r6.xdc.
+-- The frame rate and the view are moved to the VGA clock domain in core.vhd.
+-- The constraints for this are in mega65-r3.xdc and mega65-r6.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -177,31 +174,6 @@ architecture structural of mega65 is
 
    signal tmds_clk       : std_logic;
 
-   signal wr_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
-   signal wr_data        : std_logic_vector(9*C_PIXELS-1 downto 0);
-   signal wr_en          : std_logic;
-
-   signal rd_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
-   signal rd_data        : std_logic_vector( 8 downto 0);
-
-   signal fps_digits     : std_logic_vector(31 downto 0);
-   signal fps_blank      : std_logic_vector( 7 downto 0);
-   signal fps_valid      : std_logic;
-
-   signal view_text      : std_logic_vector(99 downto 0);
-
-   -- The frame rate (the digits followed by the blanking) and the view (25
-   -- characters) in the MAIN clock domain, and in the VGA clock domain. Until
-   -- the first frame rate, all the digits are blanked, and all the characters
-   -- are 15 (not shown), so nothing is shown.
-   constant C_FPS_INIT   : std_logic_vector(139 downto 0) :=
-      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFF";
-   signal fps            : std_logic_vector(139 downto 0);
-   signal vga_fps        : std_logic_vector(139 downto 0);
-   signal vga_fps_digits : std_logic_vector(31 downto 0);
-   signal vga_fps_blank  : std_logic_vector( 7 downto 0);
-   signal vga_view_text  : std_logic_vector(99 downto 0);
-
    signal vga_hs         : std_logic;
    signal vga_vs         : std_logic;
    signal vga_de         : std_logic;
@@ -309,108 +281,34 @@ begin
 
 
    --------------------------------------------------
-   -- Instantiate MAIN clock domain
+   -- Instantiate the design
    --------------------------------------------------
 
-   i_main : entity work.main
+   i_core : entity work.core
       generic map (
          G_CLK_FREQ      => C_MAIN_FREQ,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
          G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
-         G_NUM_COLS      => C_VIDEO.h_visible,
-         G_NUM_ROWS      => C_VIDEO.v_visible,
+         G_VIDEO         => C_VIDEO,
          G_COL_STRIDE    => C_COL_STRIDE,
-         G_ADDR_BITS     => C_ADDR_BITS
+         G_ADDR_BITS     => C_ADDR_BITS,
+         G_MEM_BLOCKS    => C_MEM_BLOCKS,
+         G_BLOCK_REGS    => C_BLOCK_REGS
       )
       port map (
-         clk_i        => main_clk,
-         rst_i        => main_rst,
-         btn_i        => btn,
-         sw_i         => sw,
-         seg_o        => open,
-         seg_an_o     => open,
-         fps_digits_o => fps_digits,
-         fps_blank_o  => fps_blank,
-         fps_valid_o  => fps_valid,
-         view_text_o  => view_text,
-         wr_addr_o    => wr_addr,
-         wr_data_o    => wr_data,
-         wr_en_o      => wr_en
-      ); -- i_main
-
-
-   ------------------------------
-   -- Instantiate display memory
-   ------------------------------
-
-   i_disp_mem : entity work.disp_mem
-      generic map (
-         G_ADDR_BITS  => C_ADDR_BITS,
-         G_NUM_BLOCKS => C_MEM_BLOCKS,
-         G_BLOCK_REGS => C_BLOCK_REGS,
-         G_PIXELS     => C_PIXELS
-      )
-      port map (
-         wr_clk_i  => main_clk,
-         wr_addr_i => wr_addr,
-         wr_data_i => wr_data,
-         wr_en_i   => wr_en,
-         --
-         rd_clk_i  => vga_clk,
-         rd_addr_i => rd_addr,
-         rd_data_o => rd_data
-      ); -- i_disp_mem
-
-
-   --------------------------------------------------
-   -- Move the frame rate to the VGA clock domain
-   --------------------------------------------------
-
-   fps <= fps_digits & fps_blank & view_text;
-
-   i_cdc_data : entity work.cdc_data
-      generic map (
-         G_DATA_SIZE => fps'length,
-         G_INIT      => C_FPS_INIT
-      )
-      port map (
-         s_clk_i   => main_clk,
-         s_data_i  => fps,
-         s_valid_i => fps_valid,
-         m_clk_i   => vga_clk,
-         m_data_o  => vga_fps
-      ); -- i_cdc_data
-
-   vga_fps_digits <= vga_fps(139 downto 108);
-   vga_fps_blank  <= vga_fps(107 downto 100);
-   vga_view_text  <= vga_fps( 99 downto   0);
-
-
-   --------------------------------------------------
-   -- Instantiate VGA clock domain
-   --------------------------------------------------
-
-   i_vga : entity work.vga
-      generic map (
-         G_MODE       => C_VIDEO,
-         G_COL_STRIDE => C_COL_STRIDE,
-         G_ADDR_BITS  => C_ADDR_BITS
-      )
-      port map (
-         clk_i        => vga_clk,
-         rd_addr_o    => rd_addr,
-         rd_data_i    => rd_data,
-         palette_i    => sw(1 downto 0),
-         move_i       => sw(3),
-         fps_digits_i => vga_fps_digits,
-         fps_blank_i  => vga_fps_blank,
-         view_text_i  => vga_view_text,
-         vga_hs_o     => vga_hs,
-         vga_vs_o     => vga_vs,
-         vga_de_o     => vga_de,
-         vga_col_o    => vga_col
-      ); -- i_vga
+         main_clk_i => main_clk,
+         main_rst_i => main_rst,
+         vga_clk_i  => vga_clk,
+         btn_i      => btn,
+         sw_i       => sw,
+         seg_o      => open,
+         seg_an_o   => open,
+         vga_hs_o   => vga_hs,
+         vga_vs_o   => vga_vs,
+         vga_de_o   => vga_de,
+         vga_col_o  => vga_col
+      ); -- i_core
 
 
    --------------------------------------------------

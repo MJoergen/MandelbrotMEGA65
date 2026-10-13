@@ -11,12 +11,13 @@
 -- * The buttons, switches, and the 7-segment display are handled by
 --   main.vhd, see the description there, except switches 0 and 1, which
 --   select the colour palette in vga.vhd (see palette_pkg.vhd), and switch 3
---   moves the palette (see disp.vhd). The decimal
---   point of the 7-segment display is not used, so it is switched off here.
+--   moves the palette (see disp.vhd). The decimal point of the 7-segment
+--   display is not used, so it is switched off here.
 --
--- The frame rate and the view are moved to the VGA clock domain by
--- cdc_data.vhd, as in mega65.vhd. The constraints for this are in
--- nexys4ddr.xdc.
+-- The design itself is in core.vhd, as for the MEGA65. This module holds the
+-- constants of the Nexys 4 DDR, and instantiates the clock and reset
+-- generation and core. The constraints for the frame rate and the view, which
+-- are moved to the VGA clock domain in core.vhd, are in nexys4ddr.xdc.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -95,31 +96,6 @@ architecture structural of nexys4ddr is
 
    signal vga_clk        : std_logic;
 
-   signal wr_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
-   signal wr_data        : std_logic_vector(9*C_PIXELS-1 downto 0);
-   signal wr_en          : std_logic;
-
-   signal rd_addr        : std_logic_vector(C_ADDR_BITS-1 downto 0);
-   signal rd_data        : std_logic_vector( 8 downto 0);
-
-   signal fps_digits     : std_logic_vector(31 downto 0);
-   signal fps_blank      : std_logic_vector( 7 downto 0);
-   signal fps_valid      : std_logic;
-
-   signal view_text      : std_logic_vector(99 downto 0);
-
-   -- The frame rate (the digits followed by the blanking) and the view (25
-   -- characters) in the MAIN clock domain, and in the VGA clock domain. Until
-   -- the first frame rate, all the digits are blanked, and all the characters
-   -- are 15 (not shown), so nothing is shown.
-   constant C_FPS_INIT   : std_logic_vector(139 downto 0) :=
-      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFF";
-   signal fps            : std_logic_vector(139 downto 0);
-   signal vga_fps        : std_logic_vector(139 downto 0);
-   signal vga_fps_digits : std_logic_vector(31 downto 0);
-   signal vga_fps_blank  : std_logic_vector( 7 downto 0);
-   signal vga_view_text  : std_logic_vector(99 downto 0);
-
 begin
 
    --------------------------------------------------
@@ -144,109 +120,37 @@ begin
 
 
    --------------------------------------------------
-   -- Instantiate MAIN clock domain
+   -- Instantiate the design
    --------------------------------------------------
 
-   i_main : entity work.main
+   i_core : entity work.core
       generic map (
          G_CLK_FREQ      => C_MAIN_FREQ,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
          G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
-         G_NUM_COLS      => C_VIDEO.h_visible,
-         G_NUM_ROWS      => C_VIDEO.v_visible,
+         G_VIDEO         => C_VIDEO,
          G_COL_STRIDE    => C_COL_STRIDE,
-         G_ADDR_BITS     => C_ADDR_BITS
+         G_ADDR_BITS     => C_ADDR_BITS,
+         G_MEM_BLOCKS    => C_MEM_BLOCKS,
+         G_BLOCK_REGS    => C_BLOCK_REGS
       )
       port map (
-         clk_i        => main_clk,
-         rst_i        => main_rst,
-         btn_i        => btn_i,
-         sw_i         => sw_i,
-         seg_o        => seg_o,
-         seg_an_o     => seg_an_o,
-         fps_digits_o => fps_digits,
-         fps_blank_o  => fps_blank,
-         fps_valid_o  => fps_valid,
-         view_text_o  => view_text,
-         wr_addr_o    => wr_addr,
-         wr_data_o    => wr_data,
-         wr_en_o      => wr_en
-      ); -- i_main
-
-
-   ------------------------------
-   -- Instantiate display memory
-   ------------------------------
-
-   i_disp_mem : entity work.disp_mem
-      generic map (
-         G_ADDR_BITS  => C_ADDR_BITS,
-         G_NUM_BLOCKS => C_MEM_BLOCKS,
-         G_BLOCK_REGS => C_BLOCK_REGS,
-         G_PIXELS     => C_PIXELS
-      )
-      port map (
-         wr_clk_i  => main_clk,
-         wr_addr_i => wr_addr,
-         wr_data_i => wr_data,
-         wr_en_i   => wr_en,
-         --
-         rd_clk_i  => vga_clk,
-         rd_addr_i => rd_addr,
-         rd_data_o => rd_data
-      ); -- i_disp_mem
+         main_clk_i => main_clk,
+         main_rst_i => main_rst,
+         vga_clk_i  => vga_clk,
+         btn_i      => btn_i,
+         sw_i       => sw_i,
+         seg_o      => seg_o,
+         seg_an_o   => seg_an_o,
+         vga_hs_o   => vga_hs_o,
+         vga_vs_o   => vga_vs_o,
+         vga_de_o   => open,
+         vga_col_o  => vga_col_o
+      ); -- i_core
 
 
    seg_dp_o <= '1';
 
-
-   --------------------------------------------------
-   -- Move the frame rate to the VGA clock domain
-   --------------------------------------------------
-
-   fps <= fps_digits & fps_blank & view_text;
-
-   i_cdc_data : entity work.cdc_data
-      generic map (
-         G_DATA_SIZE => fps'length,
-         G_INIT      => C_FPS_INIT
-      )
-      port map (
-         s_clk_i   => main_clk,
-         s_data_i  => fps,
-         s_valid_i => fps_valid,
-         m_clk_i   => vga_clk,
-         m_data_o  => vga_fps
-      ); -- i_cdc_data
-
-   vga_fps_digits <= vga_fps(139 downto 108);
-   vga_fps_blank  <= vga_fps(107 downto 100);
-   vga_view_text  <= vga_fps( 99 downto   0);
-
-
-   --------------------------------------------------
-   -- Instantiate VGA clock domain
-   --------------------------------------------------
-
-   i_vga : entity work.vga
-      generic map (
-         G_MODE       => C_VIDEO,
-         G_COL_STRIDE => C_COL_STRIDE,
-         G_ADDR_BITS  => C_ADDR_BITS
-      )
-      port map (
-         clk_i        => vga_clk,
-         rd_addr_o    => rd_addr,
-         rd_data_i    => rd_data,
-         palette_i    => sw_i(1 downto 0),
-         move_i       => sw_i(3),
-         fps_digits_i => vga_fps_digits,
-         fps_blank_i  => vga_fps_blank,
-         view_text_i  => vga_view_text,
-         vga_hs_o     => vga_hs_o,
-         vga_vs_o     => vga_vs_o,
-         vga_col_o    => vga_col_o
-      ); -- i_vga
 
 end architecture structural;
