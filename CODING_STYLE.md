@@ -246,7 +246,7 @@ in the comments of [vsg.yml](vsg.yml).
 These parts of the code do not follow the conventions above yet:
 
 * Signal suffixes are used in the core modules (`job`, `iterator`,
-  `dispatcher_*`, `disp_mem`, `vga/*`), but not in `viewport.vhd`, `fps.vhd`,
+  `dispatcher_*`, `disp_mem`, `vga/*`), but not in `viewport*.vhd`, `fps.vhd`,
   `main.vhd`, `seg.vhd`, `clk_rst.vhd`, or the top levels (`mega65*.vhd`,
   `nexys4ddr.vhd`), where most signals are registers without `_r`.
 * Delays are written both as `_d2`, `_d3`, … and as `_dd`

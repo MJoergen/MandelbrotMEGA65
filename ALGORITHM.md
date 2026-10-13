@@ -77,7 +77,8 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      +- controls                    src/main/controls.vhd (maps the joysticks and keys to the buttons and switches)
      +- clk_rst                     src/clk_rst.vhd (MMCM, clock buffers, and resets)
      +- main                        src/main/main.vhd (everything in the MAIN clock domain)
-     |   +- viewport                src/main/viewport.vhd (view control from the buttons)
+     |   +- viewport                src/main/viewport.vhd (view control from the buttons; state machine, types in src/main/viewport_pkg.vhd)
+     |   |   +- viewport_axis (x 2) src/main/viewport_axis.vhd (the view along one axis, one for x and one for y)
      |   +- dispatcher              src/main/dispatcher.vhd (types in src/main/dispatcher_pkg.vhd)
      |   |   +- dispatcher_jobs     src/main/dispatcher_jobs.vhd (gives out the jobs, and the done flag)
      |   |   |   +- job_scheduler   src/main/job_scheduler.vhd (selects the job module to receive a job)
@@ -958,10 +959,15 @@ square: from -1.0667 to 1.0667 for 1280x1024 (5:4), and from -1.0 to 1.0 for
 640x480 (4:3) on the Nexys 4 DDR. The pixel size is the size of the view
 divided by the number of columns and rows.
 
-The view is controlled by the module [`src/main/viewport.vhd`](src/main/viewport.vhd). It is
-updated at a fixed rate, 18 times per second (every 56 ms), which is given by
-a counter in `main.vhd` that counts `G_CLK_FREQ`/18 clock cycles. At
-each update, the following happens, depending on the buttons that are held
+The view is controlled by the module
+[`src/main/viewport.vhd`](src/main/viewport.vhd), which holds the state
+machine and instantiates
+[`src/main/viewport_axis.vhd`](src/main/viewport_axis.vhd) twice, for x and
+for y. The two axes are always in the same step of the update, and the only
+thing they share is the decision to zoom, which needs the new size of a pixel
+to be in range in both. The view is updated at a fixed rate, 18 times per
+second (every 56 ms), which is given by a counter in `main.vhd` that counts
+`G_CLK_FREQ`/18 clock cycles. At each update, the following happens, depending on the buttons that are held
 down. The buttons are named as on the Nexys 4 DDR; on the MEGA65 they come
 from the joysticks and the keyboard (see
 [`src/main/controls.vhd`](src/main/controls.vhd)): `BTNC` is the
