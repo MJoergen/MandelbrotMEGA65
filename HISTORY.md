@@ -320,7 +320,16 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the view was shown in the top
+The previous run of `make mega65-r6`, before the palettes used all 9 bits of
+the count (and had 512 entries instead of 256), met timing with +0.086 ns,
+and had 22,151 slices, 48,267 LUTs, and 60,887 registers (75,017 LUT cells
+and 59,781 registers after synthesis), and +0.025 ns of hold slack. Its VGA
+clock had +0.212 ns of setup slack, and the 117 paths from the MAIN clock to
+the VGA clock +7.68 ns. The previous run of `make mega65-r3` met timing with
++0.066 ns (+0.063 ns after the routing), with 22,231 slices, 48,369 LUTs,
++0.022 ns of hold slack, and +0.161 ns of setup slack for the VGA clock.
+
+The run of `make mega65-r6` before that, before the view was shown in the top
 left corner, the palette was selected with the keys `1` to `4`, and the R3
 read the reset button from the MAX10, met timing with +0.070 ns (+0.069 ns
 after the routing), and had 21,814 slices, 47,954 LUTs, and 60,294 registers
@@ -524,7 +533,13 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before the view was shown in the top
+The previous run of `make nexys4ddr`, before the palettes used all 9 bits of
+the count, met timing with +0.004 ns (+0.003 ns after the routing), with
+9,352 slices, 16,815 LUTs, 27,276 registers (21,127 LUT cells and 27,292
+registers after synthesis), and +0.010 ns of hold slack. The 115 paths from
+the MAIN clock to the VGA clock had +8.50 ns of slack.
+
+The run of `make nexys4ddr` before that, before the view was shown in the top
 left corner, used 10,217 slices (64%), 16,510 LUTs, and 26,690 registers
 (20,752 LUT cells and 26,706 registers after synthesis). It met timing with
 +0.037 ns (+0.016 ns after the routing), with +0.050 ns of hold slack (from

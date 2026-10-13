@@ -23,7 +23,7 @@ until the real or the imaginary part of $z$ leaves the range -2 to 2 (the range
 of the number format), up to a maximum of 511. This count decides the colour
 of the pixel, using one of four colour palettes (selected with the keys `1`
 to `4` on the MEGA65, see [Controls](#controls)). The points in the set (count 511) have
-their own colour, and the other counts use the lower 8 bits of the count.
+their own colour, and the other counts use all 9 bits of the count (palette 1 only the lower 8 bits).
 
 The numbers are 18-bit
 [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) (2 integer
@@ -86,6 +86,18 @@ with the square root of the count. 4: blue, white, orange, and dark brown,
 with the logarithm of the count. In the palettes 2 to 4 the set is black. See
 [Colours](ALGORITHM.md#colours) for details. The reset button does not change
 the palette.
+
+These pictures are calculated by the bit-accurate model, in the fire palette
+(palette 3): the initial view, the seahorse valley, the elephant valley, a
+spiral, and a small copy of the whole set (the minibrot on the real axis near
+-1.755). They are made with `sim/palette_images.py` (at half the resolution of
+the MEGA65).
+
+| | |
+| --- | --- |
+| ![The initial view](doc/mandelbrot_initial.png) | ![Seahorse valley](doc/mandelbrot_seahorse.png) |
+| ![Elephant valley](doc/mandelbrot_elephant.png) | ![A spiral](doc/mandelbrot_spiral.png) |
+| ![A minibrot](doc/mandelbrot_minibrot.png) | |
 
 The top left corner of the picture shows the view, in white on black: the
 centre of the picture as a complex number, with five digits after the point,
@@ -164,8 +176,8 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,151 (66%)        | 33,650    | 9,352 (59%)              | 15,850
-| LUTs               | 48,267 (36%)        | 134,600   | 16,815 (27%)             | 63,400
+| Slices             | 22,391 (67%)        | 33,650    | 9,352 (59%)              | 15,850
+| LUTs               | 48,336 (36%)        | 134,600   | 16,859 (27%)             | 63,400
 | Registers          | 60,887 (23%)        | 269,200   | 27,276 (22%)             | 126,800
 
 The performance and timing are:
@@ -176,12 +188,14 @@ The performance and timing are:
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
 | Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.086 ns                                | +0.004 ns
-| Hold slack      | +0.025 ns                                | +0.010 ns
+| Setup slack     | +0.041 ns                                | +0.051 ns
+| Hold slack      | +0.025 ns                                | +0.006 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.066 ns (22,231 slices, +0.022 ns hold slack). The
-previous builds, before the view was shown in the top left corner, the
+R3 met timing with +0.070 ns (22,347 slices, +0.025 ns hold slack). The
+builds before the palettes used all 9 bits of the count had +0.086 ns on the
+R6 (22,151 slices, 48,267 LUTs), +0.066 ns on the R3, and +0.004 ns on the
+Nexys 4 DDR (16,815 LUTs). The builds before them, before the view was shown in the top left corner, the
 palette was selected with the keys `1` to `4`, and the R3 read the reset
 button from the MAX10, met timing with +0.070 ns on the R6 (21,814 slices),
 +0.033 ns on the R3, and +0.037 ns on the Nexys 4 DDR (10,217 slices). At

@@ -1,26 +1,26 @@
 -- This package contains the colour palettes for the VGA output. The display
 -- memory holds the iteration count of each pixel (9 bits), and the palette
 -- converts it to the colour shown (RRRGGGBB). Points in the set have the count
--- 511 (C_SET), and they get the colour of the set. The other counts are
--- converted using only their lowest 8 bits.
+-- 511 (C_SET), and they get the colour of the set. The palettes 2 to 4 use all
+-- 9 bits of the other counts. The palette 1 uses only the lowest 8 bits.
 --
 -- There are four palettes, numbered 1 to 4 like the keys "1" to "4" on the
 -- MEGA65. On the Nexys 4 DDR they are selected by switches 0 and 1. The value
 -- of sel is the palette number minus 1:
---   1 : The count itself is the colour. Mostly blue and green, because most
+--   1 : The lowest 8 bits of the count are the colour. Mostly blue and green, because most
 --       counts are small, and the set is white.
 --   2 : Rainbow. The hue goes once around the colour circle for every 16
 --       counts.
 --   3 : Fire. Black, red, orange, yellow, and white, with the square root of
---       the lowest 8 bits of the count, i.e. once for the values 0 to 63, and
---       again for 64 to 255.
---   4 : Blue, white, orange, and dark brown, with the logarithm of the lowest
---       8 bits of the count, i.e. once for the values 0 to 6, again for 7 to
---       62, and again for 63 to 255.
+--       the count, i.e. once for the values 0 to 63, again for 64 to 255, and
+--       again for 256 to 510.
+--   4 : Blue, white, orange, and dark brown, with the logarithm of the
+--       count, i.e. once for the values 0 to 6, again for 7 to 62, and again
+--       for 63 to 510.
 -- In the palettes 2 to 4 the set is black. In palette 1 it is white.
 --
 -- The palettes are calculated from these formulas when the design is
--- elaborated, so they are easy to change. They are tables of 256 entries, so
+-- elaborated, so they are easy to change. They are tables of 512 entries, so
 -- they are implemented in LUTs.
 
 library ieee;
@@ -30,7 +30,7 @@ use ieee.math_real.all;
 
 package palette_pkg is
 
-   type palette_t is array (0 to 255) of std_logic_vector(7 downto 0);
+   type palette_t is array (0 to 511) of std_logic_vector(7 downto 0);
    type palettes_t is array (0 to 3) of palette_t;
 
    constant C_PALETTES : palettes_t;
@@ -81,23 +81,23 @@ package body palette_pkg is
       end if;
    end function clamp;
 
-   -- 0: The count itself
+   -- 1: The lowest 8 bits of the count
    function make_count return palette_t is
       variable res_v : palette_t;
    begin
-      for i in 0 to 255 loop
-         res_v(i) := std_logic_vector(to_unsigned(i, 8));
+      for i in 0 to 511 loop
+         res_v(i) := std_logic_vector(to_unsigned(i mod 256, 8));
       end loop;
       return res_v;
    end function make_count;
 
-   -- 1: Rainbow, i.e. the hue of a fully saturated colour, period 16
+   -- 2: Rainbow, i.e. the hue of a fully saturated colour, period 16
    function make_rainbow return palette_t is
       variable res_v : palette_t;
       variable h_v   : real;     -- Hue times 6, between 0 and 6
       variable f_v   : real;
    begin
-      for i in 0 to 255 loop
+      for i in 0 to 511 loop
          h_v := real(i mod 16) / 16.0 * 6.0;
          f_v := frac(h_v);
          case integer(floor(h_v)) is
@@ -112,19 +112,19 @@ package body palette_pkg is
       return res_v;
    end function make_rainbow;
 
-   -- 2: Fire, with the square root of the count
+   -- 3: Fire, with the square root of the count
    function make_fire return palette_t is
       variable res_v : palette_t;
       variable t_v   : real;
    begin
-      for i in 0 to 255 loop
+      for i in 0 to 511 loop
          t_v      := frac(sqrt(real(i)) / 8.0);
          res_v(i) := to_332(clamp(3.0*t_v), clamp(3.0*t_v - 1.0), clamp(3.0*t_v - 2.0));
       end loop;
       return res_v;
    end function make_fire;
 
-   -- 3: Blue, white, orange, and dark brown, with the logarithm of the count
+   -- 4: Blue, white, orange, and dark brown, with the logarithm of the count
    function make_blue_orange return palette_t is
       type stops_t is array (0 to 5) of real;
       -- The colour at the positions t (0.0 to 1.0) of the gradient
@@ -136,7 +136,7 @@ package body palette_pkg is
       variable t_v   : real;
       variable f_v   : real;
    begin
-      for i in 0 to 255 loop
+      for i in 0 to 511 loop
          t_v := frac(log2(real(i + 1)) / 3.0);
          for s in 0 to 4 loop
             if t_v >= C_T(s) and t_v <= C_T(s+1) then
@@ -161,7 +161,7 @@ package body palette_pkg is
       if to_integer(unsigned(cnt)) = C_SET then
          return C_SET_COLOURS(to_integer(unsigned(sel)));
       end if;
-      return C_PALETTES(to_integer(unsigned(sel)))(to_integer(unsigned(cnt(7 downto 0))));
+      return C_PALETTES(to_integer(unsigned(sel)))(to_integer(unsigned(cnt)));
    end function palette_colour;
 
 end package body palette_pkg;
