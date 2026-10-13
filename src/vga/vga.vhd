@@ -9,9 +9,10 @@
 -- The address of the pixel in column x and row y of the picture is
 -- x*G_COL_STRIDE + y, with G_ADDR_BITS bits, the same as in dispatcher.vhd.
 --
--- The read latency of the display memory is four clock cycles (see
--- disp_mem.vhd). disp.vhd and overlay.vhd expect three clock cycles, so they
--- get the pixel counters delayed by one clock cycle.
+-- The read latency of the display memory is C_DISP_MEM_LATENCY clock cycles
+-- (four, see disp_mem.vhd and video_pkg.vhd). disp.vhd and overlay.vhd expect
+-- C_DISP_LATENCY clock cycles (three), so they get the pixel counters delayed
+-- by the difference (one clock cycle).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -76,9 +77,15 @@ architecture structural of vga is
    signal pix_x : std_logic_vector(10 downto 0);
    signal pix_y : std_logic_vector(10 downto 0);
 
-   -- The pixel counters for disp and overlay, delayed by one clock cycle
-   signal disp_x : std_logic_vector(10 downto 0) := (others => '0');
-   signal disp_y : std_logic_vector(10 downto 0) := (others => '0');
+   -- The pixel counters for disp and overlay, delayed so they match the read
+   -- latency of the display memory
+   constant C_DELAY : natural := C_DISP_MEM_LATENCY - C_DISP_LATENCY;
+
+   type pix_vector is array (1 to C_DELAY) of std_logic_vector(10 downto 0);
+   signal pix_x_d : pix_vector := (others => (others => '0'));
+   signal pix_y_d : pix_vector := (others => (others => '0'));
+   signal disp_x  : std_logic_vector(10 downto 0);
+   signal disp_y  : std_logic_vector(10 downto 0);
 
    -- The address of the pixel, and the address of its column. Only the lowest
    -- G_ADDR_BITS bits are used. The multiplication by the constant G_COL_STRIDE uses
@@ -113,6 +120,10 @@ begin
    -- the 22 bits of rd_addr
    assert G_COL_STRIDE < 2**11 and G_ADDR_BITS <= rd_addr'length
       report "The column stride must be less than 2048, and the address at most 22 bits"
+      severity failure;
+
+   assert C_DELAY >= 1
+      report "The read latency of the display memory is too short"
       severity failure;
 
    assert C_VIEW + C_DIGITS < C_CHARS
@@ -156,10 +167,13 @@ begin
    p_disp_delay : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         disp_x <= pix_x;
-         disp_y <= pix_y;
+         pix_x_d <= pix_x & pix_x_d(1 to C_DELAY-1);
+         pix_y_d <= pix_y & pix_y_d(1 to C_DELAY-1);
       end if;
    end process p_disp_delay;
+
+   disp_x <= pix_x_d(C_DELAY);
+   disp_y <= pix_y_d(C_DELAY);
 
 
    --------------------------------------------------

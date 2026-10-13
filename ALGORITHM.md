@@ -869,8 +869,9 @@ address goes to a register in each group, which drives the 8 BRAMs of the
 group, then the BRAMs are read, then each group selects the pixel (the block
 in the group and the position in the word), and then the pixel is selected
 from the groups. `vga` gives `disp` and `overlay` the pixel counters delayed
-by one clock cycle, so they see three clock cycles. Only the BRAM that holds
-the pixel is read: its read enable is high, and those of all the other BRAMs
+by one clock cycle (`C_DISP_MEM_LATENCY` less `C_DISP_LATENCY`, in
+`video_pkg`), so they see three clock cycles. Only the BRAM that holds the
+pixel is read: its read enable is high, and those of all the other BRAMs
 are low. Reading all the BRAMs in every clock cycle used most of the power
 while the job modules were idle (see [Power](#power) and
 [HISTORY.md](HISTORY.md#the-display-memory)). The number of the block of the

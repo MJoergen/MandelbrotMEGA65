@@ -1,12 +1,12 @@
 -- This module generates the VGA output signals for the video mode G_MODE (see
--- video_pkg.vhd) from the pixel counters. The value of the pixel at (vga_pix_x_i, vga_pix_y_i), i.e.
--- its iteration count (9 bits), must be given on vga_col_d3_i three
--- clock cycles later. This is the read latency of the display memory (four
--- clock cycles) less one, because vga.vhd gives this module the pixel counters
--- delayed by one clock cycle. It is
--- converted to the colour by the palette selected by vga_palette_i (see
--- palette_pkg.vhd). The colour is only output inside the visible area, which
--- is also shown by vga_de_o (data enable, used by the HDMI output).
+-- video_pkg.vhd) from the pixel counters. The value of the pixel at
+-- (vga_pix_x_i, vga_pix_y_i), i.e. its iteration count (9 bits), must be given
+-- on vga_col_d3_i C_DISP_LATENCY (three) clock cycles later, see video_pkg.vhd
+-- and vga.vhd. It is converted to the colour by the palette selected by
+-- vga_palette_i (see palette_pkg.vhd). The colour is only output inside the
+-- visible area, which is also shown by vga_de_o (data enable, used by the HDMI
+-- output). Whether the pixel is in the visible area is decided from the pixel
+-- counters, and only that bit is delayed.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -45,20 +45,17 @@ architecture rtl of disp is
    constant C_VS_START : natural := G_MODE.v_visible + G_MODE.v_front;
    constant C_VS_TIME  : natural := G_MODE.v_sync;
 
-   signal vga_pix_x_d  : std_logic_vector(10 downto 0) := (others => '0');
-   signal vga_pix_y_d  : std_logic_vector(10 downto 0) := (others => '0');
    signal vga_hs_d     : std_logic;
    signal vga_vs_d     : std_logic;
+   signal vga_vis_d    : std_logic;
 
-   signal vga_pix_x_d2 : std_logic_vector(10 downto 0) := (others => '0');
-   signal vga_pix_y_d2 : std_logic_vector(10 downto 0) := (others => '0');
    signal vga_hs_d2    : std_logic;
    signal vga_vs_d2    : std_logic;
+   signal vga_vis_d2   : std_logic;
 
-   signal vga_pix_x_d3 : std_logic_vector(10 downto 0) := (others => '0');
-   signal vga_pix_y_d3 : std_logic_vector(10 downto 0) := (others => '0');
    signal vga_hs_d3    : std_logic;
    signal vga_vs_d3    : std_logic;
+   signal vga_vis_d3   : std_logic;
 
    signal vga_hs_d4    : std_logic;
    signal vga_vs_d4    : std_logic;
@@ -86,8 +83,10 @@ begin
             vga_vs_d   <= G_MODE.sync_active;
          end if;
 
-         vga_pix_x_d <= vga_pix_x_i;
-         vga_pix_y_d <= vga_pix_y_i;
+         vga_vis_d <= '0';
+         if vga_pix_x_i < C_H_PIXELS and vga_pix_y_i < C_V_PIXELS then
+            vga_vis_d <= '1';
+         end if;
       end if;
    end process p_sync;
 
@@ -102,13 +101,11 @@ begin
       if rising_edge(vga_clk_i) then
          vga_hs_d2    <= vga_hs_d;
          vga_vs_d2    <= vga_vs_d;
-         vga_pix_x_d2 <= vga_pix_x_d;
-         vga_pix_y_d2 <= vga_pix_y_d;
+         vga_vis_d2   <= vga_vis_d;
 
          vga_hs_d3    <= vga_hs_d2;
          vga_vs_d3    <= vga_vs_d2;
-         vga_pix_x_d3 <= vga_pix_x_d2;
-         vga_pix_y_d3 <= vga_pix_y_d2;
+         vga_vis_d3   <= vga_vis_d2;
       end if;
    end process p_pipe;
 
@@ -124,7 +121,7 @@ begin
          vga_de_d4  <= '0';
 
          -- Only set colour output inside visible area
-         if vga_pix_x_d3 < C_H_PIXELS and vga_pix_y_d3 < C_V_PIXELS then
+         if vga_vis_d3 = '1' then
             vga_col_d4 <= palette_colour(vga_palette_i, vga_col_d3_i);
             vga_de_d4  <= '1';
          end if;

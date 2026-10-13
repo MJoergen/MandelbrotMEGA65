@@ -42,6 +42,12 @@ package video_pkg is
       v_visible => 1024, v_front =>  1, v_sync =>   3, v_back =>  38,
       sync_active => '1');
 
+   -- The read latency of the display memory (see disp_mem.vhd), in clock
+   -- cycles, and the latency that disp.vhd and overlay.vhd expect. vga.vhd
+   -- delays the pixel counters for them by the difference.
+   constant C_DISP_MEM_LATENCY : positive := 4;
+   constant C_DISP_LATENCY     : positive := 3;
+
    -- The total number of pixels in a line, and of lines in a frame
    function h_total (mode : video_mode_t) return natural;
    function v_total (mode : video_mode_t) return natural;
