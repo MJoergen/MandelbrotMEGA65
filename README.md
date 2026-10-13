@@ -78,26 +78,34 @@ size of a pixel by about 1.6% (roughly 33% per second). The initial view
 shows the real axis from -1.67 to 1 and the imaginary axis from -1.07 to
 1.07. See [View control](ALGORITHM.md#view-control) for details.
 
-The colour palettes are: 1: the lower 8 bits of
-the count are the colour (RRRGGGBB), mostly blue and green, and the set is
-white. 2: rainbow, the hue goes around the colour circle every 16 counts.
-3 (fire, the palette after power-on): black, red, orange, yellow, and white,
-with the square root of the count. 4: blue, white, orange, and dark brown,
-with the logarithm of the count. In the palettes 2 to 4 the set is black. See
+The colour palettes are:
+* 1: the lower 8 bits of the count are the colour (RRRGGGBB), mostly blue and
+  green, and the set is white.
+* 2: rainbow, the hue goes around the colour circle every 16 counts.
+* 3 (fire, the palette after power-on): black, red, orange, yellow, and white,
+  with the square root of the count.
+* 4: blue, white, orange, and dark brown, with the logarithm of the count.
+
+In the palettes 2 to 4 the set is black. See
 [Colours](ALGORITHM.md#colours) for details. The reset button does not change
 the palette.
 
-These pictures are calculated by the bit-accurate model, in the fire palette
-(palette 3): the initial view, the seahorse valley, the elephant valley, a
-spiral, and a small copy of the whole set (the minibrot on the real axis near
--1.755). They are made with `sim/palette_images.py` (at half the resolution of
-the MEGA65).
+The initial view in the palettes 1 to 4 (calculated by the bit-accurate model,
+at half the resolution of the MEGA65, with `sim/palette_images.py`):
 
 | | |
 | --- | --- |
-| ![The initial view](doc/mandelbrot_initial.png) | ![Seahorse valley](doc/mandelbrot_seahorse.png) |
-| ![Elephant valley](doc/mandelbrot_elephant.png) | ![A spiral](doc/mandelbrot_spiral.png) |
-| ![A minibrot](doc/mandelbrot_minibrot.png) | |
+| ![Palette 1](doc/mandelbrot_palette1.png) | ![Palette 2](doc/mandelbrot_palette2.png) |
+| ![Palette 3](doc/mandelbrot_palette3.png) | ![Palette 4](doc/mandelbrot_palette4.png) |
+
+More pictures, in the fire palette (palette 3): the seahorse valley, the
+elephant valley, a spiral, and a small copy of the whole set (the minibrot on
+the real axis near -1.755):
+
+| | |
+| --- | --- |
+| ![Seahorse valley](doc/mandelbrot_seahorse.png) | ![Elephant valley](doc/mandelbrot_elephant.png) |
+| ![A spiral](doc/mandelbrot_spiral.png) | ![A minibrot](doc/mandelbrot_minibrot.png) |
 
 The top left corner of the picture shows the view, in white on black: the
 centre of the picture as a complex number, with five digits after the point,
