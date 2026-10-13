@@ -113,5 +113,6 @@ The last items are not about speed, but they are related to the MEGA65 design.
 17. Investigate whether using HyperRAM is worth it. The maximum read speed is
     200 MB/s so a resolution of 1920x1280 @ 60 Hz should be possible. It will
     require rewriting the logic, so that pixels are generated horizontally
-    rather than vertically.
+    rather than vertically. Other common resolutions are 1600x1200 with a
+    pixel clock of 162 MHz and 1920x1080 with a pixel clock of 148.5 MHz.
 
