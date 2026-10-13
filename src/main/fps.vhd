@@ -3,25 +3,15 @@
 -- top right corner of the VGA output (overlay.vhd), and on the Nexys 4 DDR
 -- also on the 7-segment display (seg.vhd).
 --
--- The time can be averaged first (main.vhd does not, G_AVG_SHIFT is 0), with
--- an exponentially weighted moving average: For each new time (a pulse on
--- valid_i), the difference between the time and the average is divided by
--- 2^G_AVG_SHIFT and added to the average. The first time after reset sets the
--- average. The average has G_AVG_SHIFT fractional bits, so it does not get
--- stuck when the difference is small. With G_AVG_SHIFT = 0 the average is
--- simply the latest time.
+-- The frame rate is G_CLK_FREQ / time, rounded down to an integer. If it does
+-- not fit in G_DIGITS digits (or the time is zero), the largest value that
+-- fits (all nines) is shown instead.
 --
--- The frame rate is G_CLK_FREQ / average (the integer part of it), rounded
--- down to an integer. If it does not fit in G_DIGITS digits (or the average
--- is zero), the largest value that fits (all nines) is shown instead.
---
--- A new value is calculated after each pulse on valid_i. It takes 2*C_BITS+3
--- clock cycles from valid_i to valid_o (57 for the MAIN clock of the Nexys 4
--- DDR, 59 on the MEGA65): one to update the average, and 2*C_BITS+2 for the
--- calculation. Pulses on valid_i during a calculation are included in the
--- average, but do not start a new calculation. The calculation is done one bit
--- per clock cycle, because a single-cycle division is far too slow for the
--- MAIN clock:
+-- A new value is calculated after each pulse on valid_i. It takes 2*C_BITS+2
+-- clock cycles from valid_i to valid_o (56 for the MAIN clock of the Nexys 4
+-- DDR, 58 on the MEGA65). Pulses on valid_i during a calculation are ignored.
+-- The calculation is done one bit per clock cycle, because a single-cycle
+-- division is far too slow for the MAIN clock:
 -- * The division is a restoring division, which needs one subtraction (of
 --   G_TIME_BITS+2 bits, including the sign bit of the difference) for each
 --   bit of the quotient.
@@ -44,7 +34,6 @@ entity fps is
    generic (
       G_CLK_FREQ  : natural;       -- Clock cycles per second
       G_TIME_BITS : natural;       -- Width of time_i
-      G_AVG_SHIFT : natural;       -- The average is over about 2^G_AVG_SHIFT times
       G_DIGITS    : natural := 8
    );
    port (
@@ -92,14 +81,6 @@ architecture rtl of fps is
 
    constant C_MAX   : natural := max_value;
 
-   -- The average time, with G_AVG_SHIFT fractional bits. avg_first is set
-   -- until the first time after reset, and avg_valid is set for one clock
-   -- cycle after avg is updated.
-   constant C_AVG_BITS : natural := G_TIME_BITS + G_AVG_SHIFT;
-   signal avg          : std_logic_vector(C_AVG_BITS-1 downto 0) := (others => '0');
-   signal avg_first    : std_logic := '1';
-   signal avg_valid    : std_logic := '0';
-
    type state_t is (IDLE_ST, DIV_ST, SAT_ST, BCD_ST, OUT_ST);
    signal state     : state_t := IDLE_ST;
 
@@ -116,40 +97,6 @@ architecture rtl of fps is
 
 begin
 
-   p_avg : process (clk_i)
-      variable time_v : std_logic_vector(C_AVG_BITS-1 downto 0);
-      variable diff_v : std_logic_vector(C_AVG_BITS downto 0);
-      variable step_v : std_logic_vector(C_AVG_BITS-1 downto 0);
-   begin
-      if rising_edge(clk_i) then
-         avg_valid <= valid_i;
-         if valid_i = '1' then
-            -- The time with G_AVG_SHIFT fractional bits. The vector is
-            -- filled first, because (G_AVG_SHIFT-1 downto 0) is a null range
-            -- when G_AVG_SHIFT is 0, which Vivado does not support.
-            time_v := (others => '0');
-            time_v(C_AVG_BITS-1 downto G_AVG_SHIFT) := time_i;
-            if avg_first = '1' then
-               avg <= time_v;
-            else
-               -- The difference is signed, so it is divided by
-               -- 2^G_AVG_SHIFT with an arithmetic shift (rounded down).
-               diff_v := ('0' & time_v) - ('0' & avg);
-               step_v := (others => diff_v(C_AVG_BITS));
-               step_v(C_AVG_BITS-1-G_AVG_SHIFT downto 0) :=
-                  diff_v(C_AVG_BITS-1 downto G_AVG_SHIFT);
-               avg <= avg + step_v;
-            end if;
-            avg_first <= '0';
-         end if;
-
-         if rst_i = '1' then
-            avg_first <= '1';
-            avg_valid <= '0';
-         end if;
-      end if;
-   end process p_avg;
-
    p_fps : process (clk_i)
       variable rem_v  : std_logic_vector(G_TIME_BITS downto 0);
       variable diff_v : std_logic_vector(G_TIME_BITS+1 downto 0);
@@ -161,8 +108,8 @@ begin
 
          case state is
             when IDLE_ST =>
-               if avg_valid = '1' then
-                  divisor   <= avg(C_AVG_BITS-1 downto G_AVG_SHIFT);
+               if valid_i = '1' then
+                  divisor   <= time_i;
                   quot      <= to_stdlogicvector(G_CLK_FREQ, C_BITS);
                   remainder <= (others => '0');
                   bit_cnt   <= C_BITS-1;

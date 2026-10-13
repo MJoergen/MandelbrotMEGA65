@@ -1066,30 +1066,25 @@ The top right corner of the VGA output (and the
 number of pictures per second, rounded down to an integer, with the leading
 zeros blanked. A counter counts clock cycles while a picture is being
 calculated, and it is cleared when the next picture is started. At the end of
-a picture, the module [`src/main/fps.vhd`](src/main/fps.vhd) adds the value of the counter to
-an average, divides the clock frequency (the generic `G_CLK_FREQ` of `main`,
-set by the design: 141,639,344 Hz on the MEGA65, or 120,000,000 Hz on the
-Nexys 4 DDR) by the average, and converts the result to decimal. So the frame rate is the
-number of pictures per second if the picture was recalculated continuously.
-`main` does not average (`G_AVG_SHIFT` is 0), so the frame rate is that of
-the latest picture, i.e. the picture on the screen. Pictures are only
-calculated when the view changes (at most 18 times per second), so the
-frame rate does not change while the view does not change.
-The module can average the time with an exponentially weighted moving
-average: for each picture, the difference between its time and the average
-is divided by 2^`G_AVG_SHIFT` and added to the average, so it follows about
-the last 2^`G_AVG_SHIFT` pictures. The average has `G_AVG_SHIFT` fractional
-bits, so it does not get stuck when the difference is small, and the first
-picture after reset sets the average.
+a picture, the module [`src/main/fps.vhd`](src/main/fps.vhd) divides the
+clock frequency (the generic `G_CLK_FREQ` of `main`, set by the design:
+141,639,344 Hz on the MEGA65, or 120,000,000 Hz on the Nexys 4 DDR) by the
+value of the counter, and converts the result to decimal. So the frame rate is
+the number of pictures per second if the picture was recalculated
+continuously.
+The frame rate is that of the latest picture, i.e. the picture on the screen.
+Pictures are only calculated when the view changes (at most 18 times per
+second), so the frame rate does not change while the view does not change.
+The module used to be able to average the time over several pictures, but
+that was never used (see [HISTORY.md](HISTORY.md#the-frame-rate)).
 A single-cycle division would be far too slow for the MAIN clock, so both
 steps are done one bit per clock cycle: a restoring division, with one
 subtraction for each of the 28 bits of the quotient (27 on the Nexys 4 DDR),
 and then the double dabble algorithm to convert the quotient to 8 decimal digits
 (for each bit, 3 is added to each digit which is 5 or more, and then
-everything is shifted left by one bit). Together with the update of the average
-this takes 59 clock cycles (57 on the Nexys 4 DDR), much less than a picture, and the
-widest addition is 29 bits. A frame rate above 99999999 would show as
-99999999, but that would need a picture of fewer than 2 clock cycles. The
+everything is shifted left by one bit). Together this takes 58 clock cycles
+(56 on the Nexys 4 DDR), much less than a picture, and the widest addition is
+29 bits. A frame rate above 99999999 would show as 99999999, but that would need a picture of fewer than 2 clock cycles. The
 counter is 27 bits wide, so it wraps around after 2^27 clock cycles (0.95 s
 at 141.64 MHz), but a picture takes far less than that: even if every pixel
 needed the maximum count, the model (see [Timing](#timing)) gives 1875525
@@ -1111,11 +1106,8 @@ display shows the same number: every digit that is not blanked is switched on
 with the right segments during a refresh cycle, the blanked digits are never
 switched on, and at most one digit is on at a time. It also checks that a new
 picture time during a calculation does not start a new calculation. It does
-this with two instances of the module that do not average (`G_AVG_SHIFT` is
-0, as in `main`), one with the clock frequency of each board: 141,639,344 Hz
-(a quotient of 28 bits) and 120,000,000 Hz (27 bits). A third instance
-averages (`G_AVG_SHIFT` is 3), and the testbench checks its frame rate after
-each of 1000 random picture times against a model of the average.
+this with two instances of the module, one with the clock frequency of each
+board: 141,639,344 Hz (a quotient of 28 bits) and 120,000,000 Hz (27 bits).
 
 ## Overlay
 The frame rate is shown in the top right corner of the VGA output by

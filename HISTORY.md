@@ -108,6 +108,12 @@ the Nexys 4 DDR), because it varies a little from picture to picture, and
 without the average the last digits changed all the time. With at most 18
 pictures per second, this average would take about 14 seconds to follow a
 change of the view, so `main` no longer averages.
+The module `fps.vhd` could still average (the generic `G_AVG_SHIFT`, an
+exponentially weighted moving average: for each picture, the difference
+between its time and the average, divided by 2^`G_AVG_SHIFT`, was added to the
+average, which had `G_AVG_SHIFT` fractional bits), but `main` used
+`G_AVG_SHIFT` = 0, so it was removed. The calculation then took one clock
+cycle more (59 clock cycles, 57 on the Nexys 4 DDR).
 
 ## The colours
 An earlier version stored only the lower 8 bits of the count in the display

@@ -294,11 +294,10 @@ begin
    --------------------------------------------------
 
    -- At the end of a picture, cnt is the time taken by the picture, and the
-   -- frame rate is updated. The time is not averaged (G_AVG_SHIFT is 0), so
-   -- the frame rate is that of the latest picture, i.e. the one shown. A
-   -- picture is only calculated when the view changes, at most 18 times per
-   -- second, so an average over many pictures would take many seconds to
-   -- follow a change of the view.
+   -- frame rate is updated. The frame rate is that of the latest picture, i.e.
+   -- the one shown. A picture is only calculated when the view changes, at
+   -- most 18 times per second, so an average over many pictures would take
+   -- many seconds to follow a change of the view.
    -- cnt wraps around after 2^27 clock cycles (0.95 s at 141.64 MHz), but a
    -- picture takes far less: even if every pixel needed the maximum count,
    -- the model (sim/model.py) gives about 1.9 million clock cycles (13.2 ms)
@@ -308,7 +307,6 @@ begin
       generic map (
          G_CLK_FREQ  => G_CLK_FREQ,
          G_TIME_BITS => 27,
-         G_AVG_SHIFT => 0,
          G_DIGITS    => 8
       )
       port map (

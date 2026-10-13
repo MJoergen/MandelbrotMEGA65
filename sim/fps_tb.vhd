@@ -1,11 +1,9 @@
 -- This is a self-checking testbench for the frame rate (fps.vhd) and the
--- 7-segment display (seg.vhd). It has three instances of fps.
---
--- The first two do not average (G_AVG_SHIFT = 0), as in main.vhd, and each
--- drives a display. They have the clock frequencies of the boards, the
--- MEGA65 (141,639,344 Hz, a quotient of 28 bits) and the Nexys 4 DDR
--- (120,000,000 Hz, a quotient of 27 bits). The testbench gives each of them a
--- number of picture times, and for each one it checks:
+-- 7-segment display (seg.vhd). It has two instances of fps, each driving a
+-- display. They have the clock frequencies of the boards, the MEGA65
+-- (141,639,344 Hz, a quotient of 28 bits) and the Nexys 4 DDR (120,000,000 Hz,
+-- a quotient of 27 bits). The testbench gives each of them a number of picture
+-- times, and for each one it checks:
 -- * The digits and the blanking from fps are the expected frame rate, i.e.
 --   the clock frequency divided by the time, rounded down, with leading zeros
 --   blanked. Values that do not fit in 8 digits show 99999999.
@@ -17,14 +15,6 @@
 -- around a change of the frame rate, and random values over the whole range.
 -- It also checks that a pulse on valid_i during a calculation does not start
 -- a new calculation.
---
--- The third one averages (G_AVG_SHIFT = 3), with the clock frequency of the
--- MEGA65. The testbench gives it random picture times, and checks the frame
--- rate after each one against a model of the average: the first time sets
--- it, and each later time adds 1/8 of the difference. Every tenth time it
--- also gives a second time during the calculation, which must be included in
--- the average (i.e. in the next frame rate), but must not start a new
--- calculation.
 --
 -- The refresh of the display is made much faster than on the board, so a
 -- full refresh cycle is 64 clock cycles.
@@ -44,17 +34,12 @@ architecture simulation of fps_tb is
    type freq_vector is array (natural range <>) of natural;
    constant C_CLK_FREQS    : freq_vector := (141_639_344, 120_000_000);
 
-   -- The averaging instance uses the clock of the MEGA65
-   constant C_CLK_FREQ     : natural := C_CLK_FREQS(0);
-
    constant C_TIME_BITS    : natural := 27;
    constant C_REFRESH_BITS : natural := 6;
    constant C_MAX          : natural := 99_999_999;
 
-   -- Longer than a calculation (59 clock cycles)
+   -- Longer than a calculation (58 clock cycles)
    constant C_CALC_CYCLES  : natural := 70;
-
-   constant C_AVG_SHIFT    : natural := 3;
 
    type seg_table_t is array (0 to 9) of std_logic_vector(6 downto 0);
    constant C_SEG_TABLE : seg_table_t := (
@@ -64,10 +49,6 @@ architecture simulation of fps_tb is
    signal clk       : std_logic;
    signal rst       : std_logic := '1';
    signal test_done : std_logic_vector(C_CLK_FREQS'range) := (others => '0');
-   signal avg_time  : std_logic_vector(C_TIME_BITS-1 downto 0) := (others => '0');
-   signal avg_vld   : std_logic := '0';
-   signal avg_dig   : std_logic_vector(31 downto 0);
-   signal avg_out   : std_logic;
 
    -- The frame rate for the clock frequency f and the time t
    function expected_fps(f : natural; t : natural) return natural is
@@ -77,16 +58,6 @@ architecture simulation of fps_tb is
       end if;
       return f / t;
    end function expected_fps;
-
-   -- The value of BCD digits
-   function bcd_value(d : std_logic_vector(31 downto 0)) return natural is
-      variable r_v : natural := 0;
-   begin
-      for i in 7 downto 0 loop
-         r_v := 10*r_v + to_integer(unsigned(d(4*i+3 downto 4*i)));
-      end loop;
-      return r_v;
-   end function bcd_value;
 
 begin
 
@@ -110,30 +81,8 @@ begin
    end process p_rst;
 
 
-   ----------------------------
-   -- The averaging instance
-   ----------------------------
-
-   i_avg : entity work.fps
-      generic map (
-         G_CLK_FREQ  => C_CLK_FREQ,
-         G_TIME_BITS => C_TIME_BITS,
-         G_AVG_SHIFT => C_AVG_SHIFT,
-         G_DIGITS    => 8
-      )
-      port map (
-         clk_i    => clk,
-         rst_i    => rst,
-         time_i   => avg_time,
-         valid_i  => avg_vld,
-         digits_o => avg_dig,
-         blank_o  => open,
-         valid_o  => avg_out
-      ); -- i_avg
-
-
    -------------------------------------------------
-   -- Without averaging, at the clocks of the boards
+   -- At the clocks of the boards
    -------------------------------------------------
 
    gen_clk : for n in C_CLK_FREQS'range generate
@@ -152,7 +101,6 @@ begin
          generic map (
             G_CLK_FREQ  => C_FREQ,
             G_TIME_BITS => C_TIME_BITS,
-            G_AVG_SHIFT => 0,
             G_DIGITS    => 8
          )
          port map (
@@ -314,91 +262,11 @@ begin
    end generate gen_clk;
 
 
-   -- Test of the average
-   p_avg : process
-      constant C_ONE    : natural := 2**C_AVG_SHIFT;
-      variable seed1_v  : positive := 3;
-      variable seed2_v  : positive := 4;
-      variable r_v      : real;
-      variable t_v      : natural;
-      variable t2_v     : natural;
-      variable avg_v    : natural;  -- With C_AVG_SHIFT fractional bits
-      variable exp_v    : natural;
-      variable seen_v   : boolean;
-
-      -- The model of the average. The difference is divided by C_ONE,
-      -- rounded down (also when it is negative).
-      procedure add(t_new : natural) is
-         variable diff_v : integer;
-      begin
-         diff_v := t_new * C_ONE - avg_v;
-         if diff_v >= 0 then
-            avg_v := avg_v + diff_v / C_ONE;
-         else
-            avg_v := avg_v - (-diff_v + C_ONE - 1) / C_ONE;
-         end if;
-      end procedure add;
+   p_finish : process
    begin
-      wait until rst = '0';
-      wait until rising_edge(clk);
-
-      for i in 0 to 999 loop
-         -- Around 100000 clock cycles, with some jumps
-         uniform(seed1_v, seed2_v, r_v);
-         if i mod 200 < 100 then
-            t_v := 100_000 + integer(r_v * 2000.0);
-         else
-            t_v := 30_000 + integer(r_v * 500.0);
-         end if;
-
-         if i = 0 then
-            avg_v := t_v * C_ONE;
-         else
-            add(t_v);
-         end if;
-         exp_v := expected_fps(C_CLK_FREQ, avg_v / C_ONE);
-
-         avg_time <= std_logic_vector(to_unsigned(t_v, C_TIME_BITS));
-         avg_vld  <= '1';
-         wait until rising_edge(clk);
-         avg_vld  <= '0';
-         avg_time <= (others => 'X');
-
-         seen_v := false;
-         for c in 1 to C_CALC_CYCLES loop
-            -- A second time during the calculation
-            if i mod 10 = 9 and c = 10 then
-               t2_v := 60_000 + integer(r_v * 1000.0);
-               add(t2_v);
-               avg_time <= std_logic_vector(to_unsigned(t2_v, C_TIME_BITS));
-               avg_vld  <= '1';
-            end if;
-            wait until rising_edge(clk);
-            avg_vld  <= '0';
-            avg_time <= (others => 'X');
-            if avg_out = '1' then
-               assert not seen_v
-                  report "Second frame rate for one calculation"
-                  severity error;
-               seen_v := true;
-               assert bcd_value(avg_dig) = exp_v
-                  report "Wrong average frame rate " &
-                         integer'image(bcd_value(avg_dig)) & " for time " &
-                         integer'image(t_v) & ", expected " &
-                         integer'image(exp_v)
-                  severity error;
-            end if;
-         end loop;
-         assert seen_v
-            report "No frame rate for an average"
-            severity error;
-      end loop;
-
-      if test_done /= (test_done'range => '1') then
-         wait until test_done = (test_done'range => '1');
-      end if;
+      wait until test_done = (test_done'range => '1');
       report "fps_tb: finished";
       std.env.finish;
-   end process p_avg;
+   end process p_finish;
 
 end architecture simulation;
