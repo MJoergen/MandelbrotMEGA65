@@ -10,11 +10,10 @@ see [Nexys 4 DDR](#nexys-4-ddr).
 
 736 of the 740 DSPs of the FPGA are used in parallel for the calculation, and
 the picture is stored in block RAM. Generating a complete picture takes about
-2.53 ms (about 396 pictures per second; 402 were measured on an R3 with the
-main clock at 144 MHz), with the main clock at 141.64 MHz. On the Nexys 4 DDR,
-with 240 DSPs and the main clock at 120 MHz, it takes about 1.2 ms (832 to 834
-pictures per second, measured on the board), for a picture with less than a
-quarter of the pixels.
+2.53 ms (about 396 pictures per second; 395 were measured on an R6), with the
+main clock at 141.64 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock
+at 120 MHz, it takes about 1.2 ms (832 to 834 pictures per second, measured on
+the board), for a picture with less than a quarter of the pixels.
 
 ## The algorithm
 For each pixel, which corresponds to a complex number $c$, we iterate
@@ -44,10 +43,10 @@ memory at a time. The display memory takes one write per clock cycle, so with
 one pixel in each write the picture would take at least 1280x1024 clock
 cycles (9.25 ms), whatever the number of job modules. With four pixels in
 each write the picture takes about 2.53 ms, i.e. about 396 pictures per
-second (the model; an R3 showed 402 with the main clock at 144 MHz, the same
-as the model), close to the limit of the display memory (2.31 ms). If every
-pixel needed the maximum count, it would take 13.2 ms (75 pictures per
-second), still above the 60 Hz of the VGA output, see
+second (the model; an R6 showed 395, and an R3 showed 402 with the main
+clock at 144 MHz, the same as the model), close to the limit of the display
+memory (2.31 ms). If every pixel needed the maximum count, it would take
+13.2 ms (75 pictures per second), still above the 60 Hz of the VGA output, see
 [MEGA65](ALGORITHM.md#mega65).
 
 [ALGORITHM.md](ALGORITHM.md) explains the design in detail: the number format,
@@ -191,9 +190,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 21,785 (65%)        | 33,650    | 9,294 (59%)              | 15,850
-| LUTs               | 45,783 (34%)        | 134,600   | 15,838 (25%)             | 63,400
-| Registers          | 60,881 (23%)        | 269,200   | 27,260 (21%)             | 126,800
+| Slices             | 22,137 (66%)        | 33,650    | 9,294 (59%)              | 15,850
+| LUTs               | 45,797 (34%)        | 134,600   | 15,838 (25%)             | 63,400
+| Registers          | 60,891 (23%)        | 269,200   | 27,260 (21%)             | 126,800
 
 The performance and timing are:
 
@@ -201,14 +200,15 @@ The performance and timing are:
 | --------------- | ---------------------------------------- | ------------------
 | Resolution      | 1280x1024                                | 640x480
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
-| Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
+| Initial FPS     | 396 (estimated; 395 measured)            | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.008 ns                                | +0.090 ns
-| Hold slack      | +0.027 ns                                | +0.014 ns
+| Setup slack     | +0.017 ns                                | +0.090 ns
+| Hold slack      | +0.010 ns                                | +0.014 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the R3
-met timing with +0.074 ns (21,564 slices, +0.028 ns hold slack). The builds
-before the design that is the same on all the boards was moved into `core.vhd`
+met timing with +0.002 ns (21,551 slices, +0.028 ns hold slack). The builds
+before the keyboard was ignored after power-on had +0.008 ns on the R6 (21,785
+slices, 45,783 LUTs), and +0.074 ns on the R3. The builds before the design that is the same on all the boards was moved into `core.vhd`
 had +0.076 ns on the R6 (21,603 slices, 45,747 LUTs), +0.070 ns on the R3, and
 +0.046 ns on the Nexys 4 DDR (15,846 LUTs). The builds before the palette could
 move had +0.047 ns on the R6 (22,223 slices, 45,752 LUTs), +0.091 ns on the R3,

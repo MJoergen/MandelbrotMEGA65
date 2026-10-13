@@ -1078,7 +1078,8 @@ is elaborated: it must be inside the range too.
 [`src/main/controls.vhd`](src/main/controls.vhd) maps the joysticks and the
 keyboard to the buttons and switches above, in the MAIN clock domain. The
 keyboard driver (`m2m_keyb`, in `src/keyboard/`) cycles through the 80 keys,
-1000 times per second, and shows whether each one is pressed. The keys that
+once every 1.11 ms (1968 clock cycles for each key), and shows whether each
+one is pressed. The keys that
 are used are stored in a register each, which is updated once in each cycle
 through the keys. The keys `1` to `4` select the palettes 1 to 4, and the
 palette is stored in a register (palette 3, fire, after power-on), so it stays
@@ -1093,10 +1094,21 @@ the key is held down. The joysticks are not
 registered in `controls`, only in `main` (and in `vga` for the palette and the
 movement).
 
+The keyboard is ignored for the first 256 cycles through the keys after
+power-on (0.28 s), i.e. no key is pressed. The keyboard driver sends a
+clock to the keyboard, and reads one bit for each clock cycle. Every 141
+clock cycles (0.45 ms) it sends a sync pulse, after which the keyboard starts
+again with the first bit. Until the first sync pulse after the FPGA is loaded,
+the bits are not aligned with the key numbers, and keys that are not pressed
+seem pressed. If they were not ignored, they would select a random palette,
+and start the movement at random, each time the FPGA is loaded.
+
 The testbench [`sim/controls_tb.vhd`](sim/controls_tb.vhd) is self-checking.
 It cycles through the keys like the keyboard driver, and checks the buttons
-and switches in every clock cycle of a whole cycle through the keys: after
-power-on, for each of the 80 keys on its own, for each combination of the
+and switches in every clock cycle of a whole cycle through the keys: while
+random keys are pressed in the cycles that are ignored after power-on (4 in
+the testbench), after that with no key pressed, for each of the 80 keys on
+its own, for each combination of the
 keys `1` to `4`, for all 64 combinations of the joystick inputs, and for 300
 random combinations of keys and joystick inputs. The palette must stay
 selected when its key is released, and the space bar must toggle the movement
@@ -1310,8 +1322,8 @@ movement does not recalculate anything. The offset is subtracted before the
 table lookup, in the same clock cycle. On the MEGA65 the path from the display
 memory through the subtraction and the table to the colour register is close
 to the worst path of the VGA clock: it took 8.09 ns (+0.977 ns of slack at
-108 MHz) in the first build with the movement, and 8.94 ns (+0.176 ns) in the
-current one, see [MEGA65](#mega65). If it fails timing, the subtraction can be
+108 MHz) in the first build with the movement, 8.94 ns (+0.176 ns) in a later
+one, and 8.19 ns (+0.916 ns) in the current one, see [MEGA65](#mega65). If it fails timing, the subtraction can be
 moved to the clock cycle before, with a register for the index.
 
 The switches (on the MEGA65 the palette register in the MAIN clock domain)
@@ -1405,9 +1417,9 @@ beginning of the reset), 0.3% more than the model, with all the pixels the
 same as in the model. The simulation took 42 minutes (on a busy machine,
 without the waveform).
 
-Both boards were measured with the initial view. The MEGA65 (an R3) showed 402
-pictures per second with the main clock at 144 MHz, the same as the model
-(at 141.64 MHz the model gives 396, which has not been measured yet). The
+Both boards were measured with the initial view. The MEGA65 R6 shows 395
+pictures per second at 141.64 MHz, where the model gives 396. An R3 showed
+402 with the main clock at 144 MHz, the same as the model. The
 Nexys 4 DDR shows 832 to 834 pictures per second, i.e. 143,900 to 144,200
 clock cycles for the picture, which agrees with the simulation above. The
 model gives 0.1% to 0.3% less, because it leaves out the clock cycles at the
@@ -1476,17 +1488,17 @@ multiple of the 120 rows of the Nexys 4 DDR). A run of `make mega65-r6` gives:
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 736      | 740       | 99
 | Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
-| Slices           | 21,785   | 33,650    | 65
-| LUTs             | 45,783   | 134,600   | 34
-| Registers        | 60,881   | 269,200   | 23
+| Slices           | 22,137   | 33,650    | 66
+| LUTs             | 45,797   | 134,600   | 34
+| Registers        | 60,891   | 269,200   | 23
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.008 ns (TNS 0)
-| Hold (WHS)  | +0.027 ns (THS 0)
+| Setup (WNS) | +0.017 ns (TNS 0)
+| Hold (WHS)  | +0.010 ns (THS 0)
 
 The "Report Cell Usage" table in `build/mega65-r6/vivado.log` gives the cell
-counts after synthesis instead: 72,549 LUT cells and 59,775 registers. The
+counts after synthesis instead: 72,561 LUT cells and 59,785 registers. The
 number of LUT cells is larger than the number of LUTs used, because two
 small LUT cells can share one LUT (the placer does this, "LUT Combining").
 
@@ -1496,19 +1508,21 @@ The worst setup path of the main clock is in an iterator, from the register P
 of its second DSP, through the adder for x+y or x-y, to the input of its first
 DSP (3.64 ns, plus about 3.3 ns in the DSP from its input to its register P),
 see [Iterator](#iterator). The timing was met after the routing, but only just
-(+0.008 ns, within the variation between runs, see below). The routes of the
+(+0.017 ns, within the variation between runs, see below). The routes of the
 dispatcher and of the display memory to all the job modules and BRAMs, which
 were the worst paths with the iterator with a single DSP, are no longer
-critical. The worst hold path (+0.027 ns) is in the adder of the row number
-(`res_cy_r`) of a job module. The VGA clock has +0.153 ns of setup slack: its
-worst path is from the column counter (`pix_x` in `pix`) to the number of the
-block in one of the groups of the display memory (`rd_grp_blk`), almost only
-routing (8.77 ns of 9.20 ns). The read enables of the BRAMs, which are decoded
+critical. The worst hold path (+0.010 ns) is between two registers of the
+text of the view (`text` and `text_r` in `view_text`). The VGA clock has
++0.146 ns of setup slack: its worst path is from the row counter (`pix_y` in
+`pix`) to the address of one of the groups of the display memory
+(`rd_grp_addr`). In other runs it is from the column counter (`pix_x`) to the
+number of the block in one of the groups (`rd_grp_blk`), almost only routing
+(8.77 ns of 9.20 ns). The read enables of the BRAMs, which are decoded
 from `rd_grp_blk`, are not on these long paths. The path through the palette
-is close behind (+0.176 ns, see [Colours](#colours)). The 118 paths from the
+has +0.916 ns (see [Colours](#colours)). The 118 paths from the
 MAIN clock to the VGA clock (the frame rate, the view, and their toggle signal
 to `cdc_data`, and the palette and its movement from `controls` to `vga`) have
-+8.41 ns of slack, and
++8.15 ns of slack, and
 `report_cdc` reports all of them as safe. The TMDS clock (540 MHz) has
 +0.259 ns of pulse width slack, on its BUFG. The colour and sync outputs to the
 video DAC are registered in the IOBs.
@@ -1516,10 +1530,10 @@ video DAC are registered in the IOBs.
 A run of `make mega65-r3` gives almost the same: the design is the same,
 except that the R3 reads the reset button from the MAX10 (with `max10`, in
 the clock domain of the 100 MHz input clock, and with one more BUFG), and has
-52 IOBs instead of 62. It uses 21,564 slices and 45,843 LUTs. In this run the
-timing was met with +0.074 ns, and the hold slack is +0.028 ns. The VGA clock
-has +0.213 ns of setup slack, the paths from the MAIN clock to the VGA clock
-+8.57 ns, and the input clock (in `max10`) +5.94 ns.
+52 IOBs instead of 62. It uses 21,551 slices and 45,903 LUTs. In this run the
+timing was met with +0.002 ns, and the hold slack is +0.028 ns. The VGA clock
+has +0.241 ns of setup slack, the paths from the MAIN clock to the VGA clock
++7.90 ns, and the input clock (in `max10`) +5.70 ns.
 
 The setup slack depends on the placement of the iterators, and varies by
 about 0.1 ns between runs. At 144 MHz (1080 MHz divided by 7.5) it varied
@@ -1639,7 +1653,7 @@ design between the pictures:
 
 | Board | Busy | Idle | Main (busy / idle) | Display memory (busy / idle)
 | ----- | ---- | ---- | ------------------ | ----------------------------
-| MEGA65 R6   | 3.47 W | 0.73 W | 2.83 W / 0.21 W | 0.14 W / 0.04 W
+| MEGA65 R6   | 3.53 W | 0.74 W | 2.87 W / 0.21 W | 0.16 W / 0.04 W
 | Nexys 4 DDR | 1.20 W | 0.36 W | 0.82 W / 0.08 W | 0.13 W / 0.03 W
 
 The MEGA65 R3 gives almost the same (3.49 W and 0.74 W). The MEGA65 builds
@@ -1650,7 +1664,7 @@ change in almost every clock cycle while they are busy, so the real busy
 power is probably higher than the estimate, and the saving larger.
 
 On the MEGA65 the busy power is mostly the DSPs (1.19 W), the signals
-(0.99 W), and the logic (0.55 W), almost all in the job modules. The idle
+(1.05 W), and the logic (0.54 W), almost all in the job modules. The idle
 power is mostly the clocks (0.25 W), the I/O (0.17 W, the VGA and HDMI
 outputs), the static power (0.16 W), and the MMCM (0.13 W). The block RAM
 uses 0.004 W, and the signals 0.02 W.

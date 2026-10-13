@@ -22,13 +22,22 @@
 --   pressed, so it toggles once for each press.
 -- The other switches are always off.
 --
+-- The keyboard is ignored (no key is pressed) for the first G_IGNORE_SCANS
+-- cycles through the keys after power-on, about 0.28 s (see below). Until the
+-- keyboard driver has sent its first sync pulse to the keyboard, the bits it
+-- reads are not aligned with the key numbers, so random keys seem pressed in
+-- the first cycles through the keys. They would select a random palette,
+-- toggle the movement at random, and could move the view.
+--
 -- The keyboard is read by the MiSTer2MEGA65 keyboard driver (m2m_keyb.vhd, in
 -- the MAIN clock domain), which cycles through all the keys (key_num_i), and
--- shows whether each of them is pressed (key_pressed_n_i, active low). The
--- keys that are used are stored here (p_keys). The key numbers are the same
--- as in the MiSTer2MEGA65 framework, see e.g. matrix_to_keynum.vhd. The
--- MEGA65 has separate keys for cursor up and left (73 and 74), unlike the
--- C64, where they are SHIFT with cursor down and right (7 and 2).
+-- shows whether each of them is pressed (key_pressed_n_i, active low). At the
+-- MAIN clock of the MEGA65 (141.64 MHz) each key takes 1968 clock cycles, so a
+-- cycle through the 80 keys takes 1.11 ms. The keys that are used are stored
+-- here (p_keys). The key numbers are the same as in the MiSTer2MEGA65
+-- framework, see e.g. matrix_to_keynum.vhd. The MEGA65 has separate keys for
+-- cursor up and left (73 and 74), unlike the C64, where they are SHIFT with
+-- cursor down and right (7 and 2).
 --
 -- The joystick lines are active low, and asynchronous. They are combined with
 -- the keys without a register, because main.vhd synchronizes the outputs (and
@@ -38,6 +47,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity controls is
+   generic (
+      G_IGNORE_SCANS : natural := 256  -- Cycles through the keys ignored after power-on
+   );
    port (
       clk_i           : in  std_logic;                      -- MAIN clock
 
@@ -75,6 +87,14 @@ architecture rtl of controls is
    constant C_KEY_SPACE : natural := 60;
    constant C_KEY_LAST  : natural := 79;
 
+   -- The cycles through the keys that are still ignored after power-on,
+   -- whether the key in the previous clock cycle was the last one, and the
+   -- key from the keyboard driver, active high, which is never pressed while
+   -- the cycles are ignored
+   signal ignore_cnt  : natural range 0 to G_IGNORE_SCANS := G_IGNORE_SCANS;
+   signal key_last_d  : std_logic := '0';
+   signal key_pressed : std_logic;
+
    -- The keys that are used, active high
    signal key_up_r    : std_logic := '0';
    signal key_down_r  : std_logic := '0';
@@ -98,21 +118,40 @@ architecture rtl of controls is
 
 begin
 
+   -- Count down when a new cycle through the keys starts, i.e. in the first
+   -- clock cycle of key 0 (which is not used), so whole cycles are ignored
+   p_ignore : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         key_last_d <= '0';
+         if key_num_i = C_KEY_LAST then
+            key_last_d <= '1';
+         end if;
+
+         if key_last_d = '1' and key_num_i /= C_KEY_LAST and ignore_cnt /= 0 then
+            ignore_cnt <= ignore_cnt - 1;
+         end if;
+      end if;
+   end process p_ignore;
+
+   key_pressed <= not key_pressed_n_i when ignore_cnt = 0 else
+                  '0';
+
    p_keys : process (clk_i)
    begin
       if rising_edge(clk_i) then
          case key_num_i is
-            when C_KEY_UP    => key_up_r    <= not key_pressed_n_i;
-            when C_KEY_DOWN  => key_down_r  <= not key_pressed_n_i;
-            when C_KEY_LEFT  => key_left_r  <= not key_pressed_n_i;
-            when C_KEY_RIGHT => key_right_r <= not key_pressed_n_i;
-            when C_KEY_PLUS  => key_plus_r  <= not key_pressed_n_i;
-            when C_KEY_MINUS => key_minus_r <= not key_pressed_n_i;
-            when C_KEY_1     => key_1_r     <= not key_pressed_n_i;
-            when C_KEY_2     => key_2_r     <= not key_pressed_n_i;
-            when C_KEY_3     => key_3_r     <= not key_pressed_n_i;
-            when C_KEY_4     => key_4_r     <= not key_pressed_n_i;
-            when C_KEY_SPACE => key_space_r <= not key_pressed_n_i;
+            when C_KEY_UP    => key_up_r    <= key_pressed;
+            when C_KEY_DOWN  => key_down_r  <= key_pressed;
+            when C_KEY_LEFT  => key_left_r  <= key_pressed;
+            when C_KEY_RIGHT => key_right_r <= key_pressed;
+            when C_KEY_PLUS  => key_plus_r  <= key_pressed;
+            when C_KEY_MINUS => key_minus_r <= key_pressed;
+            when C_KEY_1     => key_1_r     <= key_pressed;
+            when C_KEY_2     => key_2_r     <= key_pressed;
+            when C_KEY_3     => key_3_r     <= key_pressed;
+            when C_KEY_4     => key_4_r     <= key_pressed;
+            when C_KEY_SPACE => key_space_r <= key_pressed;
             when others      => null;
          end case;
       end if;

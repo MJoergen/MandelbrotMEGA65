@@ -332,7 +332,18 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the design that is the same on
+The previous run of `make mega65-r6`, before the keyboard was ignored after
+power-on, met timing with +0.008 ns, and had 21,785 slices, 45,783 LUTs, and
+60,881 registers (72,549 LUT cells and 59,775 registers after synthesis), and
++0.027 ns of hold slack (in the adder of the row number `res_cy_r` of a job
+module). Its VGA clock had +0.153 ns of setup slack (from the column counter
+`pix_x` to `rd_grp_blk`), the path through the palette +0.176 ns, and the 118
+paths from the MAIN clock to the VGA clock +8.41 ns. The previous run of
+`make mega65-r3` met timing with +0.074 ns, with 21,564 slices, 45,843 LUTs,
++0.028 ns of hold slack, +0.213 ns of setup slack for the VGA clock, and
++5.94 ns for the input clock.
+
+The run of `make mega65-r6` before that, before the design that is the same on
 all the boards was moved into `core.vhd` (which adds a level to the
 hierarchy, `i_core`), met timing with +0.076 ns, and had 21,603 slices, 45,747
 LUTs, and 60,881 registers (72,537 LUT cells and 59,775 registers after
@@ -848,7 +859,11 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, before the design that is the same on all the boards was
+The previous runs, before the keyboard was ignored after power-on, gave
+3.47 W busy and 0.73 W idle on the R6 (3.49 W and 0.74 W on the R3). The
+Nexys 4 DDR was not built again, because it does not read the keyboard.
+
+The runs before that, before the design that is the same on all the boards was
 moved into `core.vhd`, gave 3.47 W busy and 0.73 W idle on the R6 (3.50 W and
 0.74 W on the R3), and 1.20 W busy and 0.36 W idle on the Nexys 4 DDR.
 

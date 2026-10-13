@@ -3,7 +3,10 @@
 -- behaves like the keyboard driver (m2m_keyb.vhd): it cycles through all the
 -- keys, each for C_HOLD clock cycles, and shows whether each one is pressed.
 -- It checks:
--- * Nothing is pressed after power-on, and palette 3 (fire) is selected.
+-- * The keyboard is ignored in the first C_IGNORE cycles through the keys
+--   after power-on, while random keys seem pressed: nothing is pressed,
+--   palette 3 (fire) is selected, and the palette does not move.
+-- * Nothing is pressed after that, and palette 3 (fire) is still selected.
 -- * Each of the keys used, on its own, gives the expected button or switch,
 --   and each key "1" to "4" selects its palette, which stays selected when
 --   the key is released.
@@ -33,6 +36,7 @@ architecture simulation of controls_tb is
    constant C_NUM_KEYS  : natural := 80;
    constant C_HOLD      : natural := 3;  -- Clock cycles for each key
    constant C_SCAN      : natural := C_NUM_KEYS * C_HOLD;
+   constant C_IGNORE    : natural := 4;  -- Cycles through the keys ignored after power-on
    constant C_KEY_UP    : natural := 73;
    constant C_KEY_DOWN  : natural := 7;
    constant C_KEY_LEFT  : natural := 74;
@@ -99,6 +103,9 @@ begin
    ----------------------------
 
    i_controls : entity work.controls
+      generic map (
+         G_IGNORE_SCANS => C_IGNORE
+      )
       port map (
          clk_i           => clk,
          key_num_i       => key_num,
@@ -190,7 +197,30 @@ begin
       constant C_NO_KEYS : std_logic_vector(C_NUM_KEYS-1 downto 0) := (others => '0');
 
    begin
-      -- After power-on, the outputs are checked without changing the inputs
+      -- Random keys in each of the cycles through the keys that are ignored
+      -- after power-on, checked in every clock cycle. The first cycle starts
+      -- at time 0, and the keys are changed just after the clock edge where
+      -- the next one starts.
+      for i in 0 to C_IGNORE-1 loop
+         for k in 0 to C_NUM_KEYS-1 loop
+            uniform(seed1_v, seed2_v, rand_v);
+            keys_v(k) := '1' when rand_v < 0.5 else '0';
+         end loop;
+         pressed <= keys_v;
+
+         loop
+            wait until falling_edge(clk);
+            assert btn = "00000" and sw = "00000010"
+               report "Ignored " & to_string(i) & ": btn is " & to_string(btn) &
+                      ", sw is " & to_string(sw)
+               severity error;
+            exit when key_num = C_NUM_KEYS-1 and hold_cnt = C_HOLD-1;
+         end loop;
+         wait until rising_edge(clk);
+      end loop;
+
+      -- After that, the outputs are checked without any key pressed
+      pressed <= C_NO_KEYS;
       check(C_NO_KEYS, C_JOY_NONE, "Power-on");
 
       -- Each key on its own, and released again
