@@ -45,9 +45,11 @@
 --      DSPs (the registers A and B).
 --   2. The first two DSPs of each multiplication calculate ah*bl + al*bh,
 --      with the cascade from the first to the second one, and the result is
---      registered in the second DSP (the register P).
+--      registered in the second DSP (the register P). The third DSP
+--      calculates ah*bh, and registers it (the register M).
 --   3. The third DSP calculates (the result of step 2)/2^17 + ah*bh, with the
---      cascade (shifted by 17 bits) from the second DSP, and registers it.
+--      cascade (shifted by 17 bits) from the second DSP, and registers it
+--      (the register P).
 --   4. The constants cx and cy (and half an LSB, see p_dsp) are added in the
 --      FPGA fabric, and the new values of x and y are registered (x_r and
 --      y_r), with the overflow check.
@@ -149,28 +151,26 @@ architecture rtl of iterator_wide is
 
    -- The inputs of the six DSPs (the registers A and B). The first, second,
    -- and third DSP calculate (x+y)*(x-y), and the fourth, fifth, and sixth
-   -- x*y. The third and the sixth DSP use their inputs one clock cycle later
-   -- than the others, so their inputs are registered twice.
+   -- x*y.
    signal dsp1_a_r   : std_logic_vector(16 downto 0);  -- al
    signal dsp1_b_r   : std_logic_vector(17 downto 0);  -- bh
    signal dsp2_a_r   : std_logic_vector(18 downto 0);  -- ah
    signal dsp2_b_r   : std_logic_vector(16 downto 0);  -- bl
    signal dsp3_a_r   : std_logic_vector(18 downto 0);  -- ah
    signal dsp3_b_r   : std_logic_vector(17 downto 0);  -- bh
-   signal dsp3_a_d   : std_logic_vector(18 downto 0);
-   signal dsp3_b_d   : std_logic_vector(17 downto 0);
    signal dsp4_a_r   : std_logic_vector(16 downto 0);  -- xl
    signal dsp4_b_r   : std_logic_vector(17 downto 0);  -- yh
    signal dsp5_a_r   : std_logic_vector(17 downto 0);  -- xh
    signal dsp5_b_r   : std_logic_vector(16 downto 0);  -- yl
    signal dsp6_a_r   : std_logic_vector(17 downto 0);  -- xh
    signal dsp6_b_r   : std_logic_vector(17 downto 0);  -- yh
-   signal dsp6_a_d   : std_logic_vector(17 downto 0);
-   signal dsp6_b_d   : std_logic_vector(17 downto 0);
 
-   -- Stage 2: The registers P of the second and fifth DSP
+   -- Stage 2: The registers P of the second and fifth DSP, and the registers
+   -- M of the third and sixth DSP
    signal p2_r       : signed(37 downto 0);
    signal p5_r       : signed(37 downto 0);
+   signal m3_r       : signed(36 downto 0);
+   signal m6_r       : signed(35 downto 0);
 
    -- Stage 3: The registers P of the third and sixth DSP, and the bits of
    -- the registers P of the second and fifth DSP that are part of the result
@@ -252,13 +252,19 @@ begin
    -- These are inferred as six DSP48E1. In each multiplication, the first DSP
    -- calculates a product, without registering it (no registers M and P),
    -- and passes it on through the cascade (PCOUT) to the second DSP, which
-   -- adds its own product and registers the sum (P). The third DSP adds its
-   -- product to the sum shifted 17 bits to the right (the cascade input
-   -- PCIN>>17), and registers it (P). The inputs of the DSPs are registered in
-   -- the DSPs (A and B), twice for the third DSP (the synthesis tool may move
-   -- the second register after the multiplier, to the register M, and take
-   -- the input A from the second DSP, through the cascade ACOUT). The products
-   -- are less than 2^35, and the sums less than 2^36, so they fit in 38 bits.
+   -- adds its own product and registers the sum (P). The third DSP registers
+   -- its product (M), and adds it to the sum shifted 17 bits to the right (the
+   -- cascade input PCIN>>17), and registers it (P). The inputs of the DSPs are
+   -- registered in the DSPs (A and B). The products are less than 2^35, and
+   -- the sums less than 2^36, so they fit in 38 bits.
+   --
+   -- The register M of the third DSP is written explicitly. It used to be a
+   -- second register of the inputs of the third DSP, which the synthesis tool
+   -- moves to M. In the full MEGA65 design (but not when iterator_wide is
+   -- synthesized alone), Vivado 2025.1 did this right for x*y, but for
+   -- (x+y)*(x-y) it took the input A from the second DSP through the cascade
+   -- ACOUT, without the second register (AREG = 0, MREG = 0), so ah was from
+   -- the wrong slot. mandelbrot.tcl checks this.
    --
    -- Half an LSB of the result, i.e. 2^15 units of the register P of the
    -- second DSP for x (2^14 for y), is not added in the DSPs (a constant in
@@ -284,20 +290,17 @@ begin
          dsp6_a_r <= x_r(34 downto 17);
          dsp6_b_r <= y_r(34 downto 17);
 
-         dsp3_a_d <= dsp3_a_r;
-         dsp3_b_d <= dsp3_b_r;
-         dsp6_a_d <= dsp6_a_r;
-         dsp6_b_d <= dsp6_b_r;
-
          -- Stage 2
          p2_r <= resize(signed('0' & dsp1_a_r) * signed(dsp1_b_r), 38) +
                  resize(signed(dsp2_a_r) * signed('0' & dsp2_b_r), 38);
          p5_r <= resize(signed('0' & dsp4_a_r) * signed(dsp4_b_r), 38) +
                  resize(signed(dsp5_a_r) * signed('0' & dsp5_b_r), 38);
+         m3_r <= signed(dsp3_a_r) * signed(dsp3_b_r);
+         m6_r <= signed(dsp6_a_r) * signed(dsp6_b_r);
 
          -- Stage 3
-         p3_r    <= shift_right(p2_r, 17) + resize(signed(dsp3_a_d) * signed(dsp3_b_d), 38);
-         p6_r    <= shift_right(p5_r, 17) + resize(signed(dsp6_a_d) * signed(dsp6_b_d), 38);
+         p3_r    <= shift_right(p2_r, 17) + resize(m3_r, 38);
+         p6_r    <= shift_right(p5_r, 17) + resize(m6_r, 38);
          p2_lo_r <= std_logic_vector(p2_r(16 downto 15));
          p5_lo_r <= std_logic_vector(p5_r(16 downto 14));
       end if;

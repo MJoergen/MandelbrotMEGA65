@@ -44,6 +44,21 @@ proc pcin_driver {dsp} {
    set net [get_nets -of_objects [get_pins $dsp/PCIN[0]]]
    return [get_cells -of_objects [get_pins -leaf -of_objects $net -filter {DIRECTION == OUT}]]
 }
+# The inputs A and B of the last DSP of each cascade go through two registers
+# from the fabric to the multiplier output: A or B, and M (see iterator_wide.vhd).
+# The input may come from the cascade (ACIN or BCIN) of the DSP before it,
+# through its register ACASCREG or BCASCREG. Vivado 2025.1 once left out one of
+# the registers, so the design was wrong on the board, but the simulation of
+# the VHDL was right.
+proc cascade_delay {dsp port} {
+   set delay [expr {[get_property ${port}REG $dsp] + [get_property MREG $dsp]}]
+   if {[get_property ${port}_INPUT $dsp] eq "CASCADE"} {
+      set net [get_nets -of_objects [get_pins $dsp/${port}CIN[0]]]
+      set src [get_cells -of_objects [get_pins -leaf -of_objects $net -filter {DIRECTION == OUT}]]
+      incr delay [get_property ${port}CASCREG $src]
+   }
+   return $delay
+}
 set n 0
 set macro_dsps 0
 foreach it [get_cells -hierarchical -filter {NAME =~ *i_iterator}] {
@@ -56,6 +71,12 @@ foreach it [get_cells -hierarchical -filter {NAME =~ *i_iterator}] {
       set y 0
       foreach last {p3_r_reg p6_r_reg} {
          set dsp3 [get_cells $it/$last]
+         foreach port {A B} {
+            if {[cascade_delay $dsp3 $port] != 2} {
+               puts "ERROR: The input $port of $dsp3 has [cascade_delay $dsp3 $port] registers instead of 2."
+               exit 1
+            }
+         }
          set dsp2 [pcin_driver $dsp3]
          set dsp1 [pcin_driver $dsp2]
          foreach dsp [list $dsp1 $dsp2 $dsp3] {

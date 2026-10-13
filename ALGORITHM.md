@@ -519,8 +519,9 @@ a*b = ah*bh*2^34 + (ah*bl + al*bh)*2^17 + al*bl
 The first three products are calculated by three DSPs, which are cascaded:
 the first DSP calculates al\*bh and passes it on (PCOUT, without registering
 it) to the second DSP, which adds ah\*bl and registers the sum (P). The third
-DSP adds ah\*bh to that sum shifted 17 bits to the right (the cascade input
-PCIN>>17), and registers the result. So each multiplication uses three DSPs,
+DSP calculates ah\*bh in the same clock cycle and registers it (M), and in the
+next clock cycle adds it to that sum shifted 17 bits to the right (the cascade
+input PCIN>>17), and registers the result. So each multiplication uses three DSPs,
 and the iterator six. The last product, al\*bl (less than 2^34, i.e. less than
 2 LSB of the 2.33 result), is left out. A multiplication with all four products
 would need eight DSPs in each iterator, i.e. 92 iterators instead of 120 on
@@ -552,7 +553,21 @@ As in the 2.16 iterator, at most one of x+y and x-y is outside the range -2 to
 other input can only have 18 bits (the B input of the DSP), and 19 are needed
 for 3.33. The DSPs are inferred by Vivado from plain VHDL, as for the 2.16
 iterator: the "DSP Final Report" in `vivado.log` shows `A'*B'` (the first DSP
-of each cascade), `(PCIN+A'*B')'`, and `(PCIN>>17+...)'`.
+of each cascade), `(PCIN+A'*B')'`, and `(PCIN>>17+(A'*B')')'`, or
+`(PCIN>>17+(A*B')')'` when the input A comes from the second DSP through the
+cascade (ACOUT, after its register A), as for (x+y)\*(x-y).
+
+The register M of the third DSP is written explicitly in the VHDL. Before, the
+inputs of the third DSP were registered twice instead, and Vivado 2025.1 moved
+the second register to M. In the full MEGA65 design it did this right for
+x\*y, but for (x+y)\*(x-y) it took the input A from the second DSP through the
+cascade (ACOUT) and left out the second register (`(PCIN>>17+A*B'')'`, AREG
+= 0). So ah came from the wrong slot, and the board showed a wrong picture,
+while the simulation of the VHDL (and the synthesis of `iterator_wide.vhd`
+alone) was right. `mandelbrot.tcl` now checks after the synthesis that the
+inputs A and B of the last DSP of each cascade go through two registers
+(counting the register of the cascade, ACASCREG or BCASCREG, of the DSP
+before it), and stops with an error otherwise.
 
 **Pipeline and slots.** The iteration takes four clock cycles: x+y and x-y are
 calculated in the fabric and registered in the DSPs (the registers A and B);
