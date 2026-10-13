@@ -26,7 +26,7 @@
 --   by controls.vhd. The keyboard is read by the MiSTer2MEGA65 keyboard
 --   driver (m2m_keyb.vhd, in src/keyboard/), in the MAIN clock domain. It also
 --   turns on the power LED of the keyboard (green).
--- * The keys "1" to "4" select the palettes 0 to 3 (see palette_pkg.vhd).
+-- * The keys "1" to "4" select the palettes 1 to 4 (see palette_pkg.vhd).
 --   controls.vhd stores the palette in switches 0 and 1, which are used by
 --   vga.vhd, as on the Nexys 4 DDR.
 -- * There is no 7-segment display, so the frame rate is only shown on the VGA

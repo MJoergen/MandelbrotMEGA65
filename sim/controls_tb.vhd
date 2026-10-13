@@ -3,7 +3,7 @@
 -- behaves like the keyboard driver (m2m_keyb.vhd): it cycles through all the
 -- keys, each for C_HOLD clock cycles, and shows whether each one is pressed.
 -- It checks:
--- * Nothing is pressed after power-on, and palette 0 is selected.
+-- * Nothing is pressed after power-on, and palette 3 (fire) is selected.
 -- * Each of the keys used, on its own, gives the expected button or switch,
 --   and each key "1" to "4" selects its palette, which stays selected when
 --   the key is released.
@@ -42,7 +42,7 @@ architecture simulation of controls_tb is
    constant C_KEY_3     : natural := 8;
    constant C_KEY_4     : natural := 11;
 
-   -- The keys "1" to "4", for the palettes 0 to 3
+   -- The keys "1" to "4", for the palettes 1 to 4
    type nat_vector is array (natural range <>) of natural;
    constant C_PALETTE_KEYS : nat_vector(0 to 3) := (C_KEY_1, C_KEY_2, C_KEY_3, C_KEY_4);
 
@@ -116,7 +116,7 @@ begin
    ----------------------------
 
    p_test : process
-      variable palette_v : natural range 0 to 3 := 0;
+      variable palette_v : natural range 0 to 3 := 2;
       variable seed1_v   : positive := 1;
       variable seed2_v   : positive := 1;
       variable rand_v    : real;

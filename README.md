@@ -69,7 +69,7 @@ joystick in each port, or with the keyboard, see
 | Joystick port 1: left, right, up, down, or the cursor keys | Pan the picture left, right, up, and down, by 1/320 of the width of the picture (4 pixels) for each update. Panning stops at the edge of the number range (-2 to 2).
 | Joystick port 1: fire, or the `+` key | Zoom in. The centre of the picture stays fixed. Zooming in stops at the smallest pixel size (2^-16).
 | Joystick port 2: fire, or the `-` key | Zoom out. The centre of the picture stays fixed, except when zooming out would move an edge of the view beyond -2 or 2; then the view is moved instead. Zooming out stops when the view can not get larger.
-| The keys `1`, `2`, `3`, and `4` | Select the colour palette 0, 1, 2, or 3 (see below). The palette stays selected when the key is released. If several of these keys are held down, the lowest one wins.
+| The keys `1`, `2`, `3`, and `4` | Select the colour palette 1, 2, 3, or 4 (see below). The palette stays selected when the key is released. If several of these keys are held down, the lowest one wins.
 | Reset button | Resets the design and returns to the initial view. On the R3 the reset button is read by the MAX10 (a small FPGA on the board), which sends it to the XC7A200T over a serial link.
 
 While a control is held down, the view is updated about 18 times per second.
@@ -78,12 +78,12 @@ size of a pixel by about 1.6% (roughly 33% per second). The initial view
 shows the real axis from -1.67 to 1 and the imaginary axis from -1.07 to
 1.07. See [View control](ALGORITHM.md#view-control) for details.
 
-The colour palettes are: 0 (the palette after power-on): the lower 8 bits of
+The colour palettes are: 1: the lower 8 bits of
 the count are the colour (RRRGGGBB), mostly blue and green, and the set is
-white. 1: rainbow, the hue goes around the colour circle every 16 counts.
-2: fire, black, red, orange, yellow, and white, with the square root of the
-count. 3: blue, white, orange, and dark brown, with the logarithm of the
-count. In the palettes 1 to 3 the set is black. See
+white. 2: rainbow, the hue goes around the colour circle every 16 counts.
+3 (fire, the palette after power-on): black, red, orange, yellow, and white,
+with the square root of the count. 4: blue, white, orange, and dark brown,
+with the logarithm of the count. In the palettes 2 to 4 the set is black. See
 [Colours](ALGORITHM.md#colours) for details. The reset button does not change
 the palette.
 
@@ -146,7 +146,7 @@ The switch numbers are the bit numbers of the switch input, i.e. `SW0` to
 | ------- | -----------
 | `BTNL`, `BTNR`, `BTNU`, `BTND` | Pan the picture left, right, up, and down, like joystick port 1, by 1/320 of the width of the picture (2 pixels) for each update.
 | `BTNC` | Zoom in, like the fire button of joystick port 1. With switch 2 on, zoom out instead, like the fire button of joystick port 2.
-| Switches 0 and 1 | Select the colour palette (switch 1 is the high bit). 0 (both off): the lower 8 bits of the count are the colour (RRRGGGBB), mostly blue and green, and the set is white. 1: rainbow, the hue goes around the colour circle every 16 counts. 2: fire, black, red, orange, yellow, and white, with the square root of the count. 3: blue, white, orange, and dark brown, with the logarithm of the count. In the palettes 1 to 3 the set is black.
+| Switches 0 and 1 | Select the colour palette (switch 1 is the high bit). 1 (both off): the lower 8 bits of the count are the colour (RRRGGGBB), mostly blue and green, and the set is white. 2: rainbow, the hue goes around the colour circle every 16 counts. 3: fire, black, red, orange, yellow, and white, with the square root of the count. 4: blue, white, orange, and dark brown, with the logarithm of the count. In the palettes 2 to 4 the set is black.
 | Switches 3 to 7 | Not used.
 | `CPU RESET` | Resets the design and returns to the initial view.
 

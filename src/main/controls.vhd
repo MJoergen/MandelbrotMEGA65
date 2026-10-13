@@ -8,8 +8,9 @@
 -- * btn_o(3 downto 0), pan left, right, up, and down: the directions of
 --   joystick port 1, and the cursor keys.
 -- * sw_o(1 downto 0), the palette (see palette_pkg.vhd): the keys "1" to "4"
---   select the palettes 0 to 3. The palette stays selected when the key is
---   released, and palette 0 is used after power-on. The palette is only
+--   select the palettes 1 to 4 (the value 0 to 3 in sw_o). The palette stays
+--   selected when the key is released, and palette 3 (fire) is used after
+--   power-on. The palette is only
 --   changed at the end of a cycle through the keys (key 79), when all the
 --   keys have been read, so it changes only once when a key is pressed while
 --   another one is released. If several of these keys are pressed, the lowest
@@ -82,7 +83,7 @@ architecture rtl of controls is
    signal key_4_r     : std_logic := '0';
 
    -- The selected palette
-   signal palette_r   : std_logic_vector(1 downto 0) := "00";
+   signal palette_r   : std_logic_vector(1 downto 0) := "10";
 
 begin
 

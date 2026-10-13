@@ -882,7 +882,7 @@ registers of all the groups, which are the worst paths of the VGA clock (see
 group from the same register, instead of from the read address.
 
 The display memory has no reset. The BRAMs are cleared when the FPGA is
-configured (the count 0, black in palette 0), and a reset keeps their
+configured (the count 0, black in all palettes), and a reset keeps their
 contents, so the previous picture stays on the screen until the first picture
 after the reset has overwritten it. The first picture overwrites every pixel
 of the picture anyway.
@@ -1044,8 +1044,8 @@ keyboard to the buttons and switches above, in the MAIN clock domain. The
 keyboard driver (`m2m_keyb`, in `src/keyboard/`) cycles through the 80 keys,
 1000 times per second, and shows whether each one is pressed. The keys that
 are used are stored in a register each, which is updated once in each cycle
-through the keys. The keys `1` to `4` select the palettes 0 to 3, and the
-palette is stored in a register (palette 0 after power-on), so it stays
+through the keys. The keys `1` to `4` select the palettes 1 to 4, and the
+palette is stored in a register (palette 3, fire, after power-on), so it stays
 selected when the key is released. The palette is only changed at the end of
 a cycle through the keys (key 79), when all the keys have been read, so it
 changes only once when one key is pressed while another one is released. If
@@ -1238,20 +1238,20 @@ other counts, the lower 8 bits of the count (the value) are converted to the
 colour by one of four palettes in [`src/vga/palette_pkg.vhd`](src/vga/palette_pkg.vhd).
 On the MEGA65 the palette is selected with the keys `1` to `4` (see
 "The joysticks and the keyboard" in [The top level](#the-top-level)), and on
-the Nexys 4 DDR by switches 0 and 1 (switch 1 is the high bit):
-* 0: The value itself is the colour. Most of the pixels outside the set have
+the Nexys 4 DDR by switches 0 and 1 (switch 1 is the high bit, both off is palette 1):
+* 1: The value itself is the colour. Most of the pixels outside the set have
   small counts (in the initial view, 92.5% of the pixels outside the set have
   a count below 16),
   so only the blue and green bits are set, and red needs a count of at least
   32. The set is white (the same colour as the value 255).
-* 1: Rainbow. The hue goes once around the colour circle (red, yellow, green,
+* 2: Rainbow. The hue goes once around the colour circle (red, yellow, green,
   cyan, blue, magenta) for every 16 counts.
-* 2: Fire. Black, red, orange, yellow, and white, with the square root of the
+* 3: Fire (the palette after power-on on the MEGA65). Black, red, orange, yellow, and white, with the square root of the
   value, once for the values 0 to 63, and again for 64 to 255.
-* 3: Blue, white, orange, and dark brown, with the logarithm of the value, once
+* 4: Blue, white, orange, and dark brown, with the logarithm of the value, once
   for the values 0 to 6, again for 7 to 62, and again for 63 to 255.
 
-In the palettes 1 to 3 the set is black. The display memory stores all 9 bits
+In the palettes 2 to 4 the set is black. The display memory stores all 9 bits
 of the count, which costs no extra BRAMs (see [Display
 memory](#display-memory)), so the points with the count 255 are not shown in
 the colour of the set.

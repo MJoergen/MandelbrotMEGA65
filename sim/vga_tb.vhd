@@ -60,7 +60,7 @@ architecture simulation of vga_tb is
 
    constant C_COLOUR    : std_logic_vector(7 downto 0) := X"A5";
 
-   -- The value in the display memory in the first phase. Palette 0 shows the
+   -- The value in the display memory in the first phase. Palette 1 shows the
    -- lowest 8 bits of the count as the colour.
    constant C_VALUE     : std_logic_vector(8 downto 0) := "0" & C_COLOUR;
 

@@ -4,19 +4,20 @@
 -- 511 (C_SET), and they get the colour of the set. The other counts are
 -- converted using only their lowest 8 bits.
 --
--- There are four palettes, selected by switches 0 and 1 on the Nexys 4 DDR,
--- and the keys "1" to "4" on the MEGA65 (the value of sel):
---   0 : The count itself is the colour. Mostly blue and green, because most
+-- There are four palettes, numbered 1 to 4 like the keys "1" to "4" on the
+-- MEGA65. On the Nexys 4 DDR they are selected by switches 0 and 1. The value
+-- of sel is the palette number minus 1:
+--   1 : The count itself is the colour. Mostly blue and green, because most
 --       counts are small, and the set is white.
---   1 : Rainbow. The hue goes once around the colour circle for every 16
+--   2 : Rainbow. The hue goes once around the colour circle for every 16
 --       counts.
---   2 : Fire. Black, red, orange, yellow, and white, with the square root of
+--   3 : Fire. Black, red, orange, yellow, and white, with the square root of
 --       the lowest 8 bits of the count, i.e. once for the values 0 to 63, and
 --       again for 64 to 255.
---   3 : Blue, white, orange, and dark brown, with the logarithm of the lowest
+--   4 : Blue, white, orange, and dark brown, with the logarithm of the lowest
 --       8 bits of the count, i.e. once for the values 0 to 6, again for 7 to
 --       62, and again for 63 to 255.
--- In the palettes 1 to 3 the set is black. In palette 0 it is white.
+-- In the palettes 2 to 4 the set is black. In palette 1 it is white.
 --
 -- The palettes are calculated from these formulas when the design is
 -- elaborated, so they are easy to change. They are tables of 256 entries, so
