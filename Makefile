@@ -102,7 +102,7 @@ SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga redraw picture overlay dispatcher disp disp_mem iterator viewport job job_scheduler res_scheduler fps view_text cdc_data controls
+TBS = vga core redraw picture overlay dispatcher disp disp_mem iterator viewport job job_scheduler res_scheduler fps view_text cdc_data controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
 # the command line, e.g. "make run TB=iterator".

@@ -298,6 +298,21 @@ out): each pixel is written exactly once, the picture is complete when the
 frame rate is updated, and the count of each pixel is the count of the
 model. The view of each picture is read from `main` with external names.
 
+The testbench [`sim/core_tb.vhd`](sim/core_tb.vhd) checks the whole design
+from the buttons and switches to the VGA output, i.e. `core` with the clocks
+of the Nexys 4 DDR (in the same ratio, 120 MHz and 25 MHz, but about 17 times
+faster). A picture of a real size is too slow to simulate (the first picture
+is the initial view, which is mostly inside the set), so the video mode is
+560x4 (560 is the smallest width that `vga` accepts, because of the overlay),
+with short blanking. For two pictures (the initial view with palette 1, and
+the view after pan right held down for one update, with palette 3) it waits
+until the picture is complete, and then checks the colour of every pixel of
+the next frame of the VGA output against the model and the palette. It also
+checks that the frame rate and the view in the VGA clock domain are those of
+the MAIN clock domain, after `cdc_data`. The palette does not move in this
+testbench (that is checked by `disp_tb`). It takes about 4 minutes, and is
+part of `make sim`.
+
 The board constants in `sim/model.py` and the defaults of the generics of
 `sim/main_tb.vhd` are copies of those in `src/mega65.vhd` (and the model also
 has those of `src/nexys4ddr.vhd`). `make consts` runs

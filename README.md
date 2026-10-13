@@ -352,7 +352,8 @@ There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
 `fps`, `view_text`, `cdc_data`, and `controls`, and two for `main`: `redraw` checks that it
 only calculates a picture when the view changes, and that the pictures end up
 in the display memory, and `picture` compares every pixel of three small
-pictures (64x48) with the bit-accurate model.
+pictures (64x48) with the bit-accurate model. `core` checks the whole design
+from the buttons to the VGA output, with two small pictures (560x4).
 All of them are self-checking, and stop with an error if the result is wrong.
 They stop by themselves when they are finished, and report
 `<name>_tb: finished`. `make sim` only counts a testbench as passed when it
