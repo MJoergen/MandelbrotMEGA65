@@ -75,6 +75,12 @@ pixel from the word in the next, i.e. three clock cycles of latency. With 320
 blocks at 108 MHz, the route from the pixel counters to all the BRAMs alone
 took 8.2 ns of the 9.26 ns.
 
+Before the BRAMs had asymmetric ports, the read port read a whole word (36
+bits with four pixels in each word) from the BRAM, and each group selected the
+block and then the pixel in the word (`rd_sub_r`, a 32:1 multiplexer for each
+of the 9 bits in each of the 40 groups on the MEGA65). Now the BRAM selects the
+pixel itself, which saved about 2,600 LUTs on the MEGA65 (48,336 to 45,752).
+
 Before only the BRAM that holds the pixel was read, all the BRAMs were read
 in every clock cycle of the VGA clock, which was most of the power while the
 job modules were idle (see [Power](#power)).
@@ -326,7 +332,21 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the palettes used all 9 bits of
+The previous run of `make mega65-r6`, before the BRAMs of the display memory
+selected the pixel in the word (the read port was 36 bits wide, and each group
+selected the pixel with a 32:1 multiplexer for each of 9 bits), and before
+three smaller changes (in `fps`, `viewport`, and `disp`), met timing
+with +0.041 ns, and had 22,391 slices, 48,336 LUTs, and 60,887 registers
+(75,061 LUT cells and 59,781 registers after synthesis), and +0.025 ns of hold
+slack. Its VGA clock had +0.162 ns of setup slack, and the 117 paths from the
+MAIN clock to the VGA clock +8.71 ns. The previous run of `make mega65-r3` met
+timing with +0.070 ns, with 22,347 slices, 48,387 LUTs, +0.025 ns of hold
+slack, and +0.163 ns of setup slack for the VGA clock. In those runs the worst
+VGA path was from the row counter (`pix_y`) to the read address of one of the
+groups (`rd_grp_addr`), and the worst hold path was in the adder of the row
+number (`res_cy_r`) of a job module.
+
+The run of `make mega65-r6` before that, before the palettes used all 9 bits of
 the count (and had 512 entries instead of 256), met timing with +0.086 ns,
 and had 22,151 slices, 48,267 LUTs, and 60,887 registers (75,017 LUT cells
 and 59,781 registers after synthesis), and +0.025 ns of hold slack. Its VGA
@@ -539,7 +559,13 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before the palettes used all 9 bits of
+The previous run of `make nexys4ddr`, before the BRAMs of the display memory
+selected the pixel in the word (and the three smaller changes), met timing with +0.051 ns, with 9,352 slices,
+16,859 LUTs, 27,276 registers (21,171 LUT cells and 27,292 registers after
+synthesis), and +0.006 ns of hold slack. The 115 paths from the MAIN clock to
+the VGA clock had +8.14 ns of slack.
+
+The run of `make nexys4ddr` before that, before the palettes used all 9 bits of
 the count, met timing with +0.004 ns (+0.003 ns after the routing), with
 9,352 slices, 16,815 LUTs, 27,276 registers (21,127 LUT cells and 27,292
 registers after synthesis), and +0.010 ns of hold slack. The 115 paths from
@@ -789,7 +815,12 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, before the view was shown in the top left corner, the
+The previous runs, before the BRAMs of the display memory selected the pixel
+in the word, gave 3.51 W busy and 0.75 W idle on the R6 (3.53 W and 0.75 W on
+the R3), and 1.20 W busy and 0.36 W idle on the Nexys 4 DDR. Of the idle power
+on the R6, the display memory used 0.05 W.
+
+The runs before that, before the view was shown in the top left corner, the
 palette was selected with the keys, and the R3 read the reset button from the
 MAX10, gave 3.47 W busy and 0.74 W idle on the R6 (3.51 W and 0.74 W on the
 R3), and 1.22 W and 0.36 W on the Nexys 4 DDR. Of the busy power on the R6,

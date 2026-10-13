@@ -91,6 +91,7 @@ mega65_r6 (or mega65_r3)            src/mega65_r6.vhd, src/mega65_r3.vhd (top le
      |   +- view_text               src/main/view_text.vhd (the view as text: the centre and the zoom)
      |   +- seg                     src/main/seg.vhd (7-segment display, not used on the MEGA65)
      +- disp_mem                    src/disp_mem.vhd (display memory, between the two clock domains)
+     |   +- disp_blk                src/disp_blk.vhd (one block of the display memory, a BRAM)
      +- cdc_data                    src/cdc_data.vhd (moves the frame rate and the view to the VGA clock domain)
      +- vga                         src/vga/vga.vhd (everything in the VGA clock domain)
      |   +- pix                     src/vga/pix.vhd (pixel counters, for the video mode in src/vga/video_pkg.vhd)
@@ -866,22 +867,32 @@ FPGA, made the routing too slow (with 128 BRAMs on the Nexys 4 DDR). Writes to
 addresses beyond the last block are ignored. The write port has two clock
 cycles of latency (three on the Nexys 4 DDR), and the read port four: the read
 address goes to a register in each group, which drives the 8 BRAMs of the
-group, then the BRAMs are read, then each group selects the pixel (the block
-in the group and the position in the word), and then the pixel is selected
-from the groups. `vga` gives `disp` and `overlay` the pixel counters delayed
+group, then the BRAMs are read, then each group selects the block in the group
+(the BRAM itself selects the pixel in the word, see below), and then the pixel
+is selected from the groups. `vga` gives `disp` and `overlay` the pixel counters delayed
 by one clock cycle (`C_DISP_MEM_LATENCY` less `C_DISP_LATENCY`, in
 `video_pkg`), so they see three clock cycles. Only the BRAM that holds the
 pixel is read: its read enable is high, and those of all the other BRAMs
 are low. Reading all the BRAMs in every clock cycle used most of the power
 while the job modules were idle (see [Power](#power) and
 [HISTORY.md](HISTORY.md#the-display-memory)). The number of the block of the
-read address goes to a register in each group, like the address of the word in
-the block, and the read enable of each BRAM is decoded from the register of
+read address goes to a register in each group, like the address of the pixel
+in the block, and the read enable of each BRAM is decoded from the register of
 its group. So the decoder is on the short paths from the register of a group
 to its 8 BRAMs, and not on the long paths from the pixel counters to the
 registers of all the groups, which are the worst paths of the VGA clock (see
 [MEGA65](#mega65)). In the next clock cycle each group takes the block in the
 group from the same register, instead of from the read address.
+
+The BRAMs have asymmetric ports: written `9*G_PIXELS` bits wide and read 9 bits
+wide (the address of the read port has `log2(G_PIXELS)` more bits). Vivado
+infers this from the asymmetric RAM template in UG901 (a shared variable in
+VHDL), so the BRAM selects the pixel in the word, and only the selection of
+the block in the group remains. Each block is a separate entity
+([`src/disp_blk.vhd`](src/disp_blk.vhd)): when the shared variable was
+declared in a generate statement in `disp_mem`, Vivado did not infer a BRAM,
+but built the memory from registers (and the build did not finish). The
+simulation model of the template is checked in GHDL by `disp_mem_tb`.
 
 The display memory has no reset. The BRAMs are cleared when the FPGA is
 configured (the count 0, black in all palettes), and a reset keeps their
@@ -1417,17 +1428,17 @@ multiple of the 120 rows of the Nexys 4 DDR). A run of `make mega65-r6` gives:
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 736      | 740       | 99
 | Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
-| Slices           | 22,391   | 33,650    | 67
-| LUTs             | 48,336   | 134,600   | 36
-| Registers        | 60,887   | 269,200   | 23
+| Slices           | 22,223   | 33,650    | 66
+| LUTs             | 45,752   | 134,600   | 34
+| Registers        | 60,864   | 269,200   | 23
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.041 ns (TNS 0)
-| Hold (WHS)  | +0.025 ns (THS 0)
+| Setup (WNS) | +0.047 ns (TNS 0)
+| Hold (WHS)  | +0.007 ns (THS 0)
 
 The "Report Cell Usage" table in `build/mega65-r6/vivado.log` gives the cell
-counts after synthesis instead: 75,061 LUT cells and 59,781 registers. The
+counts after synthesis instead: 72,491 LUT cells and 59,758 registers. The
 number of LUT cells is larger than the number of LUTs used, because two
 small LUT cells can share one LUT (the placer does this, "LUT Combining").
 
@@ -1438,28 +1449,28 @@ The worst setup path of the main clock is in an iterator, from the register
 P of its second DSP, through the adder for x+y or x-y, to the input of its
 first DSP (3.62 ns, plus about 3.3 ns in the DSP from its input to its
 register P), see [Iterator](#iterator). The timing was met after the routing
-(+0.041 ns). The routes of the dispatcher and of the display memory to all
+(+0.047 ns). The routes of the dispatcher and of the display memory to all
 the job modules and BRAMs, which were the worst paths with the iterator with
-a single DSP, are no longer critical. The worst hold path (+0.025 ns) is in
-the adder of the row number (`res_cy_r`) of a job module. The VGA clock has
-+0.162 ns of setup slack: its worst path is from the row counter (`pix_y`
-in `pix`) to the read address of one of the groups of the display memory
-(`rd_grp_addr`), only routing (8.76 ns). The palette is not on this path, so
-the change from +0.212 ns is a different placement. The read enables of the BRAMs,
-which are decoded from `rd_grp_blk`, are not on these long paths. The 117
-paths from the MAIN clock to the VGA clock (the frame rate, the view, and
-their toggle signal to `cdc_data`, and the palette from `controls` to `vga`)
-have +8.71 ns of slack, and `report_cdc` reports all of them as safe. The TMDS
+a single DSP, are no longer critical. The worst hold path (+0.007 ns) is
+between two registers of the view as text (`text` to `text_r` in
+`view_text`). The VGA clock has +0.100 ns of setup slack: its worst path is
+from the column counter (`pix_x` in `pix`) to the number of the block in one
+of the groups of the display memory (`rd_grp_blk`), almost only routing
+(8.87 ns of 9.22 ns). The read enables of the BRAMs, which are decoded from
+`rd_grp_blk`, are not on these long paths. The 117 paths from the MAIN clock
+to the VGA clock (the frame rate, the view, and their toggle signal to
+`cdc_data`, and the palette from `controls` to `vga`) have +8.33 ns of
+slack, and `report_cdc` reports all of them as safe. The TMDS
 clock (540 MHz) has +0.259 ns of pulse width slack, on its BUFG. The colour
 and sync outputs to the video DAC are registered in the IOBs.
 
 A run of `make mega65-r3` gives almost the same: the design is the same,
 except that the R3 reads the reset button from the MAX10 (with `max10`, in
 the clock domain of the 100 MHz input clock, and with one more BUFG), and has
-52 IOBs instead of 62. It uses 22,347 slices and 48,387 LUTs. In this run the
-timing was met with +0.070 ns, and the hold slack is +0.025 ns. The VGA clock
-has +0.163 ns of setup slack, the paths from the MAIN clock to the VGA clock
-+8.43 ns, and the input clock (in `max10`) +5.04 ns.
+52 IOBs instead of 62. It uses 21,792 slices and 45,862 LUTs. In this run the
+timing was met with +0.091 ns, and the hold slack is +0.025 ns. The VGA clock
+has +0.160 ns of setup slack, the paths from the MAIN clock to the VGA clock
++8.55 ns, and the input clock (in `max10`) +5.40 ns.
 
 The setup slack depends on the placement of the iterators, and varies by
 about 0.1 ns between runs. At 144 MHz (1080 MHz divided by 7.5) it varied
@@ -1505,38 +1516,38 @@ which meets timing with a 120 MHz main clock.
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 240      | 240       | 100
 | Block RAM        | 128 RAMB36 + 1 RAMB18 | 135 RAMB36 | about 95
-| Slices           | 9,352    | 15,850    | 59
-| LUTs             | 16,859   | 63,400    | 27
-| Registers        | 27,276   | 126,800   | 22
+| Slices           | 10,391   | 15,850    | 66
+| LUTs             | 15,844   | 63,400    | 25
+| Registers        | 27,246   | 126,800   | 21
 | Clock buffers    | 3 BUFG, 1 MMCM | |
 
 The available numbers are the totals for the XC7A100T. The 120 job modules
 use all the DSPs, but less than two thirds of the slices.
 
 The "Report Cell Usage" table in `build/nexys4ddr/vivado.log` gives the cell counts after
-synthesis instead: 21,171 LUT cells (LUT1 to LUT6) and 27,292 registers (FDRE
+synthesis instead: 20,119 LUT cells (LUT1 to LUT6) and 27,262 registers (FDRE
 and FDSE cells), see [MEGA65](#mega65).
 
 The display memory has 2^19 pixels of 9 bits (the count), i.e. 128 blocks of
-36 kbit BRAM, each used as 1024 entries of 36 bits (four pixels, with the
-parity bits), as expected. The RAMB18 is used by the dispatcher (dispatcher\_results), for the
-tables `job_addr_r` and `job_blk_r` that hold the picture column and the
+36 kbit BRAM, each written as 1024 entries of 36 bits (four pixels, with the
+parity bits) and read as 4096 entries of 9 bits, as expected. The RAMB18 is
+used by the dispatcher (dispatcher\_results), for the tables `job_addr_r` and `job_blk_r` that hold the picture column and the
 block of the job of each job module.
 
 The timing after routing is:
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.051 ns (TNS 0)
-| Hold (WHS)  | +0.006 ns (THS 0)
+| Setup (WNS) | +0.034 ns (TNS 0)
+| Hold (WHS)  | +0.015 ns (THS 0)
 
-In this run the timing was met after the routing (+0.051 ns). The worst
+In this run the timing was met after the routing (+0.034 ns). The worst
 setup path is in an iterator, from the register P of its second DSP, through
 the adder for x+y or x-y (a LUT and five CARRY4), to the input of its first
 DSP, see [Iterator](#iterator). The worst hold path is from the data register
 of a block of the display memory to its BRAM. The 115 paths from the MAIN
 clock to the VGA clock (the frame rate, the view, and their toggle signal)
-have +8.14 ns of slack against the maximum delay of 10 ns, and `report_cdc` reports all of
+have +8.18 ns of slack against the maximum delay of 10 ns, and `report_cdc` reports all of
 them as safe.
 
 The 120 MHz main clock (period 8.33 ns) is generated from the 100 MHz input
@@ -1579,10 +1590,10 @@ design between the pictures:
 
 | Board | Busy | Idle | Main (busy / idle) | Display memory (busy / idle)
 | ----- | ---- | ---- | ------------------ | ----------------------------
-| MEGA65 R6   | 3.51 W | 0.75 W | 2.85 W / 0.21 W | 0.15 W / 0.05 W
-| Nexys 4 DDR | 1.20 W | 0.36 W | 0.83 W / 0.09 W | 0.12 W / 0.03 W
+| MEGA65 R6   | 3.52 W | 0.74 W | 2.86 W / 0.21 W | 0.15 W / 0.04 W
+| Nexys 4 DDR | 1.22 W | 0.36 W | 0.84 W / 0.08 W | 0.13 W / 0.03 W
 
-The MEGA65 R3 gives almost the same (3.53 W and 0.75 W). The MEGA65 builds
+The MEGA65 R3 gives almost the same (3.51 W and 0.74 W). The MEGA65 builds
 are at 141.64 MHz, with the HDMI output. While a button is held down, the
 design is busy for about 4.6% of the time on the MEGA65 and 2% on the
 Nexys 4 DDR, and otherwise it is idle. The values of x and y in the iterators

@@ -79,6 +79,7 @@ SRC += src/main/dispatcher_pkg.vhd
 SRC += src/main/dispatcher_jobs.vhd
 SRC += src/main/dispatcher_results.vhd
 SRC += src/main/dispatcher.vhd
+SRC += src/disp_blk.vhd
 SRC += src/disp_mem.vhd
 SRC += src/cdc_data.vhd
 SRC += src/vga/video_pkg.vhd

@@ -184,9 +184,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,391 (67%)        | 33,650    | 9,352 (59%)              | 15,850
-| LUTs               | 48,336 (36%)        | 134,600   | 16,859 (27%)             | 63,400
-| Registers          | 60,887 (23%)        | 269,200   | 27,276 (22%)             | 126,800
+| Slices             | 22,223 (66%)        | 33,650    | 10,391 (66%)             | 15,850
+| LUTs               | 45,752 (34%)        | 134,600   | 15,844 (25%)             | 63,400
+| Registers          | 60,864 (23%)        | 269,200   | 27,246 (21%)             | 126,800
 
 The performance and timing are:
 
@@ -196,13 +196,15 @@ The performance and timing are:
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
 | Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.041 ns                                | +0.051 ns
-| Hold slack      | +0.025 ns                                | +0.006 ns
+| Setup slack     | +0.047 ns                                | +0.034 ns
+| Hold slack      | +0.007 ns                                | +0.015 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.070 ns (22,347 slices, +0.025 ns hold slack). The
-builds before the palettes used all 9 bits of the count had +0.086 ns on the
-R6 (22,151 slices, 48,267 LUTs), +0.066 ns on the R3, and +0.004 ns on the
+R3 met timing with +0.091 ns (21,792 slices, +0.025 ns hold slack). The
+builds before the BRAMs selected the pixel in the word had +0.041 ns on the R6
+(22,391 slices, 48,336 LUTs), +0.070 ns on the R3, and +0.051 ns on the
+Nexys 4 DDR (16,859 LUTs). The builds before the palettes used all 9 bits of
+the count had +0.086 ns on the R6 (22,151 slices, 48,267 LUTs), +0.066 ns on the R3, and +0.004 ns on the
 Nexys 4 DDR (16,815 LUTs). The builds before them, before the view was shown in the top left corner, the
 palette was selected with the keys `1` to `4`, and the R3 read the reset
 button from the MAX10, met timing with +0.070 ns on the R6 (21,814 slices),
@@ -490,7 +492,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/main/dispatcher_pkg.vhd`](src/main/dispatcher_pkg.vhd) | Types used in the ports of the two parts of the dispatcher.
 | [`src/main/job_scheduler.vhd`](src/main/job_scheduler.vhd) | Round-robin scheduler. Used by dispatcher\_jobs to give jobs to idle job modules.
 | [`src/main/res_scheduler.vhd`](src/main/res_scheduler.vhd) | Scheduler for the results. Used by dispatcher\_results to pick which job module's result to accept, from the job modules that have a result ready.
-| [`src/disp_mem.vhd`](src/disp_mem.vhd) | Display memory, holding the picture, in blocks of 4096 pixels (one BRAM each): 320 on the MEGA65, and 128 on the Nexys 4 DDR.
+| [`src/disp_mem.vhd`](src/disp_mem.vhd), [`src/disp_blk.vhd`](src/disp_blk.vhd) | Display memory, holding the picture, in blocks of 4096 pixels (one BRAM each): 320 on the MEGA65, and 128 on the Nexys 4 DDR. `disp_blk` is one block, written a word of pixels at a time and read one pixel at a time, so the BRAM selects the pixel in the word.
 | [`src/vga/pix.vhd`](src/vga/pix.vhd), [`src/vga/disp.vhd`](src/vga/disp.vhd) | VGA output. `pix` generates the pixel counters, and `disp` generates the sync signals and the pixel colour.
 | [`src/vga/video_pkg.vhd`](src/vga/video_pkg.vhd) | The video modes, i.e. the resolution and the timing of the VGA output: 1280x1024 (MEGA65) and 640x480 (Nexys 4 DDR), both at 60 Hz.
 | [`src/vga/palette_pkg.vhd`](src/vga/palette_pkg.vhd) | The four colour palettes, which convert the count of a pixel to its colour.
