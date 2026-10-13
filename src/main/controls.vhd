@@ -16,6 +16,10 @@
 --   another one is released. If several of these keys are pressed, the lowest
 --   one wins, so the palette does not change back and forth while they are
 --   held down.
+-- * sw_o(3), move the palette (see disp.vhd): the space bar toggles it, and
+--   it is off after power-on. Like the palette, it is only changed at the end
+--   of a cycle through the keys, and only when the key goes from released to
+--   pressed, so it toggles once for each press.
 -- The other switches are always off.
 --
 -- The keyboard is read by the MiSTer2MEGA65 keyboard driver (m2m_keyb.vhd, in
@@ -28,7 +32,7 @@
 --
 -- The joystick lines are active low, and asynchronous. They are combined with
 -- the keys without a register, because main.vhd synchronizes the outputs (and
--- vga.vhd synchronizes the palette).
+-- vga.vhd synchronizes the palette and the movement).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -68,6 +72,7 @@ architecture rtl of controls is
    constant C_KEY_2     : natural := 59;
    constant C_KEY_3     : natural := 8;
    constant C_KEY_4     : natural := 11;
+   constant C_KEY_SPACE : natural := 60;
    constant C_KEY_LAST  : natural := 79;
 
    -- The keys that are used, active high
@@ -81,9 +86,15 @@ architecture rtl of controls is
    signal key_2_r     : std_logic := '0';
    signal key_3_r     : std_logic := '0';
    signal key_4_r     : std_logic := '0';
+   signal key_space_r : std_logic := '0';
 
    -- The selected palette
    signal palette_r   : std_logic_vector(1 downto 0) := "10";
+
+   -- Whether the palette moves, and whether the space bar was pressed in the
+   -- previous cycle through the keys
+   signal move_r      : std_logic := '0';
+   signal space_d     : std_logic := '0';
 
 begin
 
@@ -101,6 +112,7 @@ begin
             when C_KEY_2     => key_2_r     <= not key_pressed_n_i;
             when C_KEY_3     => key_3_r     <= not key_pressed_n_i;
             when C_KEY_4     => key_4_r     <= not key_pressed_n_i;
+            when C_KEY_SPACE => key_space_r <= not key_pressed_n_i;
             when others      => null;
          end case;
       end if;
@@ -124,12 +136,26 @@ begin
       end if;
    end process p_palette;
 
+   -- At the end of a cycle through the keys, the space bar toggles the
+   -- movement when it has just been pressed
+   p_move : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         if key_num_i = C_KEY_LAST then
+            space_d <= key_space_r;
+            if key_space_r = '1' and space_d = '0' then
+               move_r <= not move_r;
+            end if;
+         end if;
+      end if;
+   end process p_move;
+
    -- Both fire buttons and both "+" and "-" zoom, switch 2 selects zoom out
    btn_o(4) <= not (fa_fire_n_i and fb_fire_n_i) or key_plus_r or key_minus_r;
    btn_o(3) <= not fa_left_n_i  or key_left_r;
    btn_o(2) <= not fa_right_n_i or key_right_r;
    btn_o(1) <= not fa_up_n_i    or key_up_r;
    btn_o(0) <= not fa_down_n_i  or key_down_r;
-   sw_o     <= "00000" & (not fb_fire_n_i or key_minus_r) & palette_r;
+   sw_o     <= "0000" & move_r & (not fb_fire_n_i or key_minus_r) & palette_r;
 
 end architecture rtl;

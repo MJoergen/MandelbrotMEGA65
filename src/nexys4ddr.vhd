@@ -10,7 +10,8 @@
 --   memory is smaller, see the constants below.
 -- * The buttons, switches, and the 7-segment display are handled by
 --   main.vhd, see the description there, except switches 0 and 1, which
---   select the colour palette in vga.vhd (see palette_pkg.vhd). The decimal
+--   select the colour palette in vga.vhd (see palette_pkg.vhd), and switch 3
+--   moves the palette (see disp.vhd). The decimal
 --   point of the 7-segment display is not used, so it is switched off here.
 --
 -- The frame rate and the view are moved to the VGA clock domain by
@@ -239,6 +240,7 @@ begin
          rd_addr_o    => rd_addr,
          rd_data_i    => rd_data,
          palette_i    => sw_i(1 downto 0),
+         move_i       => sw_i(3),
          fps_digits_i => vga_fps_digits,
          fps_blank_i  => vga_fps_blank,
          view_text_i  => vga_view_text,

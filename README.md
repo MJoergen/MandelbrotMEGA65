@@ -70,6 +70,7 @@ joystick in each port, or with the keyboard, see
 | Joystick port 1: fire, or the `+` key | Zoom in. The centre of the picture stays fixed. Zooming in stops at the smallest pixel size (2^-16).
 | Joystick port 2: fire, or the `-` key | Zoom out. The centre of the picture stays fixed, except when zooming out would move an edge of the view beyond -2 or 2; then the view is moved instead. Zooming out stops when the view can not get larger.
 | The keys `1`, `2`, `3`, and `4` | Select the colour palette 1, 2, 3, or 4 (see below). The palette stays selected when the key is released. If several of these keys are held down, the lowest one wins.
+| The space bar | Start or stop the movement of the palette (see below). It is off after power-on.
 | Reset button | Resets the design and returns to the initial view. On the R3 the reset button is read by the MAX10 (a small FPGA on the board), which sends it to the XC7A200T over a serial link.
 
 While a control is held down, the view is updated about 18 times per second.
@@ -89,6 +90,11 @@ The colour palettes are:
 In the palettes 2 to 4 the set is black. See
 [Colours](ALGORITHM.md#colours) for details. The reset button does not change
 the palette.
+
+The palette can also be moved: it is offset by a value that is incremented 10
+times per second, so the colours move towards the set, which makes the picture
+seem to be moving. The movement is toggled with the space bar (switch 3 on the
+Nexys 4 DDR). It is off after power-on, and the picture is not recalculated.
 
 The initial view in the palettes 1 to 4 (calculated by the bit-accurate model,
 at half the resolution of the MEGA65, with `sim/palette_images.py`):
@@ -167,7 +173,8 @@ The switch numbers are the bit numbers of the switch input, i.e. `SW0` to
 | `BTNL`, `BTNR`, `BTNU`, `BTND` | Pan the picture left, right, up, and down, like joystick port 1, by 1/320 of the width of the picture (2 pixels) for each update.
 | `BTNC` | Zoom in, like the fire button of joystick port 1. With switch 2 on, zoom out instead, like the fire button of joystick port 2.
 | Switches 0 and 1 | Select the colour palette (switch 1 is the high bit). 1 (both off): the lower 8 bits of the count are the colour (RRRGGGBB), mostly blue and green, and the set is white. 2: rainbow, the hue goes around the colour circle every 16 counts. 3: fire, black, red, orange, yellow, and white, with the square root of the count. 4: blue, white, orange, and dark brown, with the logarithm of the count. In the palettes 2 to 4 the set is black.
-| Switches 3 to 7 | Not used.
+| Switch 3 | Moves the palette (see below), when on.
+| Switches 4 to 7 | Not used.
 | `CPU RESET` | Resets the design and returns to the initial view.
 
 The 7-segment display shows the same frame rate as the top right corner of
@@ -184,9 +191,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 736 (99%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,223 (66%)        | 33,650    | 10,391 (66%)             | 15,850
-| LUTs               | 45,752 (34%)        | 134,600   | 15,844 (25%)             | 63,400
-| Registers          | 60,864 (23%)        | 269,200   | 27,246 (21%)             | 126,800
+| Slices             | 21,603 (64%)        | 33,650    | 9,269 (58%)              | 15,850
+| LUTs               | 45,747 (34%)        | 134,600   | 15,846 (25%)             | 63,400
+| Registers          | 60,881 (23%)        | 269,200   | 27,260 (21%)             | 126,800
 
 The performance and timing are:
 
@@ -196,25 +203,26 @@ The performance and timing are:
 | Clock frequency | 141.64 MHz                               | 120.00 MHz
 | Initial FPS     | 396 (estimated; 402 measured at 144 MHz) | 832-834 (measured)
 | Worst-case FPS  | 75 (estimated)                           | 87 (estimated)
-| Setup slack     | +0.047 ns                                | +0.034 ns
-| Hold slack      | +0.007 ns                                | +0.015 ns
+| Setup slack     | +0.076 ns                                | +0.046 ns
+| Hold slack      | +0.005 ns                                | +0.006 ns
 
-The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.091 ns (21,792 slices, +0.025 ns hold slack). The
+The numbers for the MEGA65 are from the build for the R6. The build for the R3
+met timing with +0.070 ns (21,883 slices, +0.058 ns hold slack). The builds
+before the palette could move had +0.047 ns on the R6 (22,223 slices, 45,752
+LUTs), +0.091 ns on the R3, and +0.034 ns on the Nexys 4 DDR (15,844 LUTs). The
 builds before the BRAMs selected the pixel in the word had +0.041 ns on the R6
 (22,391 slices, 48,336 LUTs), +0.070 ns on the R3, and +0.051 ns on the
 Nexys 4 DDR (16,859 LUTs). The builds before the palettes used all 9 bits of
-the count had +0.086 ns on the R6 (22,151 slices, 48,267 LUTs), +0.066 ns on the R3, and +0.004 ns on the
-Nexys 4 DDR (16,815 LUTs). The builds before them, before the view was shown in the top left corner, the
-palette was selected with the keys `1` to `4`, and the R3 read the reset
-button from the MAX10, met timing with +0.070 ns on the R6 (21,814 slices),
-+0.033 ns on the R3, and +0.037 ns on the Nexys 4 DDR (10,217 slices). At
-144 MHz the R3 had failed
+the count had +0.086 ns on the R6 (22,151 slices, 48,267 LUTs), +0.066 ns on
+the R3, and +0.004 ns on the Nexys 4 DDR (16,815 LUTs). The builds before them,
+before the view was shown in the top left corner, the palette was selected with
+the keys `1` to `4`, and the R3 read the reset button from the MAX10, met
+timing with +0.070 ns on the R6 (21,814 slices), +0.033 ns on the R3, and
++0.037 ns on the Nexys 4 DDR (10,217 slices). At 144 MHz the R3 had failed
 timing by 0.076 ns, so the main clock was reduced to 141.64 MHz, which gives
-0.116 ns more setup slack. See
-[Resources and timing closure](ALGORITHM.md#resources-and-timing-closure)
-for details, and [HISTORY.md](HISTORY.md#builds-of-the-mega65) for the
-earlier builds.
+0.116 ns more setup slack. See [Resources and timing
+closure](ALGORITHM.md#resources-and-timing-closure) for details, and
+[HISTORY.md](HISTORY.md#builds-of-the-mega65) for the earlier builds.
 
 ## Running
 Type `make` to list the supported targets. The most important ones are
@@ -338,7 +346,7 @@ it does nothing.
 
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job`, `iterator`,
-`job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp_mem`,
+`job_scheduler`, `res_scheduler`, `viewport`, `vga`, `overlay`, `disp`, `disp_mem`,
 `fps`, `view_text`, `cdc_data`, and `controls`, and two for `main`: `redraw` checks that it
 only calculates a picture when the view changes, and that the pictures end up
 in the display memory, and `picture` compares every pixel of three small
@@ -474,7 +482,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/mega65_r3.vhd`](src/mega65_r3.vhd), [`src/mega65_r6.vhd`](src/mega65_r6.vhd) | Top levels for the MEGA65 R3 and R6. They connect `mega65.vhd` to the pins of each board revision. The R6 also switches off the outputs that pull the joystick lines low, and switches on the power of the joysticks and of the video DAC. Both switch on the level shifter of the HDMI output, whose pins are different on the two revisions. The R3 reads the reset button from the MAX10, with `max10`.
 | [`src/mega65.vhd`](src/mega65.vhd) | The design for the MEGA65, used by the two top levels above. Instantiates the clock and reset generation, the display memory, the two modules for the clock domains below, and `cdc_data`. Also reads the joysticks and the keyboard (with `controls`), and drives the video DAC and the HDMI output.
 | [`src/cdc_data.vhd`](src/cdc_data.vhd) | A generic clock domain crossing for a value that changes seldom. Used by the designs of both boards to move the frame rate and the view from the MAIN clock domain to the VGA clock domain.
-| [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`, i.e. the controls of the view, and the palette (keys `1` to `4`).
+| [`src/main/controls.vhd`](src/main/controls.vhd) | Maps the joysticks and the keys of the MEGA65 to the buttons and switches of `main`, i.e. the controls of the view, the palette (keys `1` to `4`), and the movement of the palette (space bar).
 | [`src/keyboard/`](src/keyboard) | MEGA65 keyboard driver, from the [MiSTer2MEGA65](https://github.com/sy2002/MiSTer2MEGA65) framework (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `m2m_keyb` reads the keyboard, and cycles through the keys, showing whether each of them is pressed. Only used by `mega65.vhd`.
 | [`src/hdmi/`](src/hdmi) | HDMI output, from The Tyto Project by Adam Barnes (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), LGPL v3). `vga_to_hdmi` encodes the picture to TMDS symbols (in DVI mode), and `serialiser_10to1_selectio` outputs them on the pins. Only used by `mega65.vhd`.
 | [`src/max10/`](src/max10) | Serial link to the MAX10 of the MEGA65 R3, from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul Gardner-Stephen (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `max10` sends a 25 MHz clock to the MAX10, and reads the reset button (and other signals, which are not used) from it. Only used by `mega65_r3.vhd`.

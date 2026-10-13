@@ -9,8 +9,8 @@
 -- While a button is pressed, the view is updated 18 times per second, i.e.
 -- every G_CLK_FREQ/18 clock cycles.
 -- The view is kept inside the range -2 to 2, see viewport.vhd.
--- Switches 0 and 1 select the colour palette, but they are used in vga.vhd, not
--- here. The other switches are not used.
+-- Switches 0 and 1 select the colour palette, and switch 3 moves it, but they
+-- are used in vga.vhd, not here. The other switches are not used.
 --
 -- A picture is only calculated when the view has changed, i.e. after reset,
 -- and when the view is changed by the buttons. In between, the dispatcher and

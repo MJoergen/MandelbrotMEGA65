@@ -19,6 +19,11 @@
 --       for 63 to 510.
 -- In the palettes 2 to 4 the set is black. In palette 1 it is white.
 --
+-- The palette can be offset by a value off (0 to 510): the colour of the count
+-- cnt is then the colour of the count cnt - off, calculated modulo 511 (the
+-- number of counts outside the set). The set does not move. disp.vhd changes
+-- the offset slowly, so the colours seem to move.
+--
 -- The palettes are calculated from these formulas when the design is
 -- elaborated, so they are easy to change. They are tables of 512 entries, so
 -- they are implemented in LUTs.
@@ -42,9 +47,10 @@ package palette_pkg is
    type colours_t is array (0 to 3) of std_logic_vector(7 downto 0);
    constant C_SET_COLOURS : colours_t := (X"FF", X"00", X"00", X"00");
 
-   -- The colour of the count cnt in the palette sel
+   -- The colour of the count cnt in the palette sel, offset by off (0 to 510)
    function palette_colour (sel : std_logic_vector(1 downto 0);
-                            cnt : std_logic_vector(8 downto 0))
+                            cnt : std_logic_vector(8 downto 0);
+                            off : std_logic_vector(8 downto 0) := (others => '0'))
       return std_logic_vector;
 
 end package palette_pkg;
@@ -155,13 +161,19 @@ package body palette_pkg is
       make_count, make_rainbow, make_fire, make_blue_orange);
 
    function palette_colour (sel : std_logic_vector(1 downto 0);
-                            cnt : std_logic_vector(8 downto 0))
+                            cnt : std_logic_vector(8 downto 0);
+                            off : std_logic_vector(8 downto 0) := (others => '0'))
       return std_logic_vector is
+      variable idx_v : integer;
    begin
       if to_integer(unsigned(cnt)) = C_SET then
          return C_SET_COLOURS(to_integer(unsigned(sel)));
       end if;
-      return C_PALETTES(to_integer(unsigned(sel)))(to_integer(unsigned(cnt)));
+      idx_v := to_integer(unsigned(cnt)) - to_integer(unsigned(off));
+      if idx_v < 0 then
+         idx_v := idx_v + C_SET;
+      end if;
+      return C_PALETTES(to_integer(unsigned(sel)))(idx_v);
    end function palette_colour;
 
 end package body palette_pkg;

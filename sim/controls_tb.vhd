@@ -7,6 +7,8 @@
 -- * Each of the keys used, on its own, gives the expected button or switch,
 --   and each key "1" to "4" selects its palette, which stays selected when
 --   the key is released.
+-- * The space bar toggles the movement of the palette (switch 3), once for
+--   each press.
 -- * When several of the keys "1" to "4" are pressed, the lowest one wins, and
 --   the palette does not change during the scan.
 -- * All 64 combinations of the joystick inputs, with no key pressed.
@@ -41,6 +43,7 @@ architecture simulation of controls_tb is
    constant C_KEY_2     : natural := 59;
    constant C_KEY_3     : natural := 8;
    constant C_KEY_4     : natural := 11;
+   constant C_KEY_SPACE : natural := 60;
 
    -- The keys "1" to "4", for the palettes 1 to 4
    type nat_vector is array (natural range <>) of natural;
@@ -117,6 +120,8 @@ begin
 
    p_test : process
       variable palette_v : natural range 0 to 3 := 2;
+      variable move_v    : std_logic := '0';
+      variable space_v   : std_logic := '0';
       variable seed1_v   : positive := 1;
       variable seed2_v   : positive := 1;
       variable rand_v    : real;
@@ -125,7 +130,8 @@ begin
 
       -- Set the inputs, wait for one cycle through the keys, and check the
       -- outputs during the next one. palette_v is the palette that was
-      -- selected before, and is updated here.
+      -- selected before, move_v is the movement, and space_v is whether the
+      -- space bar was pressed before. They are updated here.
       procedure check (keys : std_logic_vector(C_NUM_KEYS-1 downto 0);
                        joy  : std_logic_vector(5 downto 0);
                        msg  : string) is
@@ -149,7 +155,11 @@ begin
          btn_v(2) := not joy(2) or keys(C_KEY_RIGHT);
          btn_v(1) := not joy(1) or keys(C_KEY_UP);
          btn_v(0) := not joy(0) or keys(C_KEY_DOWN);
-         sw_v     := "00000" & (not joy(5) or keys(C_KEY_MINUS)) &
+         if keys(C_KEY_SPACE) = '1' and space_v = '0' then
+            move_v := not move_v;
+         end if;
+         space_v := keys(C_KEY_SPACE);
+         sw_v     := "0000" & move_v & (not joy(5) or keys(C_KEY_MINUS)) &
                      std_logic_vector(to_unsigned(palette_v, 2));
 
          -- Two more clock cycles: one for the registers of the keys, and one
@@ -206,6 +216,13 @@ begin
          check(keys_v, C_JOY_NONE, "Palette keys " & to_string(i));
          check(key(C_PALETTE_KEYS(3 - (i mod 4))), C_JOY_NONE, "Palette key after " & to_string(i));
       end loop;
+
+      -- The space bar, held down for several scans, and pressed again
+      check(key(C_KEY_SPACE), C_JOY_NONE, "Space");
+      check(key(C_KEY_SPACE), C_JOY_NONE, "Space held");
+      check(C_NO_KEYS, C_JOY_NONE, "Space released");
+      check(key(C_KEY_SPACE), C_JOY_NONE, "Space again");
+      check(C_NO_KEYS, C_JOY_NONE, "Space released again");
 
       -- All the combinations of the joystick inputs
       for i in 0 to 63 loop

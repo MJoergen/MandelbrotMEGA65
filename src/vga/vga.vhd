@@ -1,10 +1,10 @@
 -- This module runs entirely in the VGA clock domain. It generates the pixel
 -- position, reads the value of each pixel from the display memory, converts it
--- to a colour with the palette selected by palette_i, and generates the VGA
--- output signals for the video mode G_MODE (see video_pkg.vhd). A line of text
--- is shown at the top, see overlay.vhd: the view (the centre and the zoom, see
--- view_text.vhd) in the top left corner, and the frame rate in the top right
--- corner.
+-- to a colour with the palette selected by palette_i (moving slowly while
+-- move_i is set, see disp.vhd), and generates the VGA output signals for the
+-- video mode G_MODE (see video_pkg.vhd). A line of text is shown at the top,
+-- see overlay.vhd: the view (the centre and the zoom, see view_text.vhd) in
+-- the top left corner, and the frame rate in the top right corner.
 --
 -- The address of the pixel in column x and row y of the picture is
 -- x*G_COL_STRIDE + y, with G_ADDR_BITS bits, the same as in dispatcher.vhd.
@@ -38,6 +38,9 @@ entity vga is
       -- Selects the palette, see palette_pkg.vhd. This is asynchronous (from
       -- the switches), and it is synchronized here.
       palette_i    : in  std_logic_vector( 1 downto 0);
+
+      -- Moves the palette, see disp.vhd. This is asynchronous too.
+      move_i       : in  std_logic;
 
       -- The frame rate, moved from the MAIN clock domain in the top level
       -- (mega65.vhd or nexys4ddr.vhd), see overlay.vhd
@@ -105,9 +108,14 @@ architecture structural of vga is
    signal palette_meta : std_logic_vector(1 downto 0) := "00";
    signal palette_sync : std_logic_vector(1 downto 0) := "00";
 
+   signal move_meta    : std_logic := '0';
+   signal move_sync    : std_logic := '0';
+
    attribute async_reg : string;
    attribute async_reg of palette_meta : signal is "true";
    attribute async_reg of palette_sync : signal is "true";
+   attribute async_reg of move_meta    : signal is "true";
+   attribute async_reg of move_sync    : signal is "true";
 
 begin
 
@@ -131,7 +139,7 @@ begin
       severity failure;
 
    --------------------------------------------------
-   -- Synchronize the palette selection
+   -- Synchronize the palette selection and the movement
    --------------------------------------------------
 
    p_palette : process (clk_i)
@@ -139,6 +147,8 @@ begin
       if rising_edge(clk_i) then
          palette_meta <= palette_i;
          palette_sync <= palette_meta;
+         move_meta    <= move_i;
+         move_sync    <= move_meta;
       end if;
    end process p_palette;
 
@@ -190,6 +200,7 @@ begin
          vga_pix_y_i   => disp_y,
          vga_col_d3_i  => rd_data_i,
          vga_palette_i => palette_sync,
+         vga_move_i    => move_sync,
          vga_hs_o      => disp_hs,
          vga_vs_o      => disp_vs,
          vga_de_o      => disp_de,

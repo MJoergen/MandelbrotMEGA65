@@ -7,6 +7,13 @@
 -- visible area, which is also shown by vga_de_o (data enable, used by the HDMI
 -- output). Whether the pixel is in the visible area is decided from the pixel
 -- counters, and only that bit is delayed.
+--
+-- While vga_move_i is set, the palette is offset by a value that is
+-- incremented once for every G_FRAMES_PER_STEP frames (modulo 511, the number
+-- of counts outside the set), so the colours seem to move towards the
+-- set. The offset is changed at the start of the vertical sync pulse, so it
+-- is the same for the whole picture. When vga_move_i is cleared, the
+-- offset stays where it is.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -17,7 +24,8 @@ use work.video_pkg.all;
 
 entity disp is
    generic (
-      G_MODE : video_mode_t
+      G_MODE            : video_mode_t;
+      G_FRAMES_PER_STEP : positive := 6
    );
    port (
       vga_clk_i     : in  std_logic;
@@ -25,6 +33,7 @@ entity disp is
       vga_pix_y_i   : in  std_logic_vector(10 downto 0);
       vga_col_d3_i  : in  std_logic_vector(8 downto 0);
       vga_palette_i : in  std_logic_vector(1 downto 0);
+      vga_move_i    : in  std_logic;
       vga_hs_o      : out std_logic;
       vga_vs_o      : out std_logic;
       vga_de_o      : out std_logic;
@@ -56,6 +65,10 @@ architecture rtl of disp is
    signal vga_hs_d3    : std_logic;
    signal vga_vs_d3    : std_logic;
    signal vga_vis_d3   : std_logic;
+
+   -- The offset of the palette, and the frames since it was last changed
+   signal vga_offset   : std_logic_vector(8 downto 0) := (others => '0');
+   signal vga_frames   : natural range 0 to G_FRAMES_PER_STEP-1 := 0;
 
    signal vga_hs_d4    : std_logic;
    signal vga_vs_d4    : std_logic;
@@ -91,6 +104,31 @@ begin
    end process p_sync;
 
 
+   ----------------------------------------
+   -- Move the palette
+   ----------------------------------------
+
+   p_offset : process (vga_clk_i)
+   begin
+      if rising_edge(vga_clk_i) then
+         if vga_pix_x_i = 0 and vga_pix_y_i = C_VS_START then
+            if vga_frames = G_FRAMES_PER_STEP-1 then
+               vga_frames <= 0;
+               if vga_move_i = '1' then
+                  if vga_offset = C_SET-1 then
+                     vga_offset <= (others => '0');
+                  else
+                     vga_offset <= vga_offset + 1;
+                  end if;
+               end if;
+            else
+               vga_frames <= vga_frames + 1;
+            end if;
+         end if;
+      end if;
+   end process p_offset;
+
+
    ------------------------------------------------------------------
    -- Add two more pipeline stages, so the total delay of three clock
    -- cycles matches the read latency of the display memory (see above)
@@ -122,7 +160,7 @@ begin
 
          -- Only set colour output inside visible area
          if vga_vis_d3 = '1' then
-            vga_col_d4 <= palette_colour(vga_palette_i, vga_col_d3_i);
+            vga_col_d4 <= palette_colour(vga_palette_i, vga_col_d3_i, vga_offset);
             vga_de_d4  <= '1';
          end if;
 

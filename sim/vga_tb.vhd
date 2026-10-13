@@ -387,6 +387,7 @@ begin
             rd_addr_o    => rd_addr,
             rd_data_i    => rd_data,
             palette_i    => palette,
+            move_i       => '0',
             fps_digits_i => (others => '0'),
             fps_blank_i  => (others => '1'),
             view_text_i  => (others => '1'),

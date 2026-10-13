@@ -29,6 +29,9 @@
 -- * The keys "1" to "4" select the palettes 1 to 4 (see palette_pkg.vhd).
 --   controls.vhd stores the palette in switches 0 and 1, which are used by
 --   vga.vhd, as on the Nexys 4 DDR.
+-- * The space bar toggles the movement of the palette (see disp.vhd).
+--   controls.vhd stores it in switch 3, which is used by vga.vhd, as on the
+--   Nexys 4 DDR.
 -- * There is no 7-segment display, so the frame rate is only shown on the VGA
 --   and the HDMI output.
 -- * The VGA output goes through a video DAC with 8 bits per colour. The DAC
@@ -399,6 +402,7 @@ begin
          rd_addr_o    => rd_addr,
          rd_data_i    => rd_data,
          palette_i    => sw(1 downto 0),
+         move_i       => sw(3),
          fps_digits_i => vga_fps_digits,
          fps_blank_i  => vga_fps_blank,
          view_text_i  => vga_view_text,
