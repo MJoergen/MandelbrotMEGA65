@@ -258,11 +258,12 @@ Type `make` to list the supported targets. The most important ones are
   [mega65-tools](https://github.com/MEGA65/mega65-tools) repository, and must
   be in the `PATH` (or set the variable `M65`).
 * `make cor` makes the core files of the MEGA65 boards,
-  `build/mega65-r3/mega65-r3.cor` and `build/mega65-r6/mega65-r6.cor`, from
-  their bit-files (which are built first, if needed), using `coretool`. A core
-  file is flashed into a slot with MEGAFLASH (hold No Scroll while switching
-  on the MEGA65), so the design starts without a JTAG cable. MEGAFLASH shows
-  the name `Mandelbrot` and the version, which is the commit
+  `build/mega65-r3/MandelbrotMEGA65-r3.cor` and
+  `build/mega65-r6/MandelbrotMEGA65-r6.cor` (named after the repository),
+  from their bit-files (which are built first, if needed), using `coretool`.
+  A core file is flashed into a slot with MEGAFLASH (hold No Scroll while
+  switching on the MEGA65), so the design starts without a JTAG cable.
+  MEGAFLASH shows the name `Mandelbrot` and the version, which is the commit
   (`git describe --always --dirty`, e.g. `c1e432c`); set `COR_NAME` or
   `COR_VERSION` to change them. The core file also holds the board revision
   (`mega65r3` or `mega65r6`); flash the one of your board revision, see

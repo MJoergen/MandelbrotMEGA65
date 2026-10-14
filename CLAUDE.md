@@ -43,7 +43,8 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
   It must report no errors. Lines over 100 columns (`length_001`) are only a
   warning: a target, not a hard limit, and about 20 lines already exceed it.
   Do not add new warnings without a reason.
-* `make cor`: the core files (`build/<board>/<board>.cor`) of mega65-r3 and
+* `make cor`: the core files
+  (`build/<board>/MandelbrotMEGA65-<revision>.cor`) of mega65-r3 and
   mega65-r6, from their bit-files, using coretool (mega65-tools). It is not
   installed in the cloud environment; it is a Python script, so it can be run
   from a clone of mega65-tools with `CORETOOL=<clone>/src/tools/coretool`.

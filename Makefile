@@ -21,13 +21,14 @@ NAME = mandelbrot
 BOARDS = mega65-r3 mega65-r6 nexys4ddr
 BITS   = $(foreach b,$(BOARDS),build/$(b)/$(b).bit)
 
-# The MEGA65 boards, which also get a core file (build/<board>/<board>.cor)
-# from the "cor" target. The name of the target in coretool is the board name
-# without the dash, i.e. mega65r3 and mega65r6. The name and the version are
-# shown by MEGAFLASH (at most 31 characters each). The version is the current
-# commit, with "-dirty" if there are uncommitted changes.
+# The MEGA65 boards, which also get a core file from the "cor" target, named
+# after the repository and the board revision, e.g.
+# build/mega65-r6/MandelbrotMEGA65-r6.cor. The name of the target in coretool
+# is the board name without the dash, i.e. mega65r3 and mega65r6. The name and
+# the version are shown by MEGAFLASH (at most 31 characters each). The version
+# is the current commit, with "-dirty" if there are uncommitted changes.
 MEGA65_BOARDS = mega65-r3 mega65-r6
-CORS          = $(foreach b,$(MEGA65_BOARDS),build/$(b)/$(b).cor)
+CORS          = $(foreach b,$(MEGA65_BOARDS),build/$(b)/MandelbrotMEGA65-$(subst mega65-,,$(b)).cor)
 COR_NAME      = Mandelbrot
 COR_VERSION   = $(shell git describe --always --dirty 2>/dev/null)
 
@@ -154,7 +155,7 @@ help:
 	@echo "  mega65-r3       Synthesize and implement the design for the MEGA65 R3 using Vivado (build/mega65-r3/)"
 	@echo "  mega65-r6       Synthesize and implement the design for the MEGA65 R6 using Vivado (build/mega65-r6/)"
 	@echo "  nexys4ddr       Synthesize and implement the design for the Nexys 4 DDR using Vivado (build/nexys4ddr/)"
-	@echo "  cor             Make the core files of the MEGA65 boards using coretool (build/mega65-r3/mega65-r3.cor, build/mega65-r6/mega65-r6.cor)"
+	@echo "  cor             Make the core files of the MEGA65 boards using coretool (build/mega65-r3/MandelbrotMEGA65-r3.cor, build/mega65-r6/MandelbrotMEGA65-r6.cor)"
 	@echo "  fpga            Program the FPGA of a board (BOARD=<board>) with its bit-file using m65"
 	@echo "  sim             Simulate all testbenches in parallel using ghdl (logs in build/)"
 	@echo "  run             Simulate a single testbench (TB=<name>) using ghdl, without writing a waveform"
@@ -194,8 +195,10 @@ $(BITS): build/%.bit: $(NAME).tcl $$($$(notdir $$*)_XDC) $(SRC) $$($$(notdir $$*
 .PHONY: cor
 cor: $(CORS)
 
-$(CORS): build/%.cor: build/%.bit
-	$(CORETOOL) --quiet --force --build $@ --bit $< --target $(subst -,,$(notdir $*)) \
+# The stem ($*) is <board>/MandelbrotMEGA65-<revision>, so the board name is
+# the directory of the target, $(notdir $(@D)).
+$(CORS): build/%.cor: build/$$(firstword $$(subst /, ,$$*))/$$(firstword $$(subst /, ,$$*)).bit
+	$(CORETOOL) --quiet --force --build $@ --bit $< --target $(subst -,,$(notdir $(@D))) \
 	   --bit-name "$(COR_NAME)" --bit-version "$(COR_VERSION)"
 
 # Program the FPGA of the board BOARD with its bit-file, which is built first
