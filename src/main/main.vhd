@@ -312,9 +312,9 @@ begin
    -- the one shown. A picture is only calculated when the view changes, at
    -- most 18 times per second, so an average over many pictures would take
    -- many seconds to follow a change of the view.
-   -- cnt wraps around after 2^27 clock cycles (0.75 s at 180 MHz), but a
+   -- cnt wraps around after 2^27 clock cycles (0.70 s at 192 MHz), but a
    -- picture takes far less: even if every pixel needed the maximum count,
-   -- the model (sim/model.py) gives about 11.2 million clock cycles (62 ms)
+   -- the model (sim/model.py) gives about 11.2 million clock cycles (58 ms)
    -- on the MEGA65, i.e. a frame rate of about 16, and 8.1 million (67 ms, a
    -- frame rate of about 15) on the Nexys 4 DDR.
    i_fps : entity work.fps

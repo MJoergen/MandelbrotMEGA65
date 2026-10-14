@@ -8,10 +8,11 @@
 -- the same cx, and cy, cy+stepy, cy+2*stepy, and cy+3*stepy. Inputs to this
 -- block are cx_i, cy_i, and stepy_i, as well as start_i. start_i should be
 -- pulsed for one clock cycle. cx_i, cy_i, and stepy_i must remain constant
--- until the iteration is finished. On output, done_o goes high when all four
--- points are finished, with the iteration count of each point in cnt_o (the
--- first point in the lowest bits). Both stay unchanged until the next
--- start_i. The count is the number of the first iteration where x or y is
+-- until the iteration is finished. stepy_i is registered (stepy_r) before it
+-- is added to cy, so it must be stable one clock cycle before start_i. On
+-- output, done_o goes high when all four points are finished, with the
+-- iteration count of each point in cnt_o (the first point in the lowest
+-- bits). Both stay unchanged until the next start_i. The count is the number of the first iteration where x or y is
 -- out of range (see below), or G_MAX_COUNT if this does not happen.
 --
 -- Separating real and imaginary parts, each iteration is:
@@ -189,6 +190,7 @@ architecture rtl of iterator_wide is
    signal cx_r       : std_logic_vector(34 downto 0);
    signal cy_r       : value_vector(0 to 3)(34 downto 0);
    signal cy_acc_r   : std_logic_vector(34 downto 0);
+   signal stepy_r    : std_logic_vector(34 downto 0);
 
    -- The start: init_s is high in the clock cycle of the start and the three
    -- after it, when x_r and y_r are cleared.
@@ -365,7 +367,8 @@ begin
    p_cy : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         cx_r <= cx_i;
+         cx_r    <= cx_i;
+         stepy_r <= stepy_i;
 
          if run_r = '1' then
             cy_r(0 to 2) <= cy_r(1 to 3);
@@ -373,11 +376,11 @@ begin
          end if;
          if (init_r(0) or init_r(1) or init_r(2)) = '1' then
             cy_r(3)  <= cy_acc_r;
-            cy_acc_r <= cy_acc_r + stepy_i;
+            cy_acc_r <= cy_acc_r + stepy_r;
          end if;
          if start_i = '1' then
             cy_r(3)  <= cy_i;
-            cy_acc_r <= cy_i + stepy_i;
+            cy_acc_r <= cy_i + stepy_r;
          end if;
       end if;
    end process p_cy;

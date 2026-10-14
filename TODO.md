@@ -1,7 +1,7 @@
 # TODO
 
 5. Measure the design (2.33 numbers, wide iterator) on the boards. Its frame
-   rates (163 pictures per second for the initial view on the MEGA65, and 141
+   rates (174 pictures per second for the initial view on the MEGA65, and 141
    on the Nexys 4 DDR) are only estimated by the model (`sim/model.py`). The
    model agrees with a simulation of a complete 160x128 picture within 0.4%.
    The design runs on the MEGA65 R6, but its frame rate has not been measured
@@ -16,8 +16,8 @@ for the current design.
    the set, and there is a closed-form test for both, so the iterator does not
    need to iterate them at all. In the initial view 24% of the pixels are
    inside them, and they take most of the iterations. With the test, the model
-   gives 356 instead of 163 pictures per second for the initial view, and 133
-   instead of 40 for Seahorse Valley (0.08 wide, centred near -0.75+0.15i). It
+   gives 380 instead of 174 pictures per second for the initial view, and 142
+   instead of 43 for Seahorse Valley (0.08 wide, centred near -0.75+0.15i). It
    does not help for deep zooms away from the cardioid and the bulb, or for the
    worst case. The test needs a few multiplications for each pixel, but only
    with low precision (with a safety margin), so it could be done in LUTs, or
@@ -25,16 +25,18 @@ for the current design.
    include the test, so that the design can still be compared with it bit for
    bit.
 
-7. Shorter routes from the dispatcher to the job modules. Since the floorplan,
-   the worst path at 180 MHz (+0.102 ns) is no longer in an iterator, but from
-   the register of a group in the dispatcher (stepy, `grp_stepy_r` in
-   `dispatcher_jobs.vhd`) to the accumulator of cy in an iterator, which is
-   mostly routing (4.6 ns of 5.6 ns). The values of the job (cx, starty, stepy)
-   are now 35 bits each. Possible fixes: register stepy once more in each job
-   module (it is constant during a picture), place the group registers next to
-   the regions of their job modules in the floorplan, or add a second level of
-   group registers. This is needed before the main clock can go above 180 MHz
-   (the next step of the MMCM is 1080/5.75 = 187.8 MHz).
+7. A faster main clock. The main clock is 192 MHz (+0.089 ns). The register of
+   stepy in each iterator removed the long route from the group registers of
+   the dispatcher to the accumulator of cy from the worst paths. The
+   iterators now meet timing up to about 201 MHz, but the clock can not be
+   raised much more: the keyboard driver (`src/keyboard`, copied unchanged
+   from the C64MEGA65 core, in the MAIN clock domain) fails at 200.9 MHz, and
+   above that the path through the cascade of the first three DSPs fails
+   (the register of the inputs of the first DSP, through its multiplier and
+   the cascade, to the register P of the second DSP), see
+   [MEGA65](ALGORITHM.md#mega65). A register M in the first DSP would
+   shorten that path, but it adds a pipeline stage, so the four slots no
+   longer match the latency of the loop (see item 8).
 
 8. A deeper pipeline in the wide iterator. The iterator has four pipeline
    stages, and two of them have a route between the DSPs and the fabric with

@@ -137,6 +137,10 @@ begin
          cx    <= std_logic_vector(cx_v);
          cy    <= std_logic_vector(cy_v);
          stepy <= std_logic_vector(stepy_v);
+
+         -- stepy is registered in the iterator, so it is set one clock cycle
+         -- before the start
+         wait until rising_edge(clk);
          start <= '1';
          t_start_v := now;
          wait until rising_edge(clk);

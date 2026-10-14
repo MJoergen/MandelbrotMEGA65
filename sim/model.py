@@ -49,7 +49,7 @@ ROWS_IN_JOB = 64     # Must match C_ROWS_IN_JOB in mega65.vhd
 NUM_ITERATORS = 120  # Must match C_NUM_ITERATORS in mega65.vhd
 PIXELS = 4           # Must match C_PIXELS in mega65.vhd
 GROUP_SIZE = 16      # Must match G_GROUP_SIZE in dispatcher.vhd
-MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 6.0   # Must match C_MAIN_DIVIDE in mega65.vhd
+MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 5.625   # Must match C_MAIN_DIVIDE in mega65.vhd
 # The same for the Nexys 4 DDR, see nexys4ddr.vhd
 NEXYS4DDR_MAX_COUNT = 1023
 NEXYS4DDR_NUM_COLS = 640

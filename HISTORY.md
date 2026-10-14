@@ -552,14 +552,27 @@ last result has been selected).
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, where the inputs of the last DSP of
+The previous run of `make mega65-r6`, at 180 MHz and before stepy was
+registered in each iterator, met timing with +0.083 ns (the same after the
+routing), with +0.020 ns of hold slack (from the count of a slot of an
+iterator, `cnt_r`, to the result register of its job module, `res_data_d`).
+It used 23,173 slices, 58,422 LUTs, and 67,263 registers (77,805 LUT cells
+and 67,267 registers after synthesis). The worst setup path was from
+`grp_stepy_r` in `dispatcher_jobs` to the accumulator of cy in an iterator
+(`cy_acc_r`), mostly routing (4.39 ns of 5.60 ns). The VGA clock had
++0.190 ns of setup slack (from `pix_x` to `rd_grp_addr`), and the paths from
+the MAIN clock to the VGA clock +6.84 ns. The run for the R3 met timing with
++0.089 ns (22,219 slices, 58,503 LUTs) and +0.013 ns of hold slack, from
+`grp_stepy_r` to `cy_acc_r` too, and +0.117 ns on the VGA clock.
+
+The run before that, where the inputs of the last DSP of
 each multiplication in the wide iterator were registered twice instead of
 using the register M, met timing with +0.072 ns (+0.073 ns after the
 routing), with +0.020 ns of hold slack (in the shift register of cy, `cy_r`,
 of an iterator). Vivado left out one of the registers of the input A of the
 last DSP of (x+y)\*(x-y), so the picture on the board was wrong (see
 [Multiplier](ALGORITHM.md#multiplier)). It used 23,252 slices, 58,422
-LUTs, and 67,263 registers, the same LUTs and registers as the current run.
+LUTs, and 67,263 registers, the same LUTs and registers as the run above.
 The worst setup path was from `grp_stepy_r` to the register of cy of a job
 module (`res_cy_r`), mostly routing (3.82 ns of 5.62 ns). The VGA clock had
 +0.231 ns of setup slack (from `pix_y` to `rd_grp_addr`, only routing,
@@ -930,7 +943,14 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, the last one with the 2.16 iterator
+The previous run of `make nexys4ddr`, before stepy was registered in each
+iterator, used 9,694 slices (61%), 20,567 LUTs, and 29,821 registers, and
+all 234 DSPs of the 39 job modules. It met timing with +0.308 ns, with
++0.007 ns of hold slack. The worst setup path was in an iterator, from its
+clock enable (`run_r`) to y\_r, mostly routing (6.94 ns of 7.46 ns). The 115
+paths from the MAIN clock to the VGA clock had +7.91 ns of slack.
+
+The run before that, the last one with the 2.16 iterator
 (see [The 2.16 iterator](#the-216-iterator)) and 120 job modules, on main
 before the wide iterator was rebased onto it, used 9,294 slices (59%), 15,838
 LUTs, and 27,260 registers (20,160 LUT cells and 27,276 registers after
@@ -1225,8 +1245,17 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous run of the Nexys 4 DDR, the last one with the 2.16 iterator (120
-job modules), on main before the wide iterator was rebased onto it, gave
+The previous runs of the MEGA65, at 180 MHz and before stepy was registered in
+each iterator, gave 3.53 W busy and 0.86 W idle on the R6, of which `main`
+used 2.82 W and 0.34 W, and the display memory 0.22 W and 0.05 W (3.53 W and
+0.85 W on the R3). Their busy power was mostly the DSPs (1.21 W), the signals
+(0.90 W), the logic (0.50 W), and the clocks (0.46 W). The previous run of the
+Nexys 4 DDR, with the wide iterator and before stepy was registered, gave
+1.09 W busy and 0.38 W idle, of which `main` used 0.74 W and 0.11 W, and the
+display memory 0.11 W and 0.03 W.
+
+The run of the Nexys 4 DDR before that, the last one with the 2.16 iterator
+(120 job modules), on main before the wide iterator was rebased onto it, gave
 1.20 W busy and 0.36 W idle, of which `main` used 0.82 W and 0.08 W, and the
 display memory 0.13 W and 0.03 W. The run with the 2.16 iterator on the
 branch of the wide iterator, before the rebase, gave the same totals.

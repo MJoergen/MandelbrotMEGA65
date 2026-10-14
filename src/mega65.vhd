@@ -119,8 +119,8 @@ architecture structural of mega65 is
    -- write the picture would take at least 1280*1024 clock cycles (7.28 ms).
    -- The wide iterator calculates the four rows of a result at the same time,
    -- so this must be 4. The model (sim/model.py) estimates 1.10 million clock
-   -- cycles for the initial picture (6.13 ms, i.e. 163 pictures per second),
-   -- and about 11.2 million (62 ms, 16 pictures per second) if every pixel
+   -- cycles for the initial picture (5.75 ms, i.e. 174 pictures per second),
+   -- and about 11.2 million (58 ms, 17 pictures per second) if every pixel
    -- needed the maximum count.
    constant C_PIXELS        : positive := 4;
 
@@ -139,17 +139,20 @@ architecture structural of mega65 is
    constant C_TMDS_DIVIDE   : positive := C_VGA_DIVIDE / 5;
 
    -- The divider of the MAIN clock (see clk_rst.vhd), and its frequency in Hz.
-   -- 1080 MHz / 6 = 180 MHz. The iterators (see iterator_wide.vhd) are
+   -- 1080 MHz / 5.625 = 192 MHz. The iterators (see iterator_wide.vhd) are
    -- pipelined, so their paths are short, but the timing is only met with the
    -- floorplan of the job modules (mega65_floorplan.tcl), which keeps the
-   -- logic of each iterator next to its DSPs.
-   constant C_MAIN_DIVIDE   : real    := 6.0;
+   -- logic of each iterator next to its DSPs. The main clock can not go much
+   -- higher: 196.4 MHz (5.5) met timing with +0.014 ns, but at 200.9 MHz the
+   -- keyboard driver (src/keyboard) fails, and at 205.7 MHz the cascade of
+   -- the DSPs in the iterators.
+   constant C_MAIN_DIVIDE   : real    := 5.625;
    constant C_MAIN_FREQ     : natural :=
       natural(100.0E6 / real(C_VCO_DIVIDE) * C_VCO_MULT / C_MAIN_DIVIDE);
 
    -- Rows in each job given to a job module, see dispatcher.vhd. The
    -- number of rows (1024) must be a multiple of it, and of C_PIXELS. The
-   -- model gives 161 to 164 pictures per second for 32 to 256 rows.
+   -- model gives 172 to 175 pictures per second for 32 to 256 rows.
    constant C_ROWS_IN_JOB   : positive := 64;
 
    -- The address distance between two picture columns in the display memory,
