@@ -8,21 +8,18 @@
 -- * Each write is inside the picture, at the first row of a word.
 -- * Each pixel is written exactly once, and the picture is complete when the
 --   frame rate is updated (fps_valid_o, at the end of the picture).
--- * The count of each pixel is the count of the model, for the value of c
---   of the pixel. The view of the picture (pic_startx etc.) is inside
---   main.vhd, so it is read with external names.
+-- * The value of each pixel is the value of the model, for the value of c of
+--   the pixel: 511 for the points in the set, and otherwise the count modulo
+--   256 (see job_wide.vhd). The view of the picture (pic_startx etc.) is
+--   inside main.vhd, so it is read with external names.
 -- The pictures are the initial view, then the view after an update with zoom
 -- in, pan right, and pan down, and then the view after an update with zoom
 -- out (switch 2), pan left, and pan up.
 --
--- This is done for both number formats, each with its own instance of main:
--- 2.16 with the maximum count 511 (job.vhd, as on the Nexys 4 DDR), and 2.33
--- (job_wide.vhd, as on the MEGA65), where the display memory gets 511 for the
--- points in the set, and otherwise the count modulo 256. The 2.33 instance
--- uses the maximum count 127 instead of the 1023 of the MEGA65, so that it is
--- about as fast as the 2.16 instance: with 1023 a picture takes 3.6 times as
--- many clock cycles (66275 instead of 18430, from the model), and the
--- simulation of the three pictures took more than half an hour.
+-- The maximum count is 127 instead of the 1023 of the boards, so that the
+-- simulation is short: with 1023 a picture takes 3.6 times as many clock
+-- cycles (66275 instead of 18430, from the model), and the simulation of the
+-- three pictures took more than half an hour.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -35,16 +32,7 @@ end entity picture_tb;
 
 architecture simulation of picture_tb is
 
-   type config_t is record
-      frac_bits : positive;
-      max_count : positive;
-   end record config_t;
-   type config_vector is array (natural range <>) of config_t;
-
-   constant C_CONFIGS : config_vector := (
-      (frac_bits => 16, max_count =>  511),   -- Nexys 4 DDR
-      (frac_bits => 33, max_count =>  127));  -- MEGA65, but see above
-
+   constant C_MAX_COUNT     : positive := 127;    -- See above
    constant C_NUM_ITERATORS : positive := 8;
    constant C_PIXELS        : positive := 4;
    constant C_ROWS_IN_JOB   : positive := 12;
@@ -61,7 +49,16 @@ architecture simulation of picture_tb is
 
    signal clk       : std_logic;
    signal rst       : std_logic := '1';
-   signal finished  : std_logic_vector(C_CONFIGS'range) := (others => '0');
+   signal btn       : std_logic_vector(4 downto 0) := "00000";
+   signal sw        : std_logic_vector(7 downto 0) := X"00";
+   signal fps_valid : std_logic;
+   signal wr_addr   : std_logic_vector(C_ADDR_BITS-1 downto 0);
+   signal wr_data   : std_logic_vector(9*C_PIXELS-1 downto 0);
+   signal wr_en     : std_logic;
+
+   -- The pictures that have been checked, and the pixels with the wrong count
+   signal pictures  : natural := 0;
+   signal errors    : natural := 0;
 
 begin
 
@@ -85,211 +82,175 @@ begin
    end process p_rst;
 
 
-   p_finish : process
-   begin
-      wait until finished = (finished'range => '1');
-      report "picture_tb: finished";
-      std.env.finish;
-   end process p_finish;
-
-
-   gen_dut : for n in C_CONFIGS'range generate
-      constant C_FRAC_BITS : positive := C_CONFIGS(n).frac_bits;
-      constant C_MAX_COUNT : positive := C_CONFIGS(n).max_count;
-      constant C_BITS      : positive := C_FRAC_BITS + 2;
-
-      signal btn       : std_logic_vector(4 downto 0) := "00000";
-      signal sw        : std_logic_vector(7 downto 0) := X"00";
-      signal fps_valid : std_logic;
-      signal wr_addr   : std_logic_vector(C_ADDR_BITS-1 downto 0);
-      signal wr_data   : std_logic_vector(9*C_PIXELS-1 downto 0);
-      signal wr_en     : std_logic;
-
-      -- The pictures that have been checked, and the pixels with the wrong
-      -- count
-      signal pictures  : natural := 0;
-      signal errors    : natural := 0;
-
-   begin
-
    -------------------
    -- Instantiate DUT
    -------------------
 
-      i_main : entity work.main
-         generic map (
-            G_CLK_FREQ      => 18*C_UPD_PERIOD,
-            G_NUM_ITERATORS => C_NUM_ITERATORS,
-            G_PIXELS        => C_PIXELS,
-            G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
-            G_NUM_COLS      => C_NUM_COLS,
-            G_NUM_ROWS      => C_NUM_ROWS,
-            G_COL_STRIDE    => C_COL_STRIDE,
-            G_ADDR_BITS     => C_ADDR_BITS,
-            G_FRAC_BITS     => C_FRAC_BITS,
-            G_MAX_COUNT     => C_MAX_COUNT
-         )
-         port map (
-            clk_i        => clk,
-            rst_i        => rst,
-            btn_i        => btn,
-            sw_i         => sw,
-            seg_o        => open,
-            seg_an_o     => open,
-            fps_digits_o => open,
-            fps_blank_o  => open,
-            fps_valid_o  => fps_valid,
-            wr_addr_o    => wr_addr,
-            wr_data_o    => wr_data,
-            wr_en_o      => wr_en
-         ); -- i_main
+   i_main : entity work.main
+      generic map (
+         G_CLK_FREQ      => 18*C_UPD_PERIOD,
+         G_NUM_ITERATORS => C_NUM_ITERATORS,
+         G_PIXELS        => C_PIXELS,
+         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_NUM_COLS      => C_NUM_COLS,
+         G_NUM_ROWS      => C_NUM_ROWS,
+         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ADDR_BITS     => C_ADDR_BITS,
+         G_MAX_COUNT     => C_MAX_COUNT
+      )
+      port map (
+         clk_i        => clk,
+         rst_i        => rst,
+         btn_i        => btn,
+         sw_i         => sw,
+         seg_o        => open,
+         seg_an_o     => open,
+         fps_digits_o => open,
+         fps_blank_o  => open,
+         fps_valid_o  => fps_valid,
+         wr_addr_o    => wr_addr,
+         wr_data_o    => wr_data,
+         wr_en_o      => wr_en
+      ); -- i_main
 
 
    -- The external names must come after the instantiation of main
-      b_test : block is
+   b_test : block is
 
-         alias upd        is << signal ^.i_main.upd : std_logic >>;
-         alias start      is << signal ^.i_main.start : std_logic >>;
-         alias pic_startx is << signal ^.i_main.pic_startx :
-                             std_logic_vector(C_BITS-1 downto 0) >>;
-         alias pic_starty is << signal ^.i_main.pic_starty :
-                             std_logic_vector(C_BITS-1 downto 0) >>;
-         alias pic_stepx  is << signal ^.i_main.pic_stepx :
-                             std_logic_vector(C_BITS-1 downto 0) >>;
-         alias pic_stepy  is << signal ^.i_main.pic_stepy :
-                             std_logic_vector(C_BITS-1 downto 0) >>;
+      alias upd        is << signal .picture_tb.i_main.upd : std_logic >>;
+      alias start      is << signal .picture_tb.i_main.start : std_logic >>;
+      alias pic_startx is << signal .picture_tb.i_main.pic_startx :
+                             std_logic_vector(34 downto 0) >>;
+      alias pic_starty is << signal .picture_tb.i_main.pic_starty :
+                             std_logic_vector(34 downto 0) >>;
+      alias pic_stepx  is << signal .picture_tb.i_main.pic_stepx :
+                             std_logic_vector(34 downto 0) >>;
+      alias pic_stepy  is << signal .picture_tb.i_main.pic_stepy :
+                             std_logic_vector(34 downto 0) >>;
 
-         type seen_t is array (0 to C_NUM_COLS-1, 0 to C_NUM_ROWS-1) of boolean;
+      type seen_t is array (0 to C_NUM_COLS-1, 0 to C_NUM_ROWS-1) of boolean;
 
-      begin
+   begin
 
       ----------------------------------------
       -- Check every write, at each rising edge
       ----------------------------------------
 
-         p_check : process (clk)
-            variable seen_v  : seen_t := (others => (others => false));
-            variable words_v : natural := 0;   -- Words written by the current picture
-            variable col_v   : natural;
-            variable row_v   : natural;
-            variable cx_v    : signed(C_BITS-1 downto 0);
-            variable cy_v    : signed(C_BITS-1 downto 0);
-            variable exp_v   : integer;
-            variable got_v   : integer;
-            variable err_v   : natural := 0;   -- Pixels with the wrong count
-         begin
-            if rising_edge(clk) and rst = '0' then
+      p_check : process (clk)
+         variable seen_v  : seen_t := (others => (others => false));
+         variable words_v : natural := 0;   -- Words written by the current picture
+         variable col_v   : natural;
+         variable row_v   : natural;
+         variable cx_v    : signed(34 downto 0);
+         variable cy_v    : signed(34 downto 0);
+         variable exp_v   : integer;
+         variable got_v   : integer;
+         variable err_v   : natural := 0;   -- Pixels with the wrong count
+      begin
+         if rising_edge(clk) and rst = '0' then
             -- main takes the view of the picture (pic_*) at this rising edge
-               if start = '1' then
-                  seen_v  := (others => (others => false));
-                  words_v := 0;
-               end if;
+            if start = '1' then
+               seen_v  := (others => (others => false));
+               words_v := 0;
+            end if;
 
-               if wr_en = '1' then
-                  col_v := to_integer(unsigned(wr_addr)) / C_COL_STRIDE;
-                  row_v := to_integer(unsigned(wr_addr)) mod C_COL_STRIDE;
-                  assert col_v < C_NUM_COLS and row_v < C_NUM_ROWS and row_v mod C_PIXELS = 0
-                     report "Picture " & integer'image(pictures+1) & ": a word was written to " &
-                            "column " & integer'image(col_v) & ", row " & integer'image(row_v)
-                     severity failure;
-                  for i in 0 to C_PIXELS-1 loop
-                     assert not seen_v(col_v, row_v+i)
+            if wr_en = '1' then
+               col_v := to_integer(unsigned(wr_addr)) / C_COL_STRIDE;
+               row_v := to_integer(unsigned(wr_addr)) mod C_COL_STRIDE;
+               assert col_v < C_NUM_COLS and row_v < C_NUM_ROWS and row_v mod C_PIXELS = 0
+                  report "Picture " & integer'image(pictures+1) & ": a word was written to " &
+                         "column " & integer'image(col_v) & ", row " & integer'image(row_v)
+                  severity failure;
+               for i in 0 to C_PIXELS-1 loop
+                  assert not seen_v(col_v, row_v+i)
+                     report "Picture " & integer'image(pictures+1) & ": the pixel in column " &
+                            integer'image(col_v) & ", row " & integer'image(row_v+i) &
+                            " was written twice"
+                     severity error;
+                  seen_v(col_v, row_v+i) := true;
+
+                  -- The dispatcher and the job modules add the steps in 35
+                  -- bits, which wrap around
+                  cx_v  := resize(signed(pic_startx) +
+                                  to_signed(col_v, 12) * signed(pic_stepx), 35);
+                  cy_v  := resize(signed(pic_starty) +
+                                  to_signed(row_v+i, 12) * signed(pic_stepy), 35);
+                  exp_v := to_pixel(iterator_count(cx_v, cy_v, C_MAX_COUNT), C_MAX_COUNT);
+                  got_v := to_integer(unsigned(wr_data(9*i+8 downto 9*i)));
+                  if got_v /= exp_v then
+                     if err_v < 5 then
                         report "Picture " & integer'image(pictures+1) & ": the pixel in column " &
                                integer'image(col_v) & ", row " & integer'image(row_v+i) &
-                               " was written twice"
-                        severity error;
-                     seen_v(col_v, row_v+i) := true;
-
-                  -- The dispatcher and the job modules add the steps in
-                  -- C_BITS bits, which wrap around
-                     cx_v  := resize(signed(pic_startx) +
-                                  to_signed(col_v, 12) * signed(pic_stepx), C_BITS);
-                     cy_v  := resize(signed(pic_starty) +
-                                  to_signed(row_v+i, 12) * signed(pic_stepy), C_BITS);
-                     if C_FRAC_BITS = 16 then
-                        exp_v := iterator_count(to_integer(cx_v), to_integer(cy_v), C_MAX_COUNT);
-                     else
-                        exp_v := to_pixel(iterator_count(cx_v, cy_v, C_MAX_COUNT), C_MAX_COUNT);
+                               " is " & integer'image(got_v) & ", but the model gives " &
+                               integer'image(exp_v)
+                           severity error;
                      end if;
-                     got_v := to_integer(unsigned(wr_data(9*i+8 downto 9*i)));
-                     if got_v /= exp_v then
-                        if err_v < 5 then
-                           report "2." & integer'image(C_FRAC_BITS) & ": picture " &
-                                  integer'image(pictures+1) & ": the pixel in column " &
-                                  integer'image(col_v) & ", row " & integer'image(row_v+i) &
-                                  " is " & integer'image(got_v) & ", but the model gives " &
-                                  integer'image(exp_v)
-                              severity error;
-                        end if;
-                        err_v := err_v + 1;
-                     end if;
-                  end loop;
-                  errors  <= err_v;
-                  words_v := words_v + 1;
-               end if;
+                     err_v := err_v + 1;
+                  end if;
+               end loop;
+               errors  <= err_v;
+               words_v := words_v + 1;
+            end if;
 
             -- The frame rate is updated at the end of each picture
-               if fps_valid = '1' then
-                  assert words_v = C_WORDS
-                     report "Picture " & integer'image(pictures+1) & " has " &
-                            integer'image(words_v) & " words when the frame rate is updated, " &
-                            "expected " & integer'image(C_WORDS)
-                     severity error;
-                  report "2." & integer'image(C_FRAC_BITS) & ": picture " &
-                         integer'image(pictures+1) & " checked, with stepx " &
-                         to_hstring(pic_stepx);
-                  pictures <= pictures + 1;
-               end if;
+            if fps_valid = '1' then
+               assert words_v = C_WORDS
+                  report "Picture " & integer'image(pictures+1) & " has " &
+                         integer'image(words_v) & " words when the frame rate is updated, " &
+                         "expected " & integer'image(C_WORDS)
+                  severity error;
+               report "Picture " & integer'image(pictures+1) & " checked, with stepx " &
+                      to_hstring(pic_stepx);
+               pictures <= pictures + 1;
             end if;
-         end process p_check;
+         end if;
+      end process p_check;
 
 
       --------------
       -- Stimulus
       --------------
 
-         p_test : process
+      p_test : process
 
          -- Hold the buttons (and switch 2, zoom out) down for exactly one
          -- update. They are set long before the update, and released after
          -- it.
-            procedure do_update (
+         procedure do_update (
             b        : std_logic_vector(4 downto 0);
             zoom_out : std_logic
-            ) is
-            begin
-               btn   <= b;
-               sw(2) <= zoom_out;
-               wait until rising_edge(clk) and upd = '1';
-               wait until rising_edge(clk);
-               btn   <= "00000";
-               sw(2) <= '0';
-            end procedure do_update;
-
+         ) is
          begin
-            wait until rst = '0';
+            btn   <= b;
+            sw(2) <= zoom_out;
+            wait until rising_edge(clk) and upd = '1';
+            wait until rising_edge(clk);
+            btn   <= "00000";
+            sw(2) <= '0';
+         end procedure do_update;
+
+      begin
+         wait until rst = '0';
 
          -- The initial view, started at once after reset
-            wait until pictures = 1;
+         wait until pictures = 1;
 
          -- Zoom in, pan right, and pan down
-            do_update("10101", '0');
-            wait until pictures = 2;
+         do_update("10101", '0');
+         wait until pictures = 2;
 
          -- Zoom out, pan left, and pan up
-            do_update("11010", '1');
-            wait until pictures = 3;
+         do_update("11010", '1');
+         wait until pictures = 3;
 
-            assert errors = 0
-               report integer'image(errors) & " pixels differ from the model"
-               severity error;
+         assert errors = 0
+            report integer'image(errors) & " pixels differ from the model"
+            severity error;
 
-            finished(n) <= '1';
-            wait;
-         end process p_test;
+         report "picture_tb: finished";
+         std.env.finish;
+      end process p_test;
 
-      end block b_test;
-
-   end generate gen_dut;
+   end block b_test;
 
 end architecture simulation;

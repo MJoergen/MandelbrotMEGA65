@@ -263,9 +263,9 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
    -- ASSERTIONS ABOUT THE JOB MODULES
    -----------------------------
 
-   -- These are the assumptions about the inputs of the job module in job.psl.
+   -- These are the assumptions about the inputs of the job module in job_wide.psl.
    -- They are not checked while the job modules are being reset, when the
-   -- properties in job.psl are not checked either.
+   -- properties in job_wide.psl are not checked either.
    f_job_gen : for i in 0 to G_NUM_ITERATORS-1 generate
       -- A job module is only started when it is idle, i.e. a job is never
       -- started twice. This needs at least five job modules.
@@ -323,7 +323,7 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
    -- after their own.
    f_start_idle : assume always {start_i and f_started} |-> {done_o};
 
-   -- The job modules, see job.psl: A job module is busy in the clock cycle
+   -- The job modules, see job_wide.psl: A job module is busy in the clock cycle
    -- after it is started. It only becomes busy when it is started, and it is
    -- idle two clock cycles after its reset (it registers the reset first).
    -- It becomes idle at any time.

@@ -13,7 +13,9 @@
 -- checks the next complete frame of the VGA output:
 -- * The colour of every pixel is the colour that the palette selected by
 --   switches 0 and 1 gives for the count of the bit-accurate model of the
---   iterator (iterator_model_pkg.vhd). So the whole path is checked: the
+--   iterator (iterator_model_pkg.vhd), converted to the value of the pixel as
+--   in job_wide.vhd. The maximum count is 127 instead of 1023, so that the
+--   simulation is shorter. So the whole path is checked: the
 --   dispatcher and the job modules, the display memory with the two clock
 --   domains, and the pixel and palette in the VGA clock domain. The view of
 --   the picture (pic_startx etc.) is inside main.vhd, so it is read with
@@ -45,7 +47,7 @@ architecture simulation of core_tb is
       h_visible => 560, h_front =>  8, h_sync =>  8, h_back =>  8,
       v_visible =>   4, v_front =>  1, v_sync =>  1, v_back =>  1,
       sync_active => '0');
-   constant C_MAX_COUNT     : positive := 511;    -- 2.16, as on the Nexys 4 DDR
+   constant C_MAX_COUNT     : positive := 127;    -- Smaller than on the boards
 
    -- The frequency of the MAIN clock given to main.vhd sets the time between
    -- two updates of the view, so it is chosen such that this is longer than
@@ -109,7 +111,6 @@ begin
          G_ADDR_BITS     => 16,
          G_MEM_BLOCKS    => 16,
          G_BLOCK_REGS    => true,
-         G_FRAC_BITS     => 16,
          G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
@@ -135,27 +136,27 @@ begin
       alias fps        is << signal .core_tb.i_core.fps : std_logic_vector(139 downto 0) >>;
       alias vga_fps    is << signal .core_tb.i_core.vga_fps : std_logic_vector(139 downto 0) >>;
       alias pic_startx is << signal .core_tb.i_core.i_main.pic_startx :
-                                 std_logic_vector(17 downto 0) >>;
+                                 std_logic_vector(34 downto 0) >>;
       alias pic_starty is << signal .core_tb.i_core.i_main.pic_starty :
-                                 std_logic_vector(17 downto 0) >>;
+                                 std_logic_vector(34 downto 0) >>;
       alias pic_stepx  is << signal .core_tb.i_core.i_main.pic_stepx :
-                                 std_logic_vector(17 downto 0) >>;
+                                 std_logic_vector(34 downto 0) >>;
       alias pic_stepy  is << signal .core_tb.i_core.i_main.pic_stepy :
-                                 std_logic_vector(17 downto 0) >>;
+                                 std_logic_vector(34 downto 0) >>;
 
    begin
 
       p_test : process
 
-         variable startx_v : integer;   -- The view of the first picture
+         variable startx_v : std_logic_vector(34 downto 0);  -- The view of the first picture
 
          -- Wait until the picture is complete, and then check the next frame
          procedure check_picture (num : positive) is
             variable x_v       : natural;
             variable y_v       : natural;
             variable de_v      : std_logic;
-            variable cx_v      : integer;
-            variable cy_v      : integer;
+            variable cx_v      : signed(34 downto 0);
+            variable cy_v      : signed(34 downto 0);
             variable cnt_v     : integer;
             variable exp_v     : std_logic_vector(7 downto 0);
             variable checked_v : natural := 0;
@@ -174,13 +175,14 @@ begin
             while y_v < C_VIDEO.v_visible loop
                wait until rising_edge(vga_clk);
                if vga_de = '1' then
-                  cx_v   := wrap18(to_integer(signed(pic_startx)) +
-                                   x_v * to_integer(signed(pic_stepx)));
-                  cy_v   := wrap18(to_integer(signed(pic_starty)) +
-                                   y_v * to_integer(signed(pic_stepy)));
+                  cx_v   := resize(signed(pic_startx) +
+                                   to_signed(x_v, 12) * signed(pic_stepx), 35);
+                  cy_v   := resize(signed(pic_starty) +
+                                   to_signed(y_v, 12) * signed(pic_stepy), 35);
                   cnt_v  := iterator_count(cx_v, cy_v, C_MAX_COUNT);
                   exp_v  := palette_colour(sw(1 downto 0),
-                                           std_logic_vector(to_unsigned(cnt_v, 9)));
+                                           std_logic_vector(to_unsigned(
+                                              to_pixel(cnt_v, C_MAX_COUNT), 9)));
                   checked_v := checked_v + 1;
                   if vga_col /= exp_v then
                      if errors_v < 5 then
@@ -231,7 +233,7 @@ begin
          -- First picture: the initial view, with palette 1
          sw <= X"00";
          check_picture(1);
-         startx_v := to_integer(signed(pic_startx));
+         startx_v := pic_startx;
 
          -- Hold the button for pan right down for exactly one update
          wait until rising_edge(main_clk) and upd = '1';
@@ -244,7 +246,7 @@ begin
          -- Second picture: the new view, with palette 3
          sw <= X"02";
          check_picture(2);
-         assert to_integer(signed(pic_startx)) /= startx_v
+         assert pic_startx /= startx_v
             report "The view of the second picture is the same as that of the first"
             severity error;
 

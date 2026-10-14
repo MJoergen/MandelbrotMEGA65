@@ -13,13 +13,13 @@
 -- not.
 --
 -- This is done for both boards, each with its own instance, and with the
--- initial view of main.vhd: 640x480 with 2.16 (as on the Nexys 4 DDR, a pan
--- step of 2 pixels, and an update of 17 clock cycles) and 1280x1024 with 2.33
--- (as on the MEGA65, a pan step of 4 pixels, and an update of 18 clock
--- cycles, because 1279 has 11 bits). The values of the model are real
--- numbers, because the 2.33 values do not fit in an integer (they are exact
--- for integers up to 2^53). The tests that zoom or pan across the whole range
--- need more updates with 2.33, about 45 more for each extra bit.
+-- initial view of main.vhd: 640x480 (as on the Nexys 4 DDR, a pan step of 2
+-- pixels, and an update of 17 clock cycles) and 1280x1024 (as on the MEGA65,
+-- a pan step of 4 pixels, and an update of 18 clock cycles, because 1279 has
+-- 11 bits). The values are in 2.33 fixed point format. The values of the
+-- model are real numbers, because the 2.33 values do not fit in an integer
+-- (they are exact for integers up to 2^53). The tests that zoom or pan across
+-- the whole range need about 45 updates for each bit of the format.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -34,15 +34,14 @@ architecture simulation of viewport_tb is
    type config_t is record
       cols   : positive;
       rows   : positive;
-      frac   : positive;    -- The number format, 2.frac
       -- The number of clock cycles of an update
       cycles : positive;
    end record config_t;
    type config_vector is array (natural range <>) of config_t;
 
    constant C_CONFIGS : config_vector := (
-      (cols =>  640, rows =>  480, frac => 16, cycles => 17),
-      (cols => 1280, rows => 1024, frac => 33, cycles => 18));
+      (cols =>  640, rows =>  480, cycles => 17),
+      (cols => 1280, rows => 1024, cycles => 18));
 
    -- The number of clock cycles to wait for an update to finish
    constant C_UPD_CYCLES : positive := 32;
@@ -104,7 +103,7 @@ begin
       constant C_CFG      : config_t := C_CONFIGS(n);
       constant C_NUM_COLS : positive := C_CFG.cols;
       constant C_NUM_ROWS : positive := C_CFG.rows;
-      constant C_FRAC     : positive := C_CFG.frac;
+      constant C_FRAC     : positive := 33;  -- The number format, 2.33
 
       -- The pan step in pixels, 1/320 of the number of columns (see
       -- viewport.vhd)
@@ -122,9 +121,6 @@ begin
 
       constant C_MIN   : real := -2.0**(C_BITS-1);       -- -2
       constant C_MAX   : real :=  2.0**(C_BITS-1) - 1.0; --  2-2^-C_FRAC
-
-      -- The extra updates for zooming or panning across the whole range
-      constant C_EXTRA : natural := 45*(C_FRAC-16);
 
       -- The initial view, as in main.vhd and viewport.vhd
       constant C_INIT_SX : real := floor((-1.6667+2.0) * 2.0**C_FRAC + 0.5) + C_MIN;
@@ -388,12 +384,13 @@ begin
       begin
          do_reset;
 
-      -- The initial view, as in main.vhd. The values for 640x480 with 2.16 are
-      -- given directly too.
+      -- The initial view, as in main.vhd. The values for 640x480 are given
+      -- directly too.
          assert sx = C_INIT_SX and sy = C_INIT_SY and dx = C_INIT_DX and dy = C_INIT_DX
             report "Wrong initial view: " & image(cur_view)
             severity error;
-         assert C_NUM_COLS /= 640 or (sx = -109229.0 and sy = -65536.0 and dx = 273.0)
+         assert C_NUM_COLS /= 640 or
+                (sx = -14316843984.0 and sy = -8589934592.0 and dx = 35791394.0)
             report "Wrong initial view"
             severity error;
          check_range;
@@ -436,9 +433,10 @@ begin
             severity error;
 
       -- Zoom in until the size of a pixel is one LSB. The centre stays fixed.
+      -- This takes about 45 updates for each bit of the format.
          cx0_v := centre_x;
          cy0_v := centre_y;
-         hold(C_BTN_C, '0', 400 + C_EXTRA);
+         hold(C_BTN_C, '0', 1165);
          assert dx = 1.0 and dy = 1.0 and centre_x = cx0_v and centre_y = cy0_v
             report "Zoom in did not stop at one LSB, with the centre fixed"
             severity error;
@@ -453,7 +451,7 @@ begin
 
       -- Zoom out a little, and pan all the way to the right and bottom, both at
       -- the same time
-         hold(C_BTN_C, '1', 60 + C_EXTRA);
+         hold(C_BTN_C, '1', 825);
          hold(C_BTN_R or C_BTN_D, '0', 6000);
          assert sx + real(C_NUM_COLS-1)*dx = C_MAX and sy + real(C_NUM_ROWS-1)*dy = C_MAX
             report "Pan right and down did not stop at the end"
@@ -488,13 +486,12 @@ begin
 
       i_viewport : entity work.viewport
          generic map (
-            G_NUM_COLS  => C_NUM_COLS,
-            G_NUM_ROWS  => C_NUM_ROWS,
-            G_START_X   => -1.6667,
-            G_START_Y   => -C_SIZE_Y / 2.0,
-            G_SIZE_X    =>  C_SIZE_X,
-            G_SIZE_Y    =>  C_SIZE_Y,
-            G_FRAC_BITS => C_FRAC
+            G_NUM_COLS => C_NUM_COLS,
+            G_NUM_ROWS => C_NUM_ROWS,
+            G_START_X  => -1.6667,
+            G_START_Y  => -C_SIZE_Y / 2.0,
+            G_SIZE_X   =>  C_SIZE_X,
+            G_SIZE_Y   =>  C_SIZE_Y
          )
          port map (
             clk_i      => clk,

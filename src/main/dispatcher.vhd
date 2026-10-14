@@ -11,7 +11,7 @@
 --
 -- Each write to the display memory is G_PIXELS pixels: consecutive rows of a
 -- picture column, starting at the row given by wr_addr_o, with the first row in
--- the lowest 9 bits of wr_data_o (see job.vhd). Writing more than one pixel
+-- the lowest 9 bits of wr_data_o (see job_wide.vhd). Writing more than one pixel
 -- at a time lets the dispatcher write more than one pixel per clock cycle.
 --
 -- The address of the pixel in column x and row y of the picture is
@@ -25,10 +25,8 @@
 -- results and writes them to the display memory.
 --
 -- The values (the position of the picture and the size of a pixel) are in
--- 2.G_FRAC_BITS fixed point format. With G_FRAC_BITS = 16 (Nexys 4 DDR) the
--- job modules are job.vhd, with iterator.vhd, and with G_FRAC_BITS = 33
--- (MEGA65) they are job_wide.vhd, with iterator_wide.vhd, which needs
--- G_PIXELS = 4.
+-- 2.33 fixed point format (35 bits). The job modules are job_wide.vhd, with
+-- iterator_wide.vhd, which needs G_PIXELS = 4.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -46,17 +44,16 @@ entity dispatcher is
       G_ROWS_IN_JOB   : positive;         -- Rows in each job
       G_NUM_ITERATORS : positive;
       G_GROUP_SIZE    : positive := 16;
-      G_PIXELS        : positive;         -- Pixels in each write
-      G_FRAC_BITS     : positive := 16    -- Fraction bits of the values
+      G_PIXELS        : positive          -- Pixels in each write
    );
    port (
       clk_i     : in  std_logic;
       rst_i     : in  std_logic;
       start_i   : in  std_logic;
-      startx_i  : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      starty_i  : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepx_i   : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepy_i   : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
+      startx_i  : in  std_logic_vector(34 downto 0);
+      starty_i  : in  std_logic_vector(34 downto 0);
+      stepx_i   : in  std_logic_vector(34 downto 0);
+      stepy_i   : in  std_logic_vector(34 downto 0);
       wr_addr_o : out std_logic_vector(G_ADDR_BITS-1 downto 0);
       wr_data_o : out std_logic_vector(9*G_PIXELS-1 downto 0);
       wr_en_o   : out std_logic;
@@ -80,9 +77,9 @@ architecture rtl of dispatcher is
    -- To and from the job modules. The reset and the job are one for each
    -- group of G_GROUP_SIZE job modules.
    signal job_rst_s      : std_logic_vector(C_NUM_GROUPS-1 downto 0);
-   signal job_cx_s       : value_vector(C_NUM_GROUPS-1 downto 0)(G_FRAC_BITS+1 downto 0);
-   signal job_starty_s   : value_vector(C_NUM_GROUPS-1 downto 0)(G_FRAC_BITS+1 downto 0);
-   signal job_stepy_s    : value_vector(C_NUM_GROUPS-1 downto 0)(G_FRAC_BITS+1 downto 0);
+   signal job_cx_s       : value_vector(C_NUM_GROUPS-1 downto 0)(34 downto 0);
+   signal job_starty_s   : value_vector(C_NUM_GROUPS-1 downto 0)(34 downto 0);
+   signal job_stepy_s    : value_vector(C_NUM_GROUPS-1 downto 0)(34 downto 0);
    signal job_start_s    : std_logic_vector(G_NUM_ITERATORS-1 downto 0);
    signal job_busy_s     : std_logic_vector(G_NUM_ITERATORS-1 downto 0);
    signal res_addr_s     : res_addr_vector(G_NUM_ITERATORS-1 downto 0);
@@ -91,10 +88,6 @@ architecture rtl of dispatcher is
    signal res_ack_s      : std_logic_vector(G_NUM_ITERATORS-1 downto 0);
 
 begin
-
-   assert G_FRAC_BITS = 16 or G_FRAC_BITS = 33
-      report "The number format must be 2.16 or 2.33"
-      severity failure;
 
    ----------------------
    -- Give out the jobs
@@ -106,8 +99,7 @@ begin
          G_NUM_COLS      => G_NUM_COLS,
          G_ROWS_IN_JOB   => G_ROWS_IN_JOB,
          G_NUM_ITERATORS => G_NUM_ITERATORS,
-         G_GROUP_SIZE    => G_GROUP_SIZE,
-         G_FRAC_BITS     => G_FRAC_BITS
+         G_GROUP_SIZE    => G_GROUP_SIZE
       )
       port map (
          clk_i          => clk_i,
@@ -137,50 +129,25 @@ begin
    ------------------------------
 
    gen_job : for i in 0 to G_NUM_ITERATORS-1 generate
-      gen_narrow : if G_FRAC_BITS = 16 generate
-         i_job : entity work.job
-            generic map (
-               G_MAX_COUNT => G_MAX_COUNT,
-               G_NUM_ROWS  => G_ROWS_IN_JOB,
-               G_PIXELS    => G_PIXELS
-            )
-            port map (
-               clk_i        => clk_i,
-               rst_i        => job_rst_s(i / G_GROUP_SIZE),
-               job_start_i  => job_start_s(i),
-               job_cx_i     => job_cx_s(i / G_GROUP_SIZE),
-               job_starty_i => job_starty_s(i / G_GROUP_SIZE),
-               job_stepy_i  => job_stepy_s(i / G_GROUP_SIZE),
-               job_busy_o   => job_busy_s(i),
-               res_addr_o   => res_addr_s(i),
-               res_data_o   => res_data_s((i+1)*9*G_PIXELS-1 downto i*9*G_PIXELS),
-               res_valid_o  => res_valid_s(i),
-               res_ack_i    => res_ack_s(i)
-            ); -- i_job
-      end generate gen_narrow;
-
-      gen_wide : if G_FRAC_BITS = 33 generate
-         i_job : entity work.job_wide
-            generic map (
-               G_MAX_COUNT => G_MAX_COUNT,
-               G_NUM_ROWS  => G_ROWS_IN_JOB,
-               G_PIXELS    => G_PIXELS
-            )
-            port map (
-               clk_i        => clk_i,
-               rst_i        => job_rst_s(i / G_GROUP_SIZE),
-               job_start_i  => job_start_s(i),
-               job_cx_i     => job_cx_s(i / G_GROUP_SIZE),
-               job_starty_i => job_starty_s(i / G_GROUP_SIZE),
-               job_stepy_i  => job_stepy_s(i / G_GROUP_SIZE),
-               job_busy_o   => job_busy_s(i),
-               res_addr_o   => res_addr_s(i),
-               res_data_o   => res_data_s((i+1)*9*G_PIXELS-1 downto i*9*G_PIXELS),
-               res_valid_o  => res_valid_s(i),
-               res_ack_i    => res_ack_s(i)
-            ); -- i_job
-      end generate gen_wide;
-
+      i_job : entity work.job_wide
+         generic map (
+            G_MAX_COUNT => G_MAX_COUNT,
+            G_NUM_ROWS  => G_ROWS_IN_JOB,
+            G_PIXELS    => G_PIXELS
+         )
+         port map (
+            clk_i        => clk_i,
+            rst_i        => job_rst_s(i / G_GROUP_SIZE),
+            job_start_i  => job_start_s(i),
+            job_cx_i     => job_cx_s(i / G_GROUP_SIZE),
+            job_starty_i => job_starty_s(i / G_GROUP_SIZE),
+            job_stepy_i  => job_stepy_s(i / G_GROUP_SIZE),
+            job_busy_o   => job_busy_s(i),
+            res_addr_o   => res_addr_s(i),
+            res_data_o   => res_data_s((i+1)*9*G_PIXELS-1 downto i*9*G_PIXELS),
+            res_valid_o  => res_valid_s(i),
+            res_ack_i    => res_ack_s(i)
+         ); -- i_job
    end generate gen_job;
 
 

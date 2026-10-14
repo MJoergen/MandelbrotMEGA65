@@ -31,7 +31,7 @@ set floorplan {
    {6  92 103 20 10}
 }
 
-set jobs [get_cells -quiet -hierarchical -filter {NAME =~ *gen_job[*].gen_wide.i_job}]
+set jobs [get_cells -quiet -hierarchical -filter {NAME =~ *gen_job[*].i_job}]
 if {[llength $jobs] != 120} {
    puts "ERROR: The floorplan is for 120 wide job modules, but there are [llength $jobs]"
    exit 1
@@ -40,7 +40,7 @@ set i 0
 foreach entry $floorplan {
    lassign $entry col x0 x1 dsp0 num
    for {set k 0} {$k < $num} {incr k} {
-      set job [get_cells -hierarchical -filter "NAME =~ *gen_job\[$i\].gen_wide.i_job"]
+      set job [get_cells -hierarchical -filter "NAME =~ *gen_job\[$i\].i_job"]
       set d0 [expr {$dsp0 + 6*$k}]
       set y0 [expr {$d0 / 2 * 5}]
       set pb [create_pblock job_$i]

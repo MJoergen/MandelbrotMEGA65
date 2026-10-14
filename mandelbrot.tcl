@@ -30,16 +30,12 @@ foreach src [lrange $argv 3 end] {
 }
 set_param messaging.defaultLimit 3000
 synth_design -verbose -top $top -part $part -flatten_hierarchy none -directive AreaOptimized_medium
-# The two DSPs of each iterator are placed next to each other in the same
-# column, because the path from each of them to the other one is the longest
-# path of the iterator (see iterator.vhd). The relative locations are in DSP
-# sites.
-# The wide iterator (iterator_wide.vhd, on the MEGA65) has two cascades of
-# three DSPs, and they are placed in a column of six DSPs, so the paths from
-# the DSPs to the fabric and back are short. The last DSP of each cascade is
-# p3_r_reg and p6_r_reg, and the DSP before each DSP is the one that drives
-# its cascade input (PCIN), because the first DSPs have names given by the
-# synthesis.
+# The iterator (iterator_wide.vhd) has two cascades of three DSPs, and they
+# are placed in a column of six DSPs, so the paths from the DSPs to the fabric
+# and back are short. The relative locations are in DSP sites. The last DSP of
+# each cascade is p3_r_reg and p6_r_reg, and the DSP before each DSP is the
+# one that drives its cascade input (PCIN), because the first DSPs have names
+# given by the synthesis.
 proc pcin_driver {dsp} {
    set net [get_nets -of_objects [get_pins $dsp/PCIN[0]]]
    return [get_cells -of_objects [get_pins -leaf -of_objects $net -filter {DIRECTION == OUT}]]
@@ -63,35 +59,30 @@ set n 0
 set macro_dsps 0
 foreach it [get_cells -hierarchical -filter {NAME =~ *i_iterator}] {
    create_macro iterator_$n
-   if {[llength [get_cells -quiet $it/px_r_reg]] > 0} {
-      update_macro iterator_$n [list $it/px_r_reg X0Y0 $it/py_r_reg X0Y1]
-      incr macro_dsps 2
-   } else {
-      set locs {}
-      set y 0
-      foreach last {p3_r_reg p6_r_reg} {
-         set dsp3 [get_cells $it/$last]
-         foreach port {A B} {
-            if {[cascade_delay $dsp3 $port] != 2} {
-               puts "ERROR: The input $port of $dsp3 has [cascade_delay $dsp3 $port] registers instead of 2."
-               exit 1
-            }
-         }
-         set dsp2 [pcin_driver $dsp3]
-         set dsp1 [pcin_driver $dsp2]
-         foreach dsp [list $dsp1 $dsp2 $dsp3] {
-            lappend locs $dsp X0Y$y
-            incr y
+   set locs {}
+   set y 0
+   foreach last {p3_r_reg p6_r_reg} {
+      set dsp3 [get_cells $it/$last]
+      foreach port {A B} {
+         if {[cascade_delay $dsp3 $port] != 2} {
+            puts "ERROR: The input $port of $dsp3 has [cascade_delay $dsp3 $port] registers instead of 2."
+            exit 1
          }
       }
-      update_macro iterator_$n $locs
-      incr macro_dsps 6
+      set dsp2 [pcin_driver $dsp3]
+      set dsp1 [pcin_driver $dsp2]
+      foreach dsp [list $dsp1 $dsp2 $dsp3] {
+         lappend locs $dsp X0Y$y
+         incr y
+      }
    }
+   update_macro iterator_$n $locs
+   incr macro_dsps 6
    incr n
 }
-# All the DSPs are in the iterators, two in each (six in a wide iterator). If
-# the names of the cells change, the filter above finds no iterators, no
-# macros are made, and timing fails by 0.7 to 1.5 ns without a hint why.
+# All the DSPs are in the iterators, six in each. If the names of the cells
+# change, the filter above finds no iterators, no macros are made, and timing
+# fails by 0.7 to 1.5 ns without a hint why.
 set num_dsps [llength [get_cells -hierarchical -filter {REF_NAME == DSP48E1}]]
 puts "INFO: Created $n macros for the iterators, with $num_dsps DSPs in the design."
 if {$n == 0 || $macro_dsps != $num_dsps} {
@@ -99,7 +90,7 @@ if {$n == 0 || $macro_dsps != $num_dsps} {
    exit 1
 }
 # The floorplan of the board, if there is one. The MEGA65 has one for the
-# wide iterators (mega65_floorplan.tcl).
+# job modules (mega65_floorplan.tcl).
 foreach floorplan $floorplans {
    source $floorplan
 }

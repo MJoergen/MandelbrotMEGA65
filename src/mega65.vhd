@@ -17,10 +17,9 @@
 -- video DAC, and the HDMI output. The same design, only smaller, also runs on
 -- the Nexys 4 DDR board, see nexys4ddr.vhd.
 --
--- The numbers are in 2.33 fixed point format (2.16 on the Nexys 4 DDR), so it
--- is possible to zoom 2^17 times deeper, and the maximum count is 1023 (511 on
--- the Nexys 4 DDR). The iterators (iterator_wide.vhd) use six DSPs each,
--- instead of two, and calculate four rows at the same time.
+-- The numbers are in 2.33 fixed point format, and the maximum count is 1023.
+-- The iterators (iterator_wide.vhd) use six DSPs each, and calculate four
+-- rows at the same time.
 --
 -- The ports of the MEGA65:
 -- * The view is controlled by the joysticks and the keyboard: The directions
@@ -111,9 +110,8 @@ architecture structural of mega65 is
    -- 120 job modules.
    constant C_NUM_ITERATORS : positive := 120;
 
-   -- The numbers are in 2.33 fixed point format, with iterator_wide.vhd, and
-   -- the maximum count is 1023 (see main.vhd and job_wide.vhd).
-   constant C_FRAC_BITS     : positive := 33;
+   -- The maximum count (see main.vhd and job_wide.vhd). The numbers are in
+   -- 2.33 fixed point format, with iterator_wide.vhd.
    constant C_MAX_COUNT     : positive := 1023;
 
    -- The number of pixels in each write to the display memory. The dispatcher
@@ -307,7 +305,6 @@ begin
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
          G_BLOCK_REGS    => C_BLOCK_REGS,
-         G_FRAC_BITS     => C_FRAC_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (

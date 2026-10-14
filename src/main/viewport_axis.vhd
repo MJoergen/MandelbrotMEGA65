@@ -1,6 +1,5 @@
 -- This module controls the view along one axis, i.e. the position of the
--- first column (row) and the size of a pixel, both in 2.G_FRAC_BITS fixed point
--- format.
+-- first column (row) and the size of a pixel, both in 2.33 fixed point format.
 -- It is instantiated twice by viewport.vhd, once for x and once for y. See
 -- viewport.vhd for the description of the view, and of the limits that are
 -- kept.
@@ -25,8 +24,7 @@ entity viewport_axis is
       G_NUM_PIXELS : integer;  -- Number of columns (rows)
       G_PAN_PIXELS : positive; -- Pan step in pixels
       G_START      : real;     -- Initial view
-      G_SIZE       : real;
-      G_FRAC_BITS  : positive  -- Fraction bits of the values
+      G_SIZE       : real
    );
    port (
       clk_i      : in  std_logic;
@@ -40,15 +38,16 @@ entity viewport_axis is
       zoom_i     : in  std_logic;
       zoom_ok_o  : out std_logic;
       done_o     : out std_logic;  -- The serial multiplications are finished
-      start_o    : out std_logic_vector(G_FRAC_BITS+1 downto 0);
-      step_o     : out std_logic_vector(G_FRAC_BITS+1 downto 0)
+      start_o    : out std_logic_vector(34 downto 0);
+      step_o     : out std_logic_vector(34 downto 0)
    );
 end entity viewport_axis;
 
 architecture rtl of viewport_axis is
 
-   -- The number of bits of the values
-   constant C_BITS      : natural := G_FRAC_BITS + 2;
+   -- The number of fraction bits, and the number of bits of the values
+   constant C_FRAC_BITS : natural := 33;
+   constant C_BITS      : natural := C_FRAC_BITS + 2;
 
    -- Convert a real number r, which is an integer from 0 to 2^bits-1, to a
    -- vector. It is converted in two parts, because it may not fit in an
@@ -59,7 +58,7 @@ architecture rtl of viewport_axis is
       return to_slv(natural(hi_v), bits-16) & to_slv(natural(r - hi_v * 2.0**16), 16);
    end function to_slv;
 
-   -- The largest position, i.e. 2-2^-G_FRAC_BITS, in offset binary. Some of
+   -- The largest position, i.e. 2-2^-C_FRAC_BITS, in offset binary. Some of
    -- the constants (e.g. this one) do not fit in an integer, so they are
    -- calculated as real numbers, which are exact for integers up to 2^53.
    constant C_MAX_POS_R : real := 2.0**C_BITS - 1.0;
@@ -69,9 +68,10 @@ architecture rtl of viewport_axis is
    constant C_MIN_STEP  : natural := 1;
 
    -- The largest size of a pixel, such that the view from the first to the
-   -- last column (row), i.e. step*(num-1), is at most C_MAX_POS. This fits in
-   -- an integer.
-   constant C_MAX_STEP  : natural := natural(floor(C_MAX_POS_R / real(G_NUM_PIXELS-1)));
+   -- last column (row), i.e. step*(num-1), is at most C_MAX_POS. For a small
+   -- picture (e.g. in the testbenches) this does not fit in an integer.
+   constant C_MAX_STEP_R : real := floor(C_MAX_POS_R / real(G_NUM_PIXELS-1));
+   constant C_MAX_STEP   : std_logic_vector(C_BITS-1 downto 0) := to_slv(C_MAX_STEP_R, C_BITS);
 
    -- The column (row) of the pixel that is kept fixed when zooming
    constant C_CENTRE    : natural := G_NUM_PIXELS/2;
@@ -82,9 +82,9 @@ architecture rtl of viewport_axis is
    -- Initial view, as real numbers. The position is in offset binary, rounded
    -- to the nearest integer, and the size of a pixel is rounded down (after
    -- rounding the size of the view). They are checked below.
-   constant C_INIT_POS  : real := floor((G_START+2.0) * 2.0**G_FRAC_BITS + 0.5);
+   constant C_INIT_POS  : real := floor((G_START+2.0) * 2.0**C_FRAC_BITS + 0.5);
    constant C_INIT_D    : real :=
-      floor(floor(G_SIZE * 2.0**G_FRAC_BITS + 0.5) / real(G_NUM_PIXELS));
+      floor(floor(G_SIZE * 2.0**C_FRAC_BITS + 0.5) / real(G_NUM_PIXELS));
 
    -- The same in fixed point format. The values are limited to the range of
    -- the format here, so that an initial view outside the range is reported by
@@ -156,7 +156,7 @@ begin
       report "The initial size of a pixel is less than one LSB"
       severity failure;
 
-   assert C_INIT_D <= real(C_MAX_STEP) and
+   assert C_INIT_D <= C_MAX_STEP_R and
           C_INIT_POS + C_INIT_D*real(G_NUM_PIXELS-1) <= C_MAX_POS_R
       report "The initial view ends at 2 or above"
       severity failure;

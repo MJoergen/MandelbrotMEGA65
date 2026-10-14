@@ -12,9 +12,8 @@
 -- Switches 0 and 1 select the colour palette, and switch 3 moves it, but they
 -- are used in vga.vhd, not here. The other switches are not used.
 --
--- The numbers are in 2.G_FRAC_BITS fixed point format: 2.33 on the MEGA65,
--- and 2.16 on the Nexys 4 DDR, see dispatcher.vhd. The maximum count is
--- G_MAX_COUNT: 1023 on the MEGA65, and 511 on the Nexys 4 DDR.
+-- The numbers are in 2.33 fixed point format (35 bits), see dispatcher.vhd.
+-- The maximum count is G_MAX_COUNT, 1023 on both boards.
 --
 -- A picture is only calculated when the view has changed, i.e. after reset,
 -- and when the view is changed by the buttons. In between, the dispatcher and
@@ -46,13 +45,14 @@ entity main is
       -- The frequency of the MAIN clock in Hz, used to calculate the frame
       -- rate. This depends on the board, so it is set by the top level module.
       G_CLK_FREQ      : natural;
-      -- The number of job modules, i.e. iterators (with two DSPs each). This
+      -- The number of job modules, i.e. iterators (with six DSPs each). This
       -- depends on the size of the FPGA, so it is set by the top level
       -- module.
       G_NUM_ITERATORS : positive;
       -- The number of pixels in each write to the display memory, see
-      -- dispatcher.vhd and disp_mem.vhd. A power of two, and the rows in a
-      -- job (G_ROWS_IN_JOB) must be a multiple of it.
+      -- dispatcher.vhd and disp_mem.vhd. The wide iterator calculates four
+      -- rows at a time, so this must be 4 (see job_wide.vhd), and the rows in
+      -- a job (G_ROWS_IN_JOB) must be a multiple of it.
       G_PIXELS        : positive;
       -- Rows in each job given to a job module, see dispatcher.vhd. The
       -- number of rows of the picture must be a multiple of it.
@@ -64,12 +64,8 @@ entity main is
       G_NUM_ROWS      : positive;
       G_COL_STRIDE    : positive;
       G_ADDR_BITS     : positive;
-      -- The number format (2.G_FRAC_BITS fixed point, 16 or 33), and the
-      -- maximum count, see dispatcher.vhd. With 2.16 the count is written to
-      -- the display memory as it is, so the maximum count must be 511, which
-      -- is the value of the points in the set (see palette_pkg.vhd). With
-      -- 2.33 the count is converted, see job_wide.vhd.
-      G_FRAC_BITS     : positive;
+      -- The maximum count. The count is converted to the 9-bit value of the
+      -- display memory, see job_wide.vhd.
       G_MAX_COUNT     : positive
    );
    port (
@@ -104,21 +100,20 @@ architecture structural of main is
    -- to 1.0 for 4:3 (640x480), and from -1.0667 to 1.0667 for 5:4
    -- (1280x1024). The size of the real axis is 8/3 exactly, so the sizes of
    -- a pixel in the two directions (C_SIZE_X/G_NUM_COLS and
-   -- C_SIZE_Y/G_NUM_ROWS) are equal, also with 2.33.
+   -- C_SIZE_Y/G_NUM_ROWS) are equal.
    constant C_START_X       : real := -1.6667;
    constant C_SIZE_X        : real :=  8.0 / 3.0;
    constant C_SIZE_Y        : real :=  C_SIZE_X * real(G_NUM_ROWS) / real(G_NUM_COLS);
    constant C_START_Y       : real := -C_SIZE_Y / 2.0;
 
    -- The initial size of a pixel in LSBs of 2.16, as in viewport.vhd. The
-   -- text of the view (view_text.vhd) is calculated in 2.16, also on the
-   -- MEGA65, see below.
+   -- text of the view (view_text.vhd) is calculated in 2.16, see below.
    constant C_INIT_STEP     : positive := integer(C_SIZE_X*real(2**16))/G_NUM_COLS;
 
-   signal startx         : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal starty         : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal stepx          : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal stepy          : std_logic_vector(G_FRAC_BITS+1 downto 0);
+   signal startx         : std_logic_vector(34 downto 0);
+   signal starty         : std_logic_vector(34 downto 0);
+   signal stepx          : std_logic_vector(34 downto 0);
+   signal stepy          : std_logic_vector(34 downto 0);
 
    signal start          : std_logic;
    signal active         : std_logic;
@@ -131,10 +126,10 @@ architecture structural of main is
    -- reset), i.e. when a new picture must be calculated. The initial value of
    -- first is the same as after reset, so the view is not compared before it
    -- has a value (in simulation).
-   signal pic_startx     : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal pic_starty     : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal pic_stepx      : std_logic_vector(G_FRAC_BITS+1 downto 0);
-   signal pic_stepy      : std_logic_vector(G_FRAC_BITS+1 downto 0);
+   signal pic_startx     : std_logic_vector(34 downto 0);
+   signal pic_starty     : std_logic_vector(34 downto 0);
+   signal pic_stepx      : std_logic_vector(34 downto 0);
+   signal pic_stepy      : std_logic_vector(34 downto 0);
    signal first          : std_logic := '1';
    signal view_new       : std_logic;
 
@@ -181,10 +176,6 @@ architecture structural of main is
 
 begin
 
-   assert G_FRAC_BITS /= 16 or G_MAX_COUNT = 511
-      report "With 2.16 numbers the maximum count must be 511"
-      severity failure;
-
    p_upd : process (clk_i)
    begin
       if rising_edge(clk_i) then
@@ -216,13 +207,12 @@ begin
 
    i_viewport : entity work.viewport
       generic map (
-         G_NUM_COLS  => G_NUM_COLS,
-         G_NUM_ROWS  => G_NUM_ROWS,
-         G_START_X   => C_START_X,
-         G_START_Y   => C_START_Y,
-         G_SIZE_X    => C_SIZE_X,
-         G_SIZE_Y    => C_SIZE_Y,
-         G_FRAC_BITS => G_FRAC_BITS
+         G_NUM_COLS => G_NUM_COLS,
+         G_NUM_ROWS => G_NUM_ROWS,
+         G_START_X  => C_START_X,
+         G_START_Y  => C_START_Y,
+         G_SIZE_X   => C_SIZE_X,
+         G_SIZE_Y   => C_SIZE_Y
       )
       port map (
          clk_i      => clk_i,
@@ -246,8 +236,7 @@ begin
    -- The view is compared with the view of the latest picture. The view is
    -- updated 18 times per second, also when no button is held down, so the
    -- picture is only recalculated when the update has changed something. The
-   -- result is registered, so the comparison of 140 bits (72 bits with 2.16)
-   -- has a clock cycle of its own. view_new is therefore set one clock cycle
+   -- result is registered, so the comparison of 140 bits has a clock cycle of its own. view_new is therefore set one clock cycle
    -- after the view changes, and cleared two clock cycles after the start. It
    -- is only used when no picture is being calculated, and a picture takes far
    -- longer.
@@ -326,8 +315,8 @@ begin
    -- cnt wraps around after 2^27 clock cycles (0.75 s at 180 MHz), but a
    -- picture takes far less: even if every pixel needed the maximum count,
    -- the model (sim/model.py) gives about 11.2 million clock cycles (62 ms)
-   -- on the MEGA65, i.e. a frame rate of about 16, and 1.4 million (11.4 ms,
-   -- a frame rate of about 87) on the Nexys 4 DDR.
+   -- on the MEGA65, i.e. a frame rate of about 16, and 8.1 million (67 ms, a
+   -- frame rate of about 15) on the Nexys 4 DDR.
    i_fps : entity work.fps
       generic map (
          G_CLK_FREQ  => G_CLK_FREQ,
@@ -353,20 +342,19 @@ begin
    -- Convert the view of the picture to text
    --------------------------------------------------
 
-   -- view_text.vhd only handles 2.16, so with 2.33 (on the MEGA65) the view
-   -- is truncated to 2.16, i.e. the top 18 bits are used. The size of a pixel
-   -- is at least one LSB of 2.16. This is only an approximation: the centre is
-   -- calculated with the truncated size of a pixel, so it is off by up to
-   -- G_NUM_COLS/2 LSBs of 2.16 (about 0.01 for 1280 columns), and the zoom
+   -- view_text.vhd only handles 2.16, so the view is truncated to 2.16, i.e.
+   -- the top 18 bits are used. The size of a pixel is at least one LSB of
+   -- 2.16. This is only an approximation: the centre is calculated with the
+   -- truncated size of a pixel, so it is off by up to G_NUM_COLS/2 LSBs of
+   -- 2.16 (about 0.01 for 1280 columns, and 0.005 for 640), and the zoom
    -- shown stops at the initial size of a pixel in LSBs of 2.16 (136.00x for
-   -- 1280 columns), although the view can be zoomed in 2^17 times further.
-   txt_startx <= startx(G_FRAC_BITS+1 downto G_FRAC_BITS-16);
-   txt_starty <= starty(G_FRAC_BITS+1 downto G_FRAC_BITS-16);
-   txt_stepx  <= stepx(G_FRAC_BITS+1 downto G_FRAC_BITS-16)
-                 when stepx(G_FRAC_BITS+1 downto G_FRAC_BITS-16) /= 0 else
+   -- 1280 columns, and 273.00x for 640), although the view can be zoomed in
+   -- 2^17 times further.
+   txt_startx <= startx(34 downto 17);
+   txt_starty <= starty(34 downto 17);
+   txt_stepx  <= stepx(34 downto 17) when stepx(34 downto 17) /= 0 else
                  to_slv(1, 18);
-   txt_stepy  <= stepy(G_FRAC_BITS+1 downto G_FRAC_BITS-16)
-                 when stepy(G_FRAC_BITS+1 downto G_FRAC_BITS-16) /= 0 else
+   txt_stepy  <= stepy(34 downto 17) when stepy(34 downto 17) /= 0 else
                  to_slv(1, 18);
 
    -- The dispatcher takes the view when it sees the start, so the text is of
@@ -427,8 +415,7 @@ begin
          G_ADDR_BITS     => G_ADDR_BITS,
          G_ROWS_IN_JOB   => G_ROWS_IN_JOB,
          G_NUM_ITERATORS => G_NUM_ITERATORS,
-         G_PIXELS        => G_PIXELS,
-         G_FRAC_BITS     => G_FRAC_BITS
+         G_PIXELS        => G_PIXELS
       )
       port map (
          clk_i     => clk_i,

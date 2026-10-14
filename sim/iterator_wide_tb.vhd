@@ -6,10 +6,10 @@
 -- (floating point) numbers, within a small tolerance. This checks that the
 -- model (i.e. the design) calculates the Mandelbrot iteration.
 --
--- The points are mostly the same as in iterator_tb.vhd, and the four points of
--- a start are either the same point, or a mixture of points that escape at
--- different times, so that the slots of the iterator finish in different
--- orders. Some points include:
+-- The points are mostly those of the testbench of the earlier 2.16 iterator
+-- (see HISTORY.md), and the four points of a start are either the same point,
+-- or a mixture of points that escape at different times, so that the slots of
+-- the iterator finish in different orders. Some points include:
 -- * Points in the set, which must be found by the periodicity detection, so
 --   the number of clock cycles until done is checked too.
 -- * Points where x+y or x-y is out of range (-2 to 2) during the iteration.
@@ -17,7 +17,7 @@
 --   on the real axis, e.g. 0.3) repeats an earlier saved value. The
 --   periodicity detection must compare both x and y.
 -- * Points right after points that leave saved values equal to their first
---   values, as in iterator_tb.vhd.
+--   values.
 -- * Four values of cy where the last ones wrap around (from 2 to -2), as
 --   they do in the job modules.
 -- Finally, a grid of 40 x 32 points over the initial view is compared exactly
@@ -71,8 +71,7 @@ architecture simulation of iterator_wide_tb is
               real(to_integer(unsigned(v(16 downto 0))))) / 2.0**33;
    end function to_real;
 
-   -- Calculate the expected iteration count, using real numbers, as in
-   -- iterator_tb.vhd.
+   -- Calculate the expected iteration count, using real numbers.
    function expected_count (cx_r : real; cy_r : real) return integer is
       variable x_v : real := 0.0;
       variable y_v : real := 0.0;

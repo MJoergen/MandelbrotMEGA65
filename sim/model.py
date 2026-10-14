@@ -3,22 +3,19 @@
 # Vectorized (numpy) bit-accurate model of the picture calculated by the
 # design, and a reference calculated using real (floating point) numbers.
 #
-# hw_count() follows src/main/iterator.vhd (2.16 fixed point, like
-# iterator_model.py, but for many points at once) or src/main/iterator_wide.vhd
-# (2.33 fixed point), and view() gives the values of c for each pixel,
-# calculated in the same way as src/main/main.vhd, src/main/viewport.vhd,
-# src/main/dispatcher.vhd and src/main/job.vhd (or job_wide.vhd). This module is
-# used by cmp_rtl.py to compare the simulated design with the model.
+# hw_count() follows src/main/iterator_wide.vhd (2.33 fixed point), and view()
+# gives the values of c for each pixel, calculated in the same way as
+# src/main/main.vhd, src/main/viewport.vhd, src/main/dispatcher.vhd and
+# src/main/job_wide.vhd. This module is used by cmp_rtl.py to compare the
+# simulated design with the model.
 #
 # Run as a script, it compares the model with the reference for the initial
 # view (1280x1024, as on the MEGA65), and prints how many pixels differ. It
 # also estimates the time it takes the design to calculate the picture, and
 # the time the job modules wait for their results to be accepted, see
 # picture_cycles(). The same is done for the initial view on the Nexys 4 DDR
-# (640x480, with 2.16 fixed point and the maximum count 511). For the times,
-# hw_stop() follows the periodicity detection of the iterator, which stops the
-# iteration early for most points in the set, and checks that it gives the same
-# count as hw_count().
+# (640x480). For the times, hw_stop() follows the periodicity detection of the
+# iterator, which stops the iteration early for most points in the set.
 #
 # Usage:
 #   ./model.py           Compare the model with the reference.
@@ -38,14 +35,14 @@ import numpy as np
 from numpy.typing import ArrayLike
 from numpy.typing import NDArray
 
-# Arrays of integers (e.g. 2.16 fixed point numbers or counts), real numbers,
+# Arrays of integers (e.g. 2.33 fixed point numbers or counts), real numbers,
 # and booleans
 IntArray = NDArray[np.int64]
 RealArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 
 MAX_COUNT = 1023     # Must match C_MAX_COUNT in mega65.vhd
-FRAC_BITS = 33       # Must match C_FRAC_BITS in mega65.vhd
+FRAC_BITS = 33       # The number format (2.33) of iterator_wide.vhd
 NUM_COLS  = 1280     # Must match C_VIDEO in mega65.vhd
 NUM_ROWS  = 1024     # Must match C_VIDEO in mega65.vhd
 ROWS_IN_JOB = 64     # Must match C_ROWS_IN_JOB in mega65.vhd
@@ -54,12 +51,11 @@ PIXELS = 4           # Must match C_PIXELS in mega65.vhd
 GROUP_SIZE = 16      # Must match G_GROUP_SIZE in dispatcher.vhd
 MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 6.0   # Must match C_MAIN_DIVIDE in mega65.vhd
 # The same for the Nexys 4 DDR, see nexys4ddr.vhd
-NEXYS4DDR_MAX_COUNT = 511
-NEXYS4DDR_FRAC_BITS = 16
+NEXYS4DDR_MAX_COUNT = 1023
 NEXYS4DDR_NUM_COLS = 640
 NEXYS4DDR_NUM_ROWS = 480
 NEXYS4DDR_ROWS_IN_JOB = 120
-NEXYS4DDR_NUM_ITERATORS = 120
+NEXYS4DDR_NUM_ITERATORS = 39
 NEXYS4DDR_PIXELS = 4
 NEXYS4DDR_MAIN_CLOCK_KHZ = 1200e3 / 10.0   # Must match C_MAIN_DIVIDE in nexys4ddr.vhd
 
@@ -97,45 +93,11 @@ def wide_iteration(x: IntArray, y: IntArray, cx: IntArray,
     return new_x, new_y
 
 
-def hw_count(cx: ArrayLike, cy: ArrayLike, max_count: int = MAX_COUNT,
-             frac: int = FRAC_BITS) -> IntArray:
-    """Iteration count of src/main/iterator_wide.vhd (frac = 33, the MEGA65).
-    cx and cy are 2.33 fixed point numbers, i.e. 35-bit signed integers. With
-    frac = 16, the iteration count of src/main/iterator.vhd (the Nexys 4 DDR),
-    where cx and cy are 2.16 fixed point numbers (18-bit signed integers)."""
-    if frac == 33:
-        return hw_stop(cx, cy, max_count, frac)[0]
-    cx_i: IntArray = np.asarray(cx, np.int64)
-    cy_i: IntArray = np.asarray(cy, np.int64)
-    cx_s: IntArray = cx_i << 16              # 4.32
-    cy_div_2_s: IntArray = cy_i << 15        # 4.32, this is cy/2
-    x: IntArray = np.zeros_like(cx_i)        # 2.16
-    y: IntArray = np.zeros_like(cx_i)        # 2.16
-    cnt: IntArray = np.zeros_like(cx_i)
-    done: BoolArray = np.zeros(cx_i.shape, bool)
-    ovf: BoolArray = np.zeros(cx_i.shape, bool)
-    while True:
-        # The count, and the end of the iteration
-        done |= ovf
-        active = ~done
-        cnt = np.where(active, cnt + 1, cnt)
-        done |= active & (cnt == max_count)
-        if done.all():
-            return cnt
-
-        # x+y and x-y do not wrap around, because the one that may be out of
-        # range goes to the 19-bit input of the multiplier. The products are
-        # 4.32, and can not overflow.
-        new_x_s = (x + y) * (x - y) + cx_s
-        new_y_half_s = x * y + cy_div_2_s
-
-        # The new x is in range (-2 <= x < 2) if the top three bits are equal.
-        # The new y/2 is in range (-1 <= y/2 < 1) if the top four bits are equal.
-        ovf_x = (new_x_s < -(1 << 33)) | (new_x_s >= (1 << 33))
-        ovf_y = (new_y_half_s < -(1 << 32)) | (new_y_half_s >= (1 << 32))
-        ovf = np.where(done, ovf, ovf_x | ovf_y)
-        x = np.where(done, x, wrap(new_x_s >> 16, 18))         # Bits 33 downto 16
-        y = np.where(done, y, wrap(new_y_half_s >> 15, 18))    # Bits 32 downto 15
+def hw_count(cx: ArrayLike, cy: ArrayLike,
+             max_count: int = MAX_COUNT) -> IntArray:
+    """Iteration count of src/main/iterator_wide.vhd. cx and cy are 2.33 fixed
+    point numbers, i.e. 35-bit signed integers."""
+    return hw_stop(cx, cy, max_count)[0]
 
 
 def ref_count(cx: ArrayLike, cy: ArrayLike,
@@ -162,13 +124,13 @@ def ref_count(cx: ArrayLike, cy: ArrayLike,
 
 def view(startx: Optional[int] = None, starty: Optional[int] = None,
          stepx: Optional[int] = None, stepy: Optional[int] = None,
-         cols: int = NUM_COLS, rows: int = NUM_ROWS,
-         frac: int = FRAC_BITS) -> Tuple[IntArray, IntArray]:
-    """The values of cx and cy (2.frac fixed point) for each pixel, as arrays
+         cols: int = NUM_COLS, rows: int = NUM_ROWS) -> Tuple[IntArray, IntArray]:
+    """The values of cx and cy (2.33 fixed point) for each pixel, as arrays
     indexed by [row, column]. The default is the initial view in main.vhd,
     where the imaginary axis is centred on 0, with square pixels. It is
     calculated as in viewport.vhd (the positions are rounded to the nearest
     value, and the sizes of a pixel rounded down)."""
+    frac = FRAC_BITS
     one = float(1 << frac)
     size_y = SIZE_X * rows / cols
     if startx is None:
@@ -195,59 +157,16 @@ def pixel(cnt: ArrayLike, max_count: int) -> IntArray:
     return np.where(c == max_count, 511, c & 0xFF)
 
 
-def hw_stop(cx: ArrayLike, cy: ArrayLike, max_count: int = MAX_COUNT,
-            frac: int = FRAC_BITS) -> Tuple[IntArray, IntArray]:
-    """Follow the iterator including the periodicity detection. Returns the
-    count (which must be the same as from hw_count()), and the number of
-    iterations done when the iterator stops, i.e. the value of cnt_r of
-    src/main/iterator.vhd (frac = 16) when it stops, or it_r of the slot of
-    src/main/iterator_wide.vhd (frac = 33, the default). x and y are saved
-    after iterations 1, 2, 4, 8, ..., and compared with the saved values in
-    each iteration from iteration 2. A match stops the iteration at once, with
-    the count max_count."""
-    if frac == 33:
-        return hw_stop_wide(cx, cy, max_count)
-    cx_i: IntArray = np.asarray(cx, np.int64)
-    cy_i: IntArray = np.asarray(cy, np.int64)
-    x: IntArray = np.zeros_like(cx_i)
-    y: IntArray = np.zeros_like(cx_i)
-    sx: IntArray = np.zeros_like(cx_i)
-    sy: IntArray = np.zeros_like(cx_i)
-    cnt: IntArray = np.zeros_like(cx_i)
-    stop: IntArray = np.zeros_like(cx_i)
-    done: BoolArray = np.zeros(cx_i.shape, bool)
-    ovf: BoolArray = np.zeros(cx_i.shape, bool)
-    while True:
-        # p_ctrl, with x and y after cnt iterations, and ovf from the last
-        # iteration
-        active = ~done
-        match = (cnt >= 2) & (x == sx) & (y == sy)
-        save = active & (cnt != 0) & ((cnt & (cnt - 1)) == 0)
-        stop = np.where(active, cnt, stop)
-        found = active & ~ovf & (match | (cnt == max_count - 1))
-        cnt = np.where(found, max_count, cnt)
-        done |= active & (ovf | found)
-        cnt = np.where(~done, cnt + 1, cnt)
-        sx = np.where(save, x, sx)
-        sy = np.where(save, y, sy)
-        if done.all():
-            return cnt, stop
-
-        # The iteration (the DSPs), as in hw_count()
-        new_x_s = (x + y) * (x - y) + (cx_i << 16)
-        new_y_half_s = x * y + (cy_i << 15)
-        ovf_x = (new_x_s < -(1 << 33)) | (new_x_s >= (1 << 33))
-        ovf_y = (new_y_half_s < -(1 << 32)) | (new_y_half_s >= (1 << 32))
-        ovf = np.where(done, ovf, ovf_x | ovf_y)
-        x = np.where(done, x, wrap(new_x_s >> 16, 18))
-        y = np.where(done, y, wrap(new_y_half_s >> 15, 18))
-
-
-def hw_stop_wide(cx: ArrayLike, cy: ArrayLike,
-                 max_count: int) -> Tuple[IntArray, IntArray]:
-    """hw_stop() for src/main/iterator_wide.vhd (2.33 fixed point). The points
-    that are done are removed from the arrays, which makes it much faster than
-    hw_stop() for the many iterations of the maximum count 1023."""
+def hw_stop(cx: ArrayLike, cy: ArrayLike,
+            max_count: int = MAX_COUNT) -> Tuple[IntArray, IntArray]:
+    """Follow the iterator (src/main/iterator_wide.vhd) including the
+    periodicity detection. Returns the count, and the number of iterations done
+    when the iterator stops, i.e. the value of it_r of the slot when it stops.
+    x and y are saved after iterations 1, 2, 4, 8, ..., and compared with the
+    saved values in each iteration from iteration 2. A match stops the
+    iteration at once, with the count max_count. The points that are done are
+    removed from the arrays, which makes it fast also for the many iterations
+    of the maximum count 1023."""
     shape = np.shape(cx)
     cx_i: IntArray = np.asarray(cx, np.int64).ravel()
     cy_i: IntArray = np.asarray(cy, np.int64).ravel()
@@ -283,21 +202,10 @@ def hw_stop_wide(cx: ArrayLike, cy: ArrayLike,
     return cnt_out.reshape(shape), stop_out.reshape(shape)
 
 
-def iterating_cycles(stop: ArrayLike) -> IntArray:
-    """The number of clock cycles the job module needs for each pixel: one clock
-    cycle per iteration, plus 7 to start the iterator and to deliver the result
-    (from the clock cycle in which i_res_scheduler selects the previous result
-    of the job module, until the ready flag of this result is high, see
-    picture_cycles()). stop is the number of iterations done when the iterator
-    stops (see hw_stop())."""
-    return np.asarray(stop, np.int64) + 7
-
-
 def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
                    rows_in_job: int = ROWS_IN_JOB,
                    group_size: int = GROUP_SIZE,
-                   pixels: int = PIXELS,
-                   wide: bool = True) -> Tuple[int, int]:
+                   pixels: int = PIXELS) -> Tuple[int, int]:
     """Estimate the number of clock cycles used to calculate the picture, by
     simulating the dispatcher one clock cycle at a time. stop is the number of
     iterations done by the iterator for each pixel (see hw_stop()), indexed by
@@ -315,49 +223,36 @@ def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
       flag is low from three clock cycles after the last result of the job is
       selected.
     * The ready flag of the first result of a job (res_ready_s) is high
-      iterating_cycles() - 2 clock cycles after the job starts.
+      result_cycles() - 2 clock cycles after the job starts (see below).
     * The scheduler for the results (i_res_scheduler) visits one group of
       group_size job modules in each clock cycle, and selects one of the job
       modules of the group whose ready flag was high three clock cycles
       before (the ready flags and the candidate of the group are registered),
       in round-robin order within the group.
-    * The ready flag of the next result is high iterating_cycles() clock
-      cycles after the previous result was selected (the acknowledge reaches
-      the job module two clock cycles after the selection, and the job module
-      starts the next row in the clock cycle after that).
+    * The ready flag of the next result is high result_cycles() clock cycles
+      after the previous result was selected (the acknowledge reaches the job
+      module two clock cycles after the selection, and the job module starts
+      the next rows in the clock cycle after that).
     The waiting time of a result is counted from the clock cycle in which it
     could have been selected at the earliest (three clock cycles after its
     ready flag is high), until the clock cycle in which it is selected.
 
-    Each result is pixels consecutive rows. With wide = False (job.vhd, the
-    Nexys 4 DDR), the job module keeps the counts of the first pixels-1 rows of
-    a result, and starts the next row four clock cycles before the iterator
-    would be done with it after an acknowledge (the done flag of the iterator
-    starts it directly), so a result takes the sum of iterating_cycles() of its
-    rows, less 4 for each row after the first.
-
-    With wide = True (the default), the job modules are job_wide.vhd (the
-    MEGA65), and pixels must be 4. The wide iterator calculates the four rows of a result at the
-    same time, in four slots, and slot k is done 4n+k+3 clock cycles after the
-    start (in the iterator), where n is the number of iterations done. So a
-    result takes 4n+k+10 clock cycles, from the selection of the previous
-    result until the ready flag is high, where n is the largest number of
-    iterations of its rows, and k the last of the rows with n iterations (the
-    first result of a job is ready 4n+k+8 clock cycles after the job starts,
-    as above)."""
+    Each result is pixels consecutive rows, and pixels must be 4: the job
+    modules are job_wide.vhd, and the wide iterator calculates the four rows of
+    a result at the same time, in four slots. Slot k is done 4n+k+3 clock
+    cycles after the start (in the iterator), where n is the number of
+    iterations done. So a result takes result_cycles = 4n+k+10 clock cycles,
+    from the selection of the previous result until the ready flag is high,
+    where n is the largest number of iterations of its rows, and k the last of
+    the rows with n iterations (the first result of a job is ready 4n+k+8
+    clock cycles after the job starts, as above)."""
     stop_i: IntArray = np.asarray(stop, np.int64)
     rows, cols = stop_i.shape
-    iter_cycles: IntArray
-    if wide:
-        group: IntArray = stop_i.reshape(rows // 4, 4, cols)
-        most: IntArray = group.max(axis=1)
-        last: IntArray = 3 - np.argmax((group == most[:, None, :])[:, ::-1, :], axis=1)
-        iter_cycles = 4*most + last + 10
-    else:
-        row_cycles: IntArray = iterating_cycles(stop_i)
-        iter_cycles = (
-            row_cycles.reshape(rows // pixels, pixels, cols).sum(axis=1)
-            - 4*(pixels - 1))
+    assert pixels == 4
+    group: IntArray = stop_i.reshape(rows // 4, 4, cols)
+    most: IntArray = group.max(axis=1)
+    last: IntArray = 3 - np.argmax((group == most[:, None, :])[:, ::-1, :], axis=1)
+    iter_cycles: IntArray = 4*most + last + 10
     rows //= pixels
     rows_in_job //= pixels
     jobs: List[List[int]] = [
@@ -440,91 +335,64 @@ def rgb(cnt: ArrayLike) -> NDArray[np.uint8]:
     return np.stack([r, g, b], -1).astype(np.uint8)
 
 
+def board(name: str, cols: int, rows: int, max_count: int,
+          num_iterators: int, rows_in_job: int, pixels: int,
+          main_clock_khz: float) -> Tuple[IntArray, IntArray]:
+    """Compare the model with the reference for the initial view of a board,
+    and estimate the time for the picture. Returns the counts of the model and
+    of the reference."""
+    cx, cy = view(cols=cols, rows=rows)
+    hw, stop = hw_stop(cx, cy, max_count)
+    one = float(1 << FRAC_BITS)
+    ref = ref_count(cx / one, cy / one, max_count)
+    diff = hw - ref
+    print(f"{name}: {hw.size} pixels, 2.{FRAC_BITS} fixed point, "
+          f"maximum count {max_count}")
+    print("Difference in count (model vs. real) : number of pixels")
+    values, counts = np.unique(np.clip(np.abs(diff), 0, 5), return_counts=True)
+    for v, c in zip(values, counts):
+        print(f"  {v:3d}{'+' if v == 5 else ' '}: {c}")
+    in_set = hw == max_count
+    print(f"Pixels in the set: model {in_set.sum()}, "
+          f"real {(ref == max_count).sum()}, "
+          f"different {(in_set != (ref == max_count)).sum()}")
+    print(f"Periodicity detection: it stops "
+          f"{(in_set & (stop < max_count - 1)).sum()} of the "
+          f"{in_set.sum()} pixels in the set early, after "
+          f"{stop[in_set].mean():.0f} iterations on average. Average count "
+          f"{hw.mean():.1f}, average iterations {stop.mean():.1f}")
+    cycles, waiting = picture_cycles(stop, num_iterators, rows_in_job,
+                                     pixels=pixels)
+    print(f"Estimated time for the picture ({cols}x{rows}, "
+          f"{num_iterators} job modules, {pixels} pixels in "
+          f"each write): {cycles} clock cycles, i.e. "
+          f"{cycles / main_clock_khz:.2f} ms at "
+          f"{main_clock_khz / 1000:.3f} MHz "
+          f"({main_clock_khz * 1000 / cycles:.0f} pictures per second), "
+          f"the job modules wait {waiting / hw.size:.1f} clock cycles per pixel "
+          f"on average")
+    # If every pixel needed the maximum count, each result would take
+    # 4*(max_count-1)+3+10 clock cycles (see picture_cycles()), and the
+    # results would be shared evenly between the job modules
+    worst = hw.size // pixels * (4 * (max_count - 1) + 13) // num_iterators
+    print(f"If every pixel needed the maximum count: about {worst} clock "
+          f"cycles, i.e. {worst / main_clock_khz:.1f} ms "
+          f"({main_clock_khz * 1000 / worst:.0f} pictures per second)")
+    return hw, ref
+
+
 def main() -> None:
     args: List[str] = sys.argv[1:]
     if args not in ([], ["--png"]):
         print("Usage: model.py [--png]")
         sys.exit(2)
 
-    # The MEGA65, with 2.33 fixed point and the maximum count 1023
-    cx, cy = view()
-    hw, stop = hw_stop(cx, cy)
-    one = float(1 << FRAC_BITS)
-    ref = ref_count(cx / one, cy / one)
-    diff = hw - ref
-    print(f"MEGA65: {hw.size} pixels, 2.{FRAC_BITS} fixed point, "
-          f"maximum count {MAX_COUNT}")
-    print("Difference in count (model vs. real) : number of pixels")
-    values, counts = np.unique(np.clip(np.abs(diff), 0, 5), return_counts=True)
-    for v, c in zip(values, counts):
-        print(f"  {v:3d}{'+' if v == 5 else ' '}: {c}")
-    in_set = hw == MAX_COUNT
-    print(f"Pixels in the set: model {in_set.sum()}, "
-          f"real {(ref == MAX_COUNT).sum()}, "
-          f"different {(in_set != (ref == MAX_COUNT)).sum()}")
-    print(f"Periodicity detection: it stops "
-          f"{(in_set & (stop < MAX_COUNT - 1)).sum()} of the "
-          f"{in_set.sum()} pixels in the set early, after "
-          f"{stop[in_set].mean():.0f} iterations on average. Average count "
-          f"{hw.mean():.1f}, average iterations {stop.mean():.1f}")
-    cycles, waiting = picture_cycles(stop)
-    print(f"Estimated time for the picture ({NUM_COLS}x{NUM_ROWS}, "
-          f"{NUM_ITERATORS} job modules, {PIXELS} pixels in "
-          f"each write): {cycles} clock cycles, i.e. "
-          f"{cycles / MAIN_CLOCK_KHZ:.2f} ms at "
-          f"{MAIN_CLOCK_KHZ / 1000:.3f} MHz "
-          f"({MAIN_CLOCK_KHZ * 1000 / cycles:.0f} pictures per second), "
-          f"the job modules wait {waiting / hw.size:.1f} clock cycles per pixel "
-          f"on average")
-    # If every pixel needed the maximum count, each result would take
-    # 4*(MAX_COUNT-1)+3+10 clock cycles (see picture_cycles()), and the
-    # results would be shared evenly between the job modules
-    worst = (hw.size // PIXELS * (4 * (MAX_COUNT - 1) + 13)
-             // NUM_ITERATORS)
-    print(f"If every pixel needed the maximum count: about {worst} clock "
-          f"cycles, i.e. {worst / MAIN_CLOCK_KHZ:.1f} ms "
-          f"({MAIN_CLOCK_KHZ * 1000 / worst:.0f} pictures per second)")
-
-    # The Nexys 4 DDR, with 2.16 fixed point and the maximum count 511
+    hw, ref = board("MEGA65", NUM_COLS, NUM_ROWS, MAX_COUNT, NUM_ITERATORS,
+                    ROWS_IN_JOB, PIXELS, MAIN_CLOCK_KHZ)
     print()
-    cx, cy = view(cols=NEXYS4DDR_NUM_COLS, rows=NEXYS4DDR_NUM_ROWS,
-                  frac=NEXYS4DDR_FRAC_BITS)
-    hw_n = hw_count(cx, cy, NEXYS4DDR_MAX_COUNT, NEXYS4DDR_FRAC_BITS)
-    one = float(1 << NEXYS4DDR_FRAC_BITS)
-    ref_n = ref_count(cx / one, cy / one, NEXYS4DDR_MAX_COUNT)
-    diff = hw_n - ref_n
-    print(f"Nexys 4 DDR: {hw_n.size} pixels, 2.{NEXYS4DDR_FRAC_BITS} fixed "
-          f"point, maximum count {NEXYS4DDR_MAX_COUNT}")
-    print("Difference in count (model vs. real) : number of pixels")
-    values, counts = np.unique(np.clip(np.abs(diff), 0, 5), return_counts=True)
-    for v, c in zip(values, counts):
-        print(f"  {v:3d}{'+' if v == 5 else ' '}: {c}")
-    in_set = hw_n == NEXYS4DDR_MAX_COUNT
-    print(f"Pixels in the set: model {in_set.sum()}, "
-          f"real {(ref_n == NEXYS4DDR_MAX_COUNT).sum()}, "
-          f"different {(in_set != (ref_n == NEXYS4DDR_MAX_COUNT)).sum()}")
-
-    detected, stop = hw_stop(cx, cy, NEXYS4DDR_MAX_COUNT, NEXYS4DDR_FRAC_BITS)
-    print(f"Periodicity detection: same count as without it for all pixels: "
-          f"{bool((detected == hw_n).all())}. It stops "
-          f"{(in_set & (stop < NEXYS4DDR_MAX_COUNT - 1)).sum()} of the "
-          f"{in_set.sum()} pixels in the set early, after "
-          f"{stop[in_set].mean():.0f} iterations on average")
-
-    cycles, waiting = picture_cycles(stop, NEXYS4DDR_NUM_ITERATORS,
-                                     rows_in_job=NEXYS4DDR_ROWS_IN_JOB,
-                                     pixels=NEXYS4DDR_PIXELS, wide=False)
-    iterating = iterating_cycles(stop).mean()
-    print(f"Average count {hw_n.mean():.1f}. The iterator needs {iterating:.0f} "
-          f"clock cycles per pixel, and the job modules wait "
-          f"{waiting / hw_n.size:.0f} clock cycles per pixel on average for the "
-          f"result to be accepted")
-    print(f"Estimated time for the picture ({NEXYS4DDR_NUM_COLS}x"
-          f"{NEXYS4DDR_NUM_ROWS}, {NEXYS4DDR_NUM_ITERATORS} job modules, "
-          f"{NEXYS4DDR_PIXELS} pixels in each write): {cycles} clock cycles, "
-          f"i.e. {cycles / NEXYS4DDR_MAIN_CLOCK_KHZ:.2f} ms at "
-          f"{NEXYS4DDR_MAIN_CLOCK_KHZ / 1000:.3f} MHz "
-          f"({NEXYS4DDR_MAIN_CLOCK_KHZ * 1000 / cycles:.0f} pictures per second)")
+    board("Nexys 4 DDR", NEXYS4DDR_NUM_COLS, NEXYS4DDR_NUM_ROWS,
+          NEXYS4DDR_MAX_COUNT, NEXYS4DDR_NUM_ITERATORS, NEXYS4DDR_ROWS_IN_JOB,
+          NEXYS4DDR_PIXELS, NEXYS4DDR_MAIN_CLOCK_KHZ)
 
     if args == ["--png"]:
         from PIL import Image

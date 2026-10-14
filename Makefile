@@ -81,8 +81,6 @@ nexys4ddr_XDC  = nexys4ddr.xdc
 SRC  = src/util_pkg.vhd
 SRC += src/text_pkg.vhd
 SRC += src/main/dispatcher_pkg.vhd
-SRC += src/main/iterator.vhd
-SRC += src/main/job.vhd
 SRC += src/main/iterator_wide.vhd
 SRC += src/main/job_wide.vhd
 SRC += src/main/job_scheduler.vhd
@@ -113,10 +111,10 @@ SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga core redraw picture overlay dispatcher disp disp_mem iterator_wide iterator viewport job_wide job job_scheduler res_scheduler fps view_text cdc_data controls
+TBS = vga core redraw picture overlay dispatcher disp disp_mem iterator_wide viewport job_wide job_scheduler res_scheduler fps view_text cdc_data controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
-# the command line, e.g. "make run TB=iterator".
+# the command line, e.g. "make run TB=iterator_wide".
 TB =
 
 # Generics of the testbench, as a list of <name>=<value>, e.g.
@@ -171,7 +169,7 @@ help:
 	@echo "  diagrams        Render the diagrams (doc/*.tex) to PNG using pdflatex"
 	@echo "  clean           Remove generated files"
 	@echo ""
-	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator'."
+	@echo "Testbench is selected by TB=<name>, e.g. 'make check TB=iterator_wide'."
 	@echo "Available testbenches: $(TBS)"
 	@echo ""
 	@echo "Board is selected by BOARD=<board>, e.g. 'make fpga BOARD=mega65-r6'."
@@ -289,7 +287,7 @@ ifeq ($(TB),)
 # No testbench specified, so list the possible ones
 .PHONY: run check
 run check:
-	@echo "Please specify a testbench using TB=<name>, e.g. 'make $@ TB=iterator'."
+	@echo "Please specify a testbench using TB=<name>, e.g. 'make $@ TB=iterator_wide'."
 	@echo "Available testbenches:"
 	@for tb in $(TBS); do echo "  $$tb"; done
 

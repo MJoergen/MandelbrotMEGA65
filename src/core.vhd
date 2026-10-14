@@ -35,7 +35,6 @@ entity core is
       G_ADDR_BITS     : positive;
       G_MEM_BLOCKS    : positive;
       G_BLOCK_REGS    : boolean;
-      G_FRAC_BITS     : positive;        -- Number format, see main.vhd
       G_MAX_COUNT     : positive
    );
    port (
@@ -98,7 +97,6 @@ begin
          G_NUM_ROWS      => G_VIDEO.v_visible,
          G_COL_STRIDE    => G_COL_STRIDE,
          G_ADDR_BITS     => G_ADDR_BITS,
-         G_FRAC_BITS     => G_FRAC_BITS,
          G_MAX_COUNT     => G_MAX_COUNT
       )
       port map (

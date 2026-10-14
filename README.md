@@ -9,24 +9,23 @@ board, which has a smaller FPGA (XC7A100T), and shows the picture in 640x480,
 see [Nexys 4 DDR](#nexys-4-ddr).
 
 720 of the 740 DSPs of the FPGA are used in parallel for the calculation, and
-the picture is stored in block RAM. The numbers have 33 fractional bits, so it
-is possible to zoom 2^17 times deeper than with the 16 of the Nexys 4 DDR, and
+the picture is stored in block RAM. The numbers have 33 fractional bits, and
 the maximum count is 1023. Generating a complete picture takes about 6.1 ms
 (about 163 pictures per second, estimated by the model), with the main clock at
 180 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
-takes about 1.2 ms (832 to 834 pictures per second, measured on the board), for
-a picture with less than a quarter of the pixels.
+takes about 7.1 ms (141 pictures per second, estimated by the model), for a
+picture with less than a quarter of the pixels.
 
 ## The algorithm
 For each pixel, which corresponds to a complex number $c$, we iterate
 $z \mapsto z^2 + c$ starting from $z = 0$, and count the number of iterations
 until the real or the imaginary part of $z$ leaves the range -2 to 2 (the range
-of the number format), up to a maximum of 1023 (511 on the Nexys 4 DDR). This
+of the number format), up to a maximum of 1023. This
 count decides the colour of the pixel, using one of four colour palettes
 (selected with the keys `1` to `4` on the MEGA65, see [Controls](#controls)).
 The points in the set (the maximum count) have their own colour, and the
-other counts use all 9 bits of the count (palette 1 only the lower 8 bits). On
-the MEGA65 the display memory only holds the count modulo 256, see below.
+other counts use the value of the pixel in the display memory, which is the
+count modulo 256 (see below).
 
 The numbers are 35-bit
 [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) (2 integer
@@ -34,13 +33,13 @@ bits and 33 fractional bits), and each iteration needs only two real
 multiplications, using the identity $x^2 - y^2 = (x+y)(x-y)$. The smallest
 pixel is 2^-33, i.e. the narrowest picture is about 1.5\*10^-7 wide, and it
 takes about a minute to zoom in that far. A multiplication of 35-bit numbers
-uses three DSPs, so each of the 120 job modules contains an iterator with six
-DSPs ([`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd)). The
+uses three DSPs, so each of the 120 job modules (39 on the Nexys 4 DDR)
+contains an iterator with six DSPs ([`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd)). The
 iterator is pipelined, and calculates four rows (one result of the job
 module) at the same time, so it calculates one iteration in every clock
-cycle. This needs a floorplan of the job modules
+cycle. On the MEGA65 this needs a floorplan of the job modules
 ([`mega65_floorplan.tcl`](mega65_floorplan.tcl)), see
-[Wide iterator](ALGORITHM.md#wide-iterator). Most points in the set are found
+[Iterator](ALGORITHM.md#iterator). Most points in the set are found
 long before the maximum count, because the values of $z$ start to repeat
 exactly (periodicity detection). The picture is divided into jobs, each of 64
 rows of a picture column (120 on the Nexys 4 DDR), and the dispatcher gives
@@ -49,17 +48,16 @@ the next job to a job module as soon as it is idle.
 The display memory has 1280x1024 pixels in 320 BRAMs (of the 365 in the
 XC7A200T), with 21 bits of address (the column and the row), and 9 bits for
 each pixel: 511 for the points in the set, and otherwise the count modulo 256.
-So on the MEGA65 the palettes 2 to 4 only use their colours of the counts 0 to
-255, and repeat them every 256 counts (on the Nexys 4 DDR, with the maximum
-count 511, they use all of them). The job modules write four pixels
-(consecutive rows of a picture column) to the display memory at a time. The
-display memory takes one write per clock cycle, so with one pixel in each
-write the picture would take at least 1280x1024 clock cycles (7.28 ms),
-whatever the number of job modules. The model estimates 6.13 ms for the
-initial view, i.e. about 163 pictures per second (against 396 with 16
-fractional bits and 368 job modules). If every pixel needed the maximum count,
-it would take about 62 ms (16 pictures per second), see
-[MEGA65](ALGORITHM.md#mega65).
+So the palettes 2 to 4 only use their colours of the values 0 to 255, and
+repeat them every 256 counts. The job modules write four pixels (consecutive
+rows of a picture column) to the display memory at a time. The display
+memory takes one write per clock cycle, so with one pixel in each write the
+picture would take at least 1280x1024 clock cycles (7.28 ms), whatever the
+number of job modules. The model estimates 6.13 ms for the initial view, i.e.
+about 163 pictures per second (against 396 with the earlier 16 fractional
+bits and 368 job modules, see [HISTORY.md](HISTORY.md#the-iterator)). If
+every pixel needed the maximum count, it would take about 62 ms (16 pictures
+per second), see [MEGA65](ALGORITHM.md#mega65).
 
 [ALGORITHM.md](ALGORITHM.md) explains the design in detail: the number format,
 the multiplier, the iterator (including how overflow is detected), the jobs,
@@ -131,10 +129,10 @@ and the zoom, which is 1.00 for the initial view, e.g.
 by the current one, so it goes from 0.67 (zoomed out as far as possible) to
 136.00 (273.00 on the Nexys 4 DDR). The rows go down the screen, so the
 imaginary part increases downwards. The text is calculated with the view
-truncated to 2.16, so on the MEGA65 (2.33) it is only approximate: the centre
-is off by up to about 0.01 (the centre of the initial view is -0.33337, but
-it is shown as -0.33858), and the zoom stops at 136.00x, although the view
-can be zoomed in 2^17 times further.
+truncated to 2.16, so it is only approximate: the centre is off by up to about
+0.01 (0.005 on the Nexys 4 DDR; the centre of the initial view is -0.33337,
+but it is shown as -0.33858), and the zoom stops at 136.00x (273.00x),
+although the view can be zoomed in 2^17 times further.
 
 The frame rate, i.e. the number of pictures the design could calculate per
 second, rounded down to an integer, is shown in the top right corner of the
@@ -167,18 +165,16 @@ R3 reads it from the MAX10 over a serial link, see
 ## Nexys 4 DDR
 The same design also runs on the Nexys 4 DDR, which has a Xilinx Artix-7
 XC7A100T FPGA (speed grade -1). The design was first developed on this board,
-and the MEGA65 was added later. Only the size of the design, the number
-format, the resolution, and the ports are different, see
-[`src/nexys4ddr.vhd`](src/nexys4ddr.vhd):
+and the MEGA65 was added later. Only the size of the design, the resolution,
+and the ports are different, see [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd):
 * The picture is 640x480 at 60 Hz (with a pixel clock of 25 MHz), on the VGA
   output. The board has no HDMI output.
-* The numbers are 18-bit fixed point (2 integer bits and 16 fractional bits),
-  so the smallest pixel is 2^-16, and the maximum count is 511.
-* There are 120 job modules (all 240 DSPs), with jobs of 120 rows. Each
-  iterator ([`src/main/iterator.vhd`](src/main/iterator.vhd)) has two DSP
-  multipliers, one for each multiplication, and calculates one row at a time,
-  with one iteration in every clock cycle. The main clock is 120 MHz, because
-  the iterators are slower in speed grade -1.
+* There are 39 job modules (234 of the 240 DSPs, see
+  [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr)), with jobs of 120 rows. The main
+  clock is 120 MHz, because the FPGA has speed grade -1. There is no
+  floorplan. Earlier versions used 18-bit numbers (2.16) and a maximum count
+  of 511 on this board, with 120 job modules of two DSPs each, see
+  [HISTORY.md](HISTORY.md#the-iterator).
 * The display memory has 2^19 pixels in 128 BRAMs (of the 135 in the
   XC7A100T), with 19 bits of address. The picture uses 80 of them.
 * The view is controlled with the buttons, and the colour palette is selected
@@ -202,54 +198,55 @@ the VGA output.
 
 ## Implementation results
 The design is built with Vivado 2025.1, and meets timing on all the boards.
-On the MEGA65 this needs the floorplan of the job modules, and on the
-Nexys 4 DDR the timing of the longest path (in the iterators) is very close,
-and the setup slack varies by about 0.1 ns between runs, see below.
+On the MEGA65 this needs the floorplan of the job modules, and the setup
+slack is small, see below. The Nexys 4 DDR meets timing without a floorplan.
 
 The resource usage is:
 
 | Resource           | MEGA65 (XC7A200T-2) | Available | Nexys 4 DDR (XC7A100T-1) | Available
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
-| DSP48E1            | 720 (97%)           | 740       | 240 (100%)               | 240
+| DSP48E1            | 720 (97%)           | 740       | 234 (98%)                | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 23,173 (69%)        | 33,650    | 9,294 (59%)              | 15,850
-| LUTs               | 58,422 (44%)        | 134,600   | 15,838 (25%)             | 63,400
-| Registers          | 67,263 (25%)        | 269,200   | 27,260 (21%)             | 126,800
+| Slices             | 23,173 (69%)        | 33,650    | 9,694 (61%)              | 15,850
+| LUTs               | 58,422 (44%)        | 134,600   | 20,567 (32%)             | 63,400
+| Registers          | 67,263 (25%)        | 269,200   | 29,821 (24%)             | 126,800
 
 The performance and timing are:
 
 |                 | MEGA65          | Nexys 4 DDR
 | --------------- | --------------- | ------------------
 | Resolution      | 1280x1024       | 640x480
-| Number format   | 2.33            | 2.16
-| Maximum count   | 1023            | 511
+| Number format   | 2.33            | 2.33
+| Maximum count   | 1023            | 1023
 | Clock frequency | 180.00 MHz      | 120.00 MHz
-| Initial FPS     | 163 (estimated) | 832-834 (measured)
-| Worst-case FPS  | 16 (estimated)  | 87 (estimated)
-| Setup slack     | +0.083 ns       | +0.090 ns
-| Hold slack      | +0.020 ns       | +0.014 ns
+| Initial FPS     | 163 (estimated) | 141 (estimated)
+| Worst-case FPS  | 16 (estimated)  | 15 (estimated)
+| Setup slack     | +0.083 ns       | +0.308 ns
+| Hold slack      | +0.020 ns       | +0.007 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
 R3 met timing with +0.089 ns (22,219 slices, +0.013 ns hold slack). These
-builds of the wide iterator were made before it was rebased onto the design
-that is the same on all the boards in `core.vhd`, the moving palette, the
-palettes with all 9 bits of the count, the BRAMs that select the pixel in the
-word, and the keyboard ignored after power-on, and they have not been made
-again since. The numbers for the Nexys 4 DDR are from the last build of main
-before the rebase; its design is the same (2.16, with the maximum count 511).
-The MEGA65 design with the wide iterator runs on the R6 (the build before
-this rebase). The previous builds, where Vivado left out a register of the
-last DSP of the multiplication (x+y)\*(x-y), so the picture on the board was
-wrong (see [Wide iterator](ALGORITHM.md#wide-iterator)), met timing with
-+0.072 ns on the R6 (23,252 slices) and +0.074 ns on the R3. The builds of
-the wide iterator before those, before it was rebased onto the view in the
-top left corner, the palette selected with the keys `1` to `4`, and the R3
-reading the reset button from the MAX10, met timing with +0.069 ns on the R6
-(22,974 slices) and +0.092 ns on the R3. The last builds for the MEGA65 with
-the 2.16 iterator of the Nexys 4 DDR (368 job modules, 736 DSPs) and the main
-clock at 141.64 MHz met timing with +0.017 ns on the R6 (22,137 slices) and
-+0.002 ns on the R3; the initial view was 396 pictures per second
-(estimated; 395 were measured on an R6), and the worst case 75. See
+builds of the wide iterator (on both boards) were made before it was rebased
+onto the design that is the same on all the boards in `core.vhd`, the moving
+palette, the palettes with all 9 bits of the count, the BRAMs that select the
+pixel in the word, and the keyboard ignored after power-on, and they have not
+been made again since. The MEGA65 design with the wide iterator runs on the
+R6 (the build before this rebase). The previous builds, where Vivado left out
+a register of the last DSP of the multiplication (x+y)\*(x-y), so the
+picture on the board was wrong (see [Multiplier](ALGORITHM.md#multiplier)),
+met timing with +0.072 ns on the R6 (23,252 slices) and +0.074 ns on the R3.
+The builds of the wide iterator before those, before it was rebased onto the
+view in the top left corner, the palette selected with the keys `1` to `4`,
+and the R3 reading the reset button from the MAX10, met timing with
++0.069 ns on the R6 (22,974 slices) and +0.092 ns on the R3. The last builds
+with the 2.16 iterator, on main before the rebase, met timing with +0.017 ns
+on the R6 (368 job modules, 736 DSPs, 22,137 slices, and the main clock at
+141.64 MHz) and +0.002 ns on the R3, where the initial view was 396 pictures
+per second (estimated; 395 were measured on an R6) and the worst case 75,
+and with +0.090 ns on the Nexys 4 DDR (120 job modules, the maximum count
+511, and 9,294 slices), where the initial view was 832 to 834 pictures per
+second (measured). The design with the wide iterator has not run on the
+Nexys 4 DDR yet. See
 [Resources and timing closure](ALGORITHM.md#resources-and-timing-closure)
 for details, and [HISTORY.md](HISTORY.md#builds-of-the-mega65) for the
 earlier builds.
@@ -269,14 +266,15 @@ Type `make` to list the supported targets. The most important ones are
   there too. The bit-file is only written when the design meets timing:
   otherwise the build deletes any old bit-file and stops with an error (the
   checkpoint and the reports are still written). The build also stops after
-  synthesis if it does not find two DSPs for each iterator, because then the
-  DSPs of the iterators are not placed next to each other, see
-  [Iterator](ALGORITHM.md#iterator).
+  synthesis if it does not find six DSPs for each iterator, because then the
+  DSPs of the iterators are not placed in a column, or if the inputs of the
+  last DSP of a cascade do not go through two registers, see
+  [Multiplier](ALGORITHM.md#multiplier).
 * `make mega65-r3` does the same for the MEGA65 R3, in `build/mega65-r3/`, and
   generates `build/mega65-r3/mega65-r3.bit`. Use the bit-file of your board
   revision, see [Board revisions](#board-revisions).
 * `make nexys4ddr` does the same for the Nexys 4 DDR, in `build/nexys4ddr/`,
-  and generates `build/nexys4ddr/nexys4ddr.bit`. It takes about 6 minutes.
+  and generates `build/nexys4ddr/nexys4ddr.bit`. It takes about 6.5 minutes.
   Because each board has its own directory, they can all be built at the same
   time with `make -j3 mega65-r3 mega65-r6 nexys4ddr`.
 * `make fpga BOARD=mega65-r6` programs the FPGA of the board with its
@@ -318,7 +316,7 @@ Type `make` to list the supported targets. The most important ones are
   [SymbiYosys](https://github.com/YosysHQ/sby), Yosys with the
   [GHDL plugin](https://github.com/ghdl/ghdl-yosys-plugin), and an SMT solver
   (Yices), e.g. from the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build).
-  It takes about 20 seconds.
+  It takes about 1 minute.
 * `make diagrams` renders the block diagrams and the timing diagrams
   (`doc/*.tex`, TikZ) to PNG files next to them, which the documentation
   links to. The PNG files are
@@ -338,19 +336,19 @@ tried, except where it says so.
 | [ghdl-yosys-plugin](https://github.com/ghdl/ghdl-yosys-plugin) | from git (May 2025), built with GHDL 6.0.0-dev, and the one in the OSS CAD Suite of 2026-10-01 | `make formal`
 | [Yices](https://yices.csl.sri.com/) | 2.7.0 | `make formal`
 | [VSG](https://vhdl-style-guide.readthedocs.io/) | 3.35.0 | the coding style, see [`CODING_STYLE.md`](CODING_STYLE.md)
-| Python, numpy | 3.12, numpy 2.5 | `sim/model.py`, `sim/cmp_rtl.py`, `sim/iterator_model.py`
+| Python, numpy | 3.12, numpy 2.5 | `sim/model.py`, `sim/cmp_rtl.py`
 | [GTKWave](https://github.com/gtkwave/gtkwave) | 3.3.116 | `make check`
 | [m65](https://github.com/MEGA65/mega65-tools) | 20251108 | `make fpga`
 | [coretool](https://github.com/MEGA65/mega65-tools) | from git (commit 44c63d2, 2026-10-05), Python 3.12 | `make cor`
 | pdflatex (TeX Live, with TikZ and tikz-timing), pdftoppm (Poppler) | TeX Live 2023, Poppler 24.02 | `make diagrams`
 
 The testbenches use external names of VHDL-2008 (`disp_mem_tb`,
-`iterator_tb`, and `redraw_tb`). GHDL 4.1 crashes on an external name inside
+`iterator_wide_tb`, `picture_tb`, and `redraw_tb`). GHDL 4.1 crashes on an external name inside
 a generate statement, and gets the bounds of its subtype wrong when they are
 not numbers, so `disp_mem_tb` gives each configuration its own process, see
 the comments there. The GHDL of the OSS CAD Suite of 2026-10-01 (7.0.0-dev,
 with the LLVM backend) stops with "NULL access dereferenced" at every
-external name, so these three testbenches fail with it (the others pass, and
+external name, so these four testbenches fail with it (the others pass, and
 so does `make formal`). The Makefile uses the `ghdl` in the `PATH`; another
 one is selected with e.g. `make sim GHDL=/opt/ghdl-4.1/bin/ghdl`.
 
@@ -377,14 +375,13 @@ it does nothing.
 
 ## Simulation
 There are testbenches in [`sim/`](sim) for `dispatcher`, `job_wide`,
-`iterator_wide`, `job`, `iterator`, `job_scheduler`, `res_scheduler`,
-`viewport`, `vga`, `overlay`, `disp`, `disp_mem`, `fps`, `view_text`,
-`cdc_data`, and `controls`, and two for `main`: `redraw` checks that it only
-calculates a picture when the view changes, and that the pictures end up in
-the display memory, and `picture` compares every pixel of three small
-pictures (64x48), in both number formats, with the bit-accurate model. `core`
-checks the whole design from the buttons to the VGA output, with two small
-pictures (560x4).
+`iterator_wide`, `job_scheduler`, `res_scheduler`, `viewport`, `vga`,
+`overlay`, `disp`, `disp_mem`, `fps`, `view_text`, `cdc_data`, and `controls`,
+and two for `main`: `redraw` checks that it only calculates a picture when the
+view changes, and that the pictures end up in the display memory, and
+`picture` compares every pixel of three small pictures (64x48) with the
+bit-accurate model. `core` checks the whole design from the buttons to the
+VGA output, with two small pictures (560x4).
 All of them are self-checking, and stop with an error if the result is wrong.
 They stop by themselves when they are finished, and report
 `<name>_tb: finished`. `make sim` only counts a testbench as passed when it
@@ -401,10 +398,10 @@ make run TB=main STOP_TIME=200us
 sim/cmp_rtl.py
 ```
 The design of the Nexys 4 DDR is simulated by setting the generics of the
-testbench, where the same simulated time gives about 50000 pixels in about
+testbench, where the same simulated time gives about 36000 pixels in about
 5 minutes:
 ```
-make run TB=main STOP_TIME=200us GENERICS="G_NUM_ITERATORS=120 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19 G_FRAC_BITS=16 G_MAX_COUNT=511"
+make run TB=main STOP_TIME=200us GENERICS="G_NUM_ITERATORS=39 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19 G_MAX_COUNT=1023"
 sim/cmp_rtl.py
 ```
 See [Iterator](ALGORITHM.md#iterator) for details. `make consts` checks that
@@ -429,8 +426,7 @@ the sync signals for the HDMI output, which are only checked on the board.
 
 ## Formal verification
 There are formal proofs in [`formal/`](formal) for `res_scheduler`,
-`job_scheduler`, `job_wide`, `job`, `dispatcher_jobs`, and
-`dispatcher_results`. The properties of each module are in a PSL file
+`job_scheduler`, `job_wide`, `dispatcher_jobs`, and `dispatcher_results`. The properties of each module are in a PSL file
 (`<name>.psl`), which is bound to the module, so the modules themselves are not
 changed. Each module is proved for a few sets of generics (see `<name>.sby`),
 with k-induction, and cover statements check that the interesting cases are
@@ -443,29 +439,25 @@ reachable. The properties are:
   scheduler is active. The processes are visited in order, and an idle
   process is always started when it is visited, so it is started within
   `G_SIZE`+1 clock cycles.
-* `job`: The job module is busy from the start of a job until its last result
-  is acknowledged. The results come in order, one for each group of
-  `G_PIXELS` rows, with the row number of the first row. A result stays
-  unchanged until it is acknowledged, and is then removed. Each result has the
-  counts of its rows from the iterator. The iterator is started once for each
-  row, with the value of c of that row, and c does not change while it
-  iterates.
-* `job_wide`: The same as for `job`, but the iterator is started once for
-  each result (four rows), with cy of the first row of the result and the
-  step in cy, and each result has the values of the pixels converted from the
-  counts of the iterator (511 for the points in the set).
+* `job_wide`: The job module is busy from the start of a job until its last
+  result is acknowledged. The results come in order, one for each group of
+  four rows, with the row number of the first row. A result stays unchanged
+  until it is acknowledged, and is then removed. The iterator is started once
+  for each result, with cx, cy of the first row of the result, and the step
+  in cy, which do not change while it iterates, and each result has the
+  values of the pixels converted from the counts of the iterator (511 for the
+  points in the set).
 * `dispatcher_jobs` (with `job_scheduler`): The jobs of a picture are given
   out in order, one block at a time, each once. The job module given a job is
   started in the next clock cycle, with the value of c of the first row of
   the job. The picture is done only when all its jobs have been given out and
   all the job modules are idle, and then within two clock cycles. It also
-  meets the assumptions about the inputs of the job module in `job.psl`: a job
+  meets the assumptions about the inputs of the job module in `job_wide.psl`: a job
   module is only started when it is idle (this needs at least five job
   modules; with four, a job is started twice), not right after its reset, and
   the step in cy does not change while it is busy. The job modules are not
   included; their busy flags are given by assumptions. A new picture must
-  only be started when the previous one is done, as `main` does. It is also
-  proved with the 35-bit values of the MEGA65.
+  only be started when the previous one is done, as `main` does.
 * `dispatcher_results` (with `res_scheduler`): At most one job module is
   acknowledged in each clock cycle, and only one that has a result. Each
   acknowledged result is written exactly once, two clock cycles after the
@@ -475,18 +467,17 @@ reachable. The properties are:
   `res_scheduler` in clock cycle c, its ready flag is low from c+2, as
   `res_scheduler` requires. The job modules and `dispatcher_jobs` are not
   included; their results and the table of the jobs are given by
-  assumptions (as `job.psl` and `dispatcher_jobs.psl` prove them). Only the
+  assumptions (as `job_wide.psl` and `dispatcher_jobs.psl` prove them). Only the
   reset at the start is covered: a reset during a picture also resets the
   job modules, which then lose their results without an acknowledge.
 
-For `job`, the iterator is replaced by a stub
-([`formal/iterator_stub.vhd`](formal/iterator_stub.vhd)) whose outputs are
-chosen freely by the solver, and for `job_wide` by
-[`formal/iterator_wide_stub.vhd`](formal/iterator_wide_stub.vhd). Its handshake (done goes low after a start, goes
-high after any number of clock cycles, and then stays high with an unchanged
-count until the next start) is given by assumptions in `job.psl` (and `job_wide.psl`). So the count
-of each row can be any value, and the iteration can take any number of clock
-cycles. The iterator itself is checked by simulation, see above.
+For `job_wide`, the iterator is replaced by a stub
+([`formal/iterator_wide_stub.vhd`](formal/iterator_wide_stub.vhd)) whose
+outputs are chosen freely by the solver. Its handshake (done goes low after a
+start, goes high after any number of clock cycles, and then stays high with
+unchanged counts until the next start) is given by assumptions in
+`job_wide.psl`. So the count of each row can be any value, and the iteration
+can take any number of clock cycles. The iterator itself is checked by simulation, see above.
 
 ## License
 The design is licensed under the [MIT License](LICENSE), except for the files
@@ -530,14 +521,12 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/max10/`](src/max10) | Serial link to the MAX10 of the MEGA65 R3, from the [MEGA65 core](https://github.com/MEGA65/mega65-core) by Paul Gardner-Stephen (via [C64MEGA65](https://github.com/MJoergen/C64MEGA65), GPL v3). `max10` sends a 25 MHz clock to the MAX10, and reads the reset button (and other signals, which are not used) from it. Only used by `mega65_r3.vhd`.
 | [`src/nexys4ddr.vhd`](src/nexys4ddr.vhd) | Top level for the Nexys 4 DDR. The same as `mega65.vhd` (it also instantiates `core`), but with the ports of the Nexys 4 DDR (mapped directly to pins on the FPGA), fewer job modules, a smaller display memory, a resolution of 640x480, and no HDMI output.
 | [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, the view as text (shown on the VGA output), and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
-| [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format (2.33 or 2.16). It holds the state machine and instantiates `viewport_axis` ([`src/main/viewport_axis.vhd`](src/main/viewport_axis.vhd)) once for x and once for y, which calculates the view along one axis. The states are in [`src/main/viewport_pkg.vhd`](src/main/viewport_pkg.vhd).
+| [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format (2.33). It holds the state machine and instantiates `viewport_axis` ([`src/main/viewport_axis.vhd`](src/main/viewport_axis.vhd)) once for x and once for y, which calculates the view along one axis. The states are in [`src/main/viewport_pkg.vhd`](src/main/viewport_pkg.vhd).
 | [`src/main/fps.vhd`](src/main/fps.vhd), [`src/main/seg.vhd`](src/main/seg.vhd) | Frame rate. `fps` divides the clock frequency by the time taken by the latest picture, and converts the result to decimal, and `seg` multiplexes the digits on the 7-segment display of the Nexys 4 DDR.
-| [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal. It calculates in 2.16, so on the MEGA65 (2.33) the text is only approximate.
+| [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal. It calculates in 2.16, so the text is only approximate.
 | [`src/vga/vga.vhd`](src/vga/vga.vhd) | Everything in the VGA clock domain: pixel counters, VGA output, and the overlay of the view and the frame rate.
-| [`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd) | Iterates the Mandelbrot function for four points (rows) at the same time, with 2.33 fixed point, one iteration in each clock cycle, using six DSPs (on the MEGA65).
-| [`src/main/job_wide.vhd`](src/main/job_wide.vhd) | A job module for the wide iterator. Calculates one job (64 rows of a picture column) at a time, four rows at a time.
-| [`src/main/iterator.vhd`](src/main/iterator.vhd) | Iterates the Mandelbrot function for a single point, with 2.16 fixed point, one iteration in each clock cycle, using two DSPs (on the Nexys 4 DDR).
-| [`src/main/job.vhd`](src/main/job.vhd) | A job module. Calculates one job (120 rows of a picture column) at a time, using one iterator.
+| [`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd) | Iterates the Mandelbrot function for four points (rows) at the same time, with 2.33 fixed point, one iteration in each clock cycle, using six DSPs.
+| [`src/main/job_wide.vhd`](src/main/job_wide.vhd) | A job module. Calculates one job (64 rows of a picture column, 120 on the Nexys 4 DDR) at a time, four rows at a time, using one wide iterator.
 | [`src/main/dispatcher.vhd`](src/main/dispatcher.vhd) | Controls the calculation of the entire picture: hands out the jobs to the idle job modules, and collects the results. Instantiates the job modules, between its two parts below.
 | [`src/main/dispatcher_jobs.vhd`](src/main/dispatcher_jobs.vhd) | First part of the dispatcher: hands out the jobs to the idle job modules, and finds out when the picture is done.
 | [`src/main/dispatcher_results.vhd`](src/main/dispatcher_results.vhd) | Second part of the dispatcher: collects the results, and writes them to the display memory.
@@ -552,8 +541,8 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`font/`](font) | The script that generates `font_pkg.vhd` from the [Spleen](https://github.com/fcambus/spleen) 16x32 font, and the license of the font (BSD 2-Clause, see [`font/LICENSE.spleen`](font/LICENSE.spleen)). The font itself (version 2.2.0) is not in this repository; the script says how to get it.
 | [`src/util_pkg.vhd`](src/util_pkg.vhd) | The function `log2`, the number of bits needed for a range of values, used in both clock domains.
 | [`src/clk_rst.vhd`](src/clk_rst.vhd) | Clock and reset generation: the main clock for the calculation (180 MHz, or 120 MHz on the Nexys 4 DDR), the pixel clock for VGA (108 MHz for 1280x1024, 25 MHz for 640x480), each with a synchronous reset, and the TMDS clock for the HDMI output of the MEGA65 (540 MHz).
-| [`sim/`](sim) | Testbenches and [GTKWave](https://github.com/gtkwave/gtkwave) setups, a Python model of the iterator count (`iterator_model.py`), a vectorized model of the complete picture (`model.py`, for both number formats), the same bit-accurate model in VHDL (`iterator_model_pkg.vhd`, used by the testbenches), and a script (`cmp_rtl.py`) that compares the output of the testbench `main_tb` with this model.
-| [`formal/`](formal) | Formal verification with [SymbiYosys](https://github.com/YosysHQ/sby): the properties of each module (`<name>.psl`), the tasks (`<name>.sby`), and the iterator stubs used for `job` and `job_wide`, see [Formal verification](#formal-verification).
+| [`sim/`](sim) | Testbenches and [GTKWave](https://github.com/gtkwave/gtkwave) setups, a vectorized model of the complete picture (`model.py`), the same bit-accurate model in VHDL (`iterator_model_pkg.vhd`, used by the testbenches), and a script (`cmp_rtl.py`) that compares the output of the testbench `main_tb` with this model.
+| [`formal/`](formal) | Formal verification with [SymbiYosys](https://github.com/YosysHQ/sby): the properties of each module (`<name>.psl`), the tasks (`<name>.sby`), and the iterator stub used for `job_wide`, see [Formal verification](#formal-verification).
 | [`mega65.xdc`](mega65.xdc), [`mega65-r3.xdc`](mega65-r3.xdc), [`mega65-r6.xdc`](mega65-r6.xdc), [`nexys4ddr.xdc`](nexys4ddr.xdc), [`mandelbrot.tcl`](mandelbrot.tcl), [`mega65_floorplan.tcl`](mega65_floorplan.tcl) | Pin and timing constraints for each board (the timing constraints and the configuration of the bitstream of the MEGA65 are in `mega65.xdc`, and the pins of each revision in its own file), script for synthesis and implementation with Vivado (including the optimization directives needed to meet timing), see [Running](#running), and the floorplan of the job modules on the MEGA65, which the script reads after the synthesis. The script gets the FPGA part, the top level, and the list of source files from the Makefile, so it must be run through `make mega65-r3`, `make mega65-r6`, or `make nexys4ddr`.
 | [`mandelbrot.xlsx`](mandelbrot.xlsx) | Spreadsheet used during the design. It iterates the example point -1+0.5i from [the iterator section](ALGORITHM.md#iterator) using real numbers.
 | [`ALGORITHM.md`](ALGORITHM.md) | Detailed explanation of the algorithm and the design.

@@ -1,7 +1,6 @@
--- This is a simple self-checking testbench for the wide job module
--- (job_wide.vhd). It is the same as job_tb.vhd, but with the wide numbers
--- (2.33 fixed point), and always four pixels (rows) in each result. It runs
--- a few jobs, and checks the following:
+-- This is a simple self-checking testbench for the job module (job_wide.vhd),
+-- with numbers in 2.33 fixed point format, and always four pixels (rows) in
+-- each result. It runs a few jobs, and checks the following:
 -- * The job module is not busy, and gives no results, when idle.
 -- * The job module is busy from the start of a job until the last result has
 --   been acknowledged.

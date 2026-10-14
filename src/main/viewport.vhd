@@ -1,7 +1,7 @@
 -- This module controls the view, i.e. the position of the top left corner of
 -- the picture (startx, starty) and the size of a pixel (stepx, stepy), all in
--- 2.G_FRAC_BITS fixed point format (2.16 on the Nexys 4 DDR, and 2.33 on the
--- MEGA65). The view is changed by the buttons, once for each pulse on upd_i:
+-- 2.33 fixed point format. The view is changed by the buttons, once for each
+-- pulse on upd_i:
 --   btn_i(4)         : Zoom in, or zoom out if zoom_out_i is set. The size of
 --                      a pixel changes by 1/64 of its value plus one LSB.
 --   btn_i(3 downto 2): Pan left and right by C_PAN_PIXELS pixels.
@@ -17,8 +17,7 @@
 -- * The left (top) edge is never less than -2. Panning stops there.
 -- * The right (bottom) edge, i.e. the value of the last column (row), is never
 --   2 or more. Panning stops there.
--- * The size of a pixel is at least one LSB (2^-G_FRAC_BITS). Zooming in stops
---   there.
+-- * The size of a pixel is at least one LSB (2^-33). Zooming in stops there.
 -- * Zooming keeps the centre of the picture fixed, i.e. the pixel in column
 --   G_NUM_COLS/2 and row G_NUM_ROWS/2 (just right of and below the centre of
 --   the screen) shows the same point before and after the zoom. When zooming
@@ -28,8 +27,8 @@
 --
 -- Internally the positions are handled in offset binary, i.e. as the value
 -- plus 2, which is in the range 0 to 4. This is the fixed point value with the
--- sign bit inverted, interpreted as an unsigned number. The values have
--- G_FRAC_BITS+2 bits.
+-- sign bit inverted, interpreted as an unsigned number. The values have 35
+-- bits.
 --
 -- The update is calculated over several clock cycles (17, or 18 for 1280
 -- columns), one small step at a time, because all of it in a single clock
@@ -49,13 +48,12 @@ use work.viewport_pkg.all;
 
 entity viewport is
    generic (
-      G_NUM_COLS  : integer;
-      G_NUM_ROWS  : integer;
-      G_START_X   : real;           -- Initial view
-      G_START_Y   : real;
-      G_SIZE_X    : real;
-      G_SIZE_Y    : real;
-      G_FRAC_BITS : positive := 16  -- Fraction bits of the values
+      G_NUM_COLS : integer;
+      G_NUM_ROWS : integer;
+      G_START_X  : real;     -- Initial view
+      G_START_Y  : real;
+      G_SIZE_X   : real;
+      G_SIZE_Y   : real
    );
    port (
       clk_i      : in  std_logic;
@@ -63,10 +61,10 @@ entity viewport is
       upd_i      : in  std_logic;
       btn_i      : in  std_logic_vector( 4 downto 0);  -- "CLRUD"
       zoom_out_i : in  std_logic;
-      startx_o   : out std_logic_vector(G_FRAC_BITS+1 downto 0);
-      starty_o   : out std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepx_o    : out std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepy_o    : out std_logic_vector(G_FRAC_BITS+1 downto 0)
+      startx_o   : out std_logic_vector(34 downto 0);
+      starty_o   : out std_logic_vector(34 downto 0);
+      stepx_o    : out std_logic_vector(34 downto 0);
+      stepy_o    : out std_logic_vector(34 downto 0)
    );
 end entity viewport;
 
@@ -93,8 +91,7 @@ begin
          G_NUM_PIXELS => G_NUM_COLS,
          G_PAN_PIXELS => C_PAN_PIXELS,
          G_START      => G_START_X,
-         G_SIZE       => G_SIZE_X,
-         G_FRAC_BITS  => G_FRAC_BITS
+         G_SIZE       => G_SIZE_X
       )
       port map (
          clk_i      => clk_i,
@@ -117,8 +114,7 @@ begin
          G_NUM_PIXELS => G_NUM_ROWS,
          G_PAN_PIXELS => C_PAN_PIXELS,
          G_START      => G_START_Y,
-         G_SIZE       => G_SIZE_Y,
-         G_FRAC_BITS  => G_FRAC_BITS
+         G_SIZE       => G_SIZE_Y
       )
       port map (
          clk_i      => clk_i,

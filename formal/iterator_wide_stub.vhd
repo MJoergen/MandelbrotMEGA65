@@ -1,9 +1,8 @@
 -- This is a replacement for the wide iterator (src/main/iterator_wide.vhd),
--- used for the formal verification of the wide job module (job_wide.vhd), in
--- the same way as iterator_stub.vhd for job.vhd. It has the same entity, so
--- the job module instantiates it instead of the real iterator, but it does
--- not calculate anything: Its outputs are chosen freely by the solver in
--- every clock cycle. The handshake of the iterator is instead given by
+-- used for the formal verification of the job module (job_wide.vhd). It has
+-- the same entity, so the job module instantiates it instead of the real
+-- iterator, but it does not calculate anything: Its outputs are chosen freely
+-- by the solver in every clock cycle. The handshake of the iterator is instead given by
 -- assumptions in job_wide.psl.
 
 library ieee;

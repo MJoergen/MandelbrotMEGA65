@@ -12,11 +12,11 @@ and are not covered.
 
 ## Files
 
-* One design unit per file, and the file is named after it, e.g. entity `job`
-  is in `job.vhd`, package `video_pkg` is in `video_pkg.vhd`. A testbench has
-  the suffix `_tb`. (The exceptions are `formal/iterator_stub.vhd` and
-  `formal/iterator_wide_stub.vhd`, second architectures of `iterator` and
-  `iterator_wide` used for the formal verification.)
+* One design unit per file, and the file is named after it, e.g. entity
+  `job_wide` is in `job_wide.vhd`, package `video_pkg` is in `video_pkg.vhd`.
+  A testbench has the suffix `_tb`. (The exception is
+  `formal/iterator_wide_stub.vhd`, a second architecture of `iterator_wide`
+  used for the formal verification.)
 * Every file starts with a comment block that explains what the module does,
   its interface, and anything surprising about it. Write it for someone who
   has not seen the code before. A testbench says what it checks.
@@ -184,14 +184,14 @@ Other naming habits:
 * Resets are synchronous and active high, and the reset is the *last*
   statement in the process, so it overrides the rest. Only the registers that
   need a reset get one. A reset that goes to many places may be registered
-  locally first (see `rst_r` in `job.vhd`).
+  locally first (see `rst_r` in `job_wide.vhd`).
 * Default assignments at the top of a process (e.g. `res_start_r <= '0';`)
   make a pulse last one clock cycle.
 * No parentheses around an `if` condition.
 * Instantiate entities directly, without the architecture name:
 
   ```vhdl
-  i_iterator : entity work.iterator
+  i_iterator : entity work.iterator_wide
      generic map (
         G_MAX_COUNT => G_MAX_COUNT
      )
@@ -246,7 +246,7 @@ in the comments of [vsg.yml](vsg.yml).
 
 These parts of the code do not follow the conventions above yet:
 
-* Signal suffixes are used in the core modules (`job`, `iterator`,
+* Signal suffixes are used in the core modules (`job_wide`, `iterator_wide`,
   `dispatcher_*`, `disp_mem`, `vga/*`), but not in `viewport*.vhd`, `fps.vhd`,
   `main.vhd`, `seg.vhd`, `clk_rst.vhd`, or the top levels (`mega65*.vhd`,
   `nexys4ddr.vhd`), where most signals are registers without `_r`.

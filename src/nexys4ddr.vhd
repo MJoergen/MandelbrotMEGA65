@@ -2,11 +2,8 @@
 -- entity are mapped directly to pins on the FPGA, see nexys4ddr.xdc.
 --
 -- It is the same design as mega65.vhd (the design for the MEGA65), see the
--- description there, only the size of the design, the number format, the
--- resolution, and the ports are different:
--- * The numbers are in 2.16 fixed point format instead of 2.33, and the
---   maximum count is 511 instead of 1023. The iterators (iterator.vhd) use
---   two DSPs each, instead of six, and calculate one row at a time.
+-- description there, only the size of the design, the resolution, and the
+-- ports are different:
 -- * The VGA output is 640x480 @ 60 Hz, with a pixel clock of 25 MHz, instead
 --   of 1280x1024. There is no HDMI output.
 -- * The XC7A100T is smaller, so there are fewer job modules, and the display
@@ -47,19 +44,20 @@ end entity nexys4ddr;
 
 architecture structural of nexys4ddr is
 
-   -- The number of job modules. The XC7A100T has 240 DSPs, two for each
-   -- job module (see iterator.vhd).
-   constant C_NUM_ITERATORS : positive := 120;
+   -- The number of job modules, with six DSPs each, in two cascades of three
+   -- (see iterator_wide.vhd). The XC7A100T has 240 DSPs, in three columns of
+   -- 80, and a cascade must be in one column, so a column has room for 13
+   -- iterators (a column of six DSPs, see mandelbrot.tcl), i.e. 39 in all
+   -- (234 DSPs).
+   constant C_NUM_ITERATORS : positive := 39;
 
-   -- The numbers are in 2.16 fixed point format, with iterator.vhd, and the
-   -- maximum count is 511 (see main.vhd).
-   constant C_FRAC_BITS     : positive := 16;
-   constant C_MAX_COUNT     : positive := 511;
+   -- The maximum count, as on the MEGA65 (see main.vhd and job_wide.vhd)
+   constant C_MAX_COUNT     : positive := 1023;
 
-   -- The number of pixels in each write to the display memory. Writing more
-   -- than one pixel at a time makes the picture faster (see mega65.vhd).
-   -- With four pixels the model estimates 1.20 ms for the initial picture,
-   -- against 2.73 ms with one.
+   -- The number of pixels in each write to the display memory. The wide
+   -- iterator calculates the four rows of a result at the same time, so this
+   -- must be 4. The model (sim/model.py) estimates 849,000 clock cycles for
+   -- the initial picture (7.08 ms, i.e. 141 pictures per second).
    constant C_PIXELS        : positive := 4;
 
    -- The VCO of the MMCM (see clk_rst.vhd): 100 MHz / 1 * 12 = 1200 MHz.
@@ -72,18 +70,17 @@ architecture structural of nexys4ddr is
    constant C_VGA_DIVIDE    : positive := 48;
 
    -- The divider of the MAIN clock (see clk_rst.vhd), and its frequency in Hz.
-   -- 1200 MHz / 10 = 120 MHz. The longest path is in the iterators (see
-   -- iterator.vhd), which are slower in the speed grade -1 of the XC7A100T
-   -- than on the MEGA65. The model (sim/model.py) estimates 1.36 million
+   -- 1200 MHz / 10 = 120 MHz. The XC7A100T has the speed grade -1, which is
+   -- slower than the MEGA65. The model (sim/model.py) estimates 8.08 million
    -- clock cycles for the worst case picture (every pixel needs the maximum
-   -- count), i.e. 87 pictures per second, still well above the 60 Hz of the
-   -- VGA output.
+   -- count), i.e. 15 pictures per second.
    constant C_MAIN_DIVIDE   : real    := 10.0;
    constant C_MAIN_FREQ     : natural :=
       natural(100.0E6 / real(C_VCO_DIVIDE) * C_VCO_MULT / C_MAIN_DIVIDE);
 
    -- Rows in each job given to a job module, see dispatcher.vhd. The
-   -- number of rows (480) must be a multiple of it.
+   -- number of rows (480) must be a multiple of it, and of C_PIXELS. The
+   -- model gives 141 to 142 pictures per second for 16 to 240 rows.
    constant C_ROWS_IN_JOB   : positive := 120;
 
    -- The address distance between two picture columns in the display memory,
@@ -142,7 +139,6 @@ begin
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
          G_BLOCK_REGS    => C_BLOCK_REGS,
-         G_FRAC_BITS     => C_FRAC_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (

@@ -11,8 +11,8 @@
 -- block are given to dispatcher_results.vhd (tbl_*_o), so the address of the
 -- results can be calculated.
 --
--- The values (cx, cy, and the steps) are in 2.G_FRAC_BITS fixed point format,
--- i.e. G_FRAC_BITS+2 bits, see dispatcher.vhd.
+-- The values (cx, cy, and the steps) are in 2.33 fixed point format, i.e. 35
+-- bits, see dispatcher.vhd.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -27,17 +27,16 @@ entity dispatcher_jobs is
       G_NUM_COLS      : positive;
       G_ROWS_IN_JOB   : positive;         -- Rows in each job
       G_NUM_ITERATORS : positive;
-      G_GROUP_SIZE    : positive;
-      G_FRAC_BITS     : positive := 16    -- Fraction bits of the values
+      G_GROUP_SIZE    : positive
    );
    port (
       clk_i          : in  std_logic;
       rst_i          : in  std_logic;
       start_i        : in  std_logic;
-      startx_i       : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      starty_i       : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepx_i        : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
-      stepy_i        : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
+      startx_i       : in  std_logic_vector(34 downto 0);
+      starty_i       : in  std_logic_vector(34 downto 0);
+      stepx_i        : in  std_logic_vector(34 downto 0);
+      stepy_i        : in  std_logic_vector(34 downto 0);
       -- High while the picture is being calculated
       sched_active_o : out std_logic;
       done_o         : out std_logic;
@@ -46,11 +45,11 @@ entity dispatcher_jobs is
       -- group of G_GROUP_SIZE job modules.
       job_rst_o      : out std_logic_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0);
       job_cx_o       : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
-                                      (G_FRAC_BITS+1 downto 0);
+                                      (34 downto 0);
       job_starty_o   : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
-                                      (G_FRAC_BITS+1 downto 0);
+                                      (34 downto 0);
       job_stepy_o    : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
-                                      (G_FRAC_BITS+1 downto 0);
+                                      (34 downto 0);
       job_start_o    : out std_logic_vector(G_NUM_ITERATORS-1 downto 0);
       job_busy_i     : in  std_logic_vector(G_NUM_ITERATORS-1 downto 0);
 
@@ -68,7 +67,7 @@ architecture rtl of dispatcher_jobs is
    -- The number of bits of the column (at least one, also for a single
    -- column), and of the values
    constant C_COL_BITS   : natural := maximum(1, log2(G_NUM_COLS));
-   constant C_VALUE_BITS : natural := G_FRAC_BITS + 2;
+   constant C_VALUE_BITS : natural := 35;
 
    -- The job (cx, starty, and stepy) and the reset go to all the job modules.
    -- To make the routing shorter, they go through an extra register in each

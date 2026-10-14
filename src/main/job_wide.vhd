@@ -1,23 +1,23 @@
--- This is a job module for the wide numbers (2.33 fixed point, 35 bits),
--- used on the MEGA65. It calculates (sequentially) G_NUM_ROWS rows of a
--- picture column, using one wide iterator (iterator_wide.vhd), which
--- calculates four rows at the same time. The Nexys 4 DDR uses job.vhd, with
--- numbers in 2.16 format.
+-- This is a job module, with numbers in 2.33 fixed point format (35 bits). It
+-- calculates (sequentially) G_NUM_ROWS rows of a picture column, using one
+-- wide iterator (iterator_wide.vhd), which calculates four rows at the same
+-- time.
 --
--- It has the same ports as job.vhd (except for the width of the values), and
--- the same behaviour, but each result is the four rows calculated together by
--- the iterator, so G_PIXELS must be 4. The row number given with each result
--- (res_addr_o) is that of the first row of the result, counted from the first
--- row of the job, and the first row is in the lowest 9 bits of res_data_o.
--- G_NUM_ROWS must be a multiple of 4. The job module starts the iterator with
--- the next four rows when the result has been acknowledged.
+-- Each result is the values of the four rows calculated together by the
+-- iterator (a word of the display memory), so G_PIXELS must be 4. The row
+-- number given with each result (res_addr_o) is that of the first row of the
+-- result, counted from the first row of the job, and the first row is in the
+-- lowest 9 bits of res_data_o. G_NUM_ROWS must be a multiple of 4. The job
+-- module starts the iterator with the next four rows when the result has been
+-- acknowledged.
 --
 -- The display memory has 9 bits for each pixel, but the count has more bits
 -- when G_MAX_COUNT is larger than 511. So the value of a pixel is 511 for the
 -- points in the set (the count is G_MAX_COUNT), and otherwise the count
--- modulo 256. The colour palettes (palette_pkg.vhd) only use the lowest 8 bits
--- of the count, and 511 for the points in the set, so the picture is the same
--- as with the full count.
+-- modulo 256. The colour palette 1 (palette_pkg.vhd) only uses the lowest 8
+-- bits, so its picture is the same as with the full count. The palettes 2 to
+-- 4 use all 9 bits, so they repeat their colours of the values 0 to 255 every
+-- 256 counts.
 
 library ieee;
 use ieee.std_logic_1164.all;

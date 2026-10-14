@@ -167,7 +167,7 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
       {to_integer(tbl_col_i) < G_NUM_COLS and tbl_idx_i < G_NUM_ITERATORS and
        tbl_blk_i < C_NUM_BLOCKS};
 
-   -- The job modules, see job.psl. A job module only has a result after it
+   -- The job modules, see job_wide.psl. A job module only has a result after it
    -- has been given a job. A result is the counts of G_PIXELS rows, starting
    -- at a row within the job that is a multiple of G_PIXELS. It stays
    -- unchanged until it is acknowledged, and is removed in the next clock

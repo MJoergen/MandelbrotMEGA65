@@ -1,15 +1,15 @@
 # TODO
 
-5. Measure the MEGA65 design (2.33 numbers, wide iterator) on the board. Its
-   frame rates (163 pictures per second for the initial view, 16 if every
-   pixel needs the maximum count) are only estimated by the model
-   (`sim/model.py`). The model agrees with a simulation of a complete 160x128
-   picture within 0.4%. The design runs on the R6, but its frame rate has not
-   been measured yet.
+5. Measure the design (2.33 numbers, wide iterator) on the boards. Its frame
+   rates (163 pictures per second for the initial view on the MEGA65, and 141
+   on the Nexys 4 DDR) are only estimated by the model (`sim/model.py`). The
+   model agrees with a simulation of a complete 160x128 picture within 0.4%.
+   The design runs on the MEGA65 R6, but its frame rate has not been measured
+   yet.
 
 The next items are ideas for making the MEGA65 design faster. The numbers are
 from the model unless stated otherwise. See
-[Wide iterator](ALGORITHM.md#wide-iterator) and [MEGA65](ALGORITHM.md#mega65)
+[Iterator](ALGORITHM.md#iterator) and [MEGA65](ALGORITHM.md#mega65)
 for the current design.
 
 6. Test for the main cardioid and the period-2 bulb. Points inside them are in
@@ -97,11 +97,11 @@ The last items are not about speed, but they are related to the MEGA65 design.
     The maximum count is a generic (`C_MAX_COUNT` in `src/mega65.vhd`), but a
     higher one makes the worst case slower in proportion.
 
-16. The view as text in 2.33. `view_text.vhd` only handles 2.16, so on the
-    MEGA65 `main.vhd` gives it the view truncated to 2.16. The centre shown is
-    then off by up to about 0.01 (it is calculated with the truncated size of
-    a pixel, times 640), and the zoom stops at 136.00x, although the view can
-    be zoomed in 2^17 times further. A G_FRAC_BITS generic in `view_text.vhd`
+16. The view as text in 2.33. `view_text.vhd` only handles 2.16, so
+    `main.vhd` gives it the view truncated to 2.16. The centre shown is then
+    off by up to about 0.01 (it is calculated with the truncated size of a
+    pixel, times 640), and the zoom stops at 136.00x, although the view can
+    be zoomed in 2^17 times further. Calculating `view_text.vhd` in 2.33
     would fix the centre: the multiplication by the column of the centre at
     the full width (47 bits instead of 30), rounded to 2.16 before the digits.
     The zoom needs a wider field in the text (up to about 18 million, 8

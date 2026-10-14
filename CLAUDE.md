@@ -23,13 +23,13 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
 `make sim` on every push and pull request.
 * `make sim`: all testbenches in parallel, about 9 minutes (mostly `vga`).
   `make run TB=<name>` runs one. They must all pass after a VHDL change.
-* `make formal`: the formal proofs, about 20 seconds.
+* `make formal`: the formal proofs, about 1 minute.
 * `make consts`: checks that the constants in `sim/model.py` and
   `sim/main_tb.vhd` match the design, about 1 second.
 * `make diagrams`: renders the TikZ block diagrams and timing diagrams
   (`doc/*.tex`) to the PNG files that the docs link to. Commit the PNG together with the `.tex`.
 * `make mega65-r6`, `make mega65-r3` (about 13 minutes each), `make nexys4ddr`
-  (about 6 minutes). Run them in the background, or `make -j3 mega65-r3
+  (about 6.5 minutes). Run them in the background, or `make -j3 mega65-r3
   mega65-r6 nexys4ddr`. The results are in `build/<board>/vivado.log`, and
   the reports of the routed design in `build/<board>/timing.rpt`,
   `utilization.rpt`, and `power.rpt`. A build that fails timing writes no
@@ -61,7 +61,7 @@ simulated by `core_tb`.
   idioms, including the conventions VSG does not check, and the parts of the
   code that do not follow them yet.
 * MEGA65 first. Where the boards differ, give the MEGA65 first and the
-  Nexys 4 DDR second, e.g. "2.33 fixed point (2.16 on the Nexys 4 DDR)", and
+  Nexys 4 DDR second, e.g. "120 job modules (39 on the Nexys 4 DDR)", and
   list the boards as mega65-r3, mega65-r6, nexys4ddr.
 * Never use the bit-file of one MEGA65 revision on the other one; some of
   the pins are different.
@@ -81,8 +81,8 @@ simulated by `core_tb`.
   (from `sim/model.py`). HISTORY.md is mostly about the Nexys 4 DDR at
   640x480, and stays as it is, apart from the earlier results that are
   added to it.
-* The bit-accurate model must follow `src/main/iterator.vhd`: it is in
-  `sim/iterator_model.py`, `sim/model.py`, and `sim/iterator_model_pkg.vhd`.
+* The bit-accurate model must follow `src/main/iterator_wide.vhd`: it is in
+  `sim/model.py` and `sim/iterator_model_pkg.vhd`.
   The board constants in `sim/model.py` and the defaults of `sim/main_tb.vhd`
   must match `src/mega65.vhd` (see the "Must match" comments); `make consts`
   checks this.

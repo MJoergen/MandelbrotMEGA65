@@ -1,9 +1,8 @@
 vunit i_job_wide(job_wide(rtl))
 {
-   -- The same properties as job.psl, for the wide job module. The iterator
-   -- calculates the four rows of a result at the same time, so the rows are
-   -- counted in results here, and the counts of a result come from the
-   -- iterator at the same time.
+   -- The properties of the job module. The iterator calculates the four rows
+   -- of a result at the same time, so the rows are counted in results here,
+   -- and the counts of a result come from the iterator at the same time.
 
    -- The number of results of a job
    constant C_NUM_RES : natural := G_NUM_ROWS / G_PIXELS;

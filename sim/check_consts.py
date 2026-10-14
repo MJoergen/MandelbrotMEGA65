@@ -66,7 +66,6 @@ def board(filename):
         'PIXELS':         int(c['C_PIXELS']),
         'COL_STRIDE':     int(c['C_COL_STRIDE']),
         'ADDR_BITS':      int(c['C_ADDR_BITS']),
-        'FRAC_BITS':      int(c['C_FRAC_BITS']),
         'MAX_COUNT':      int(c['C_MAX_COUNT']),
         'MAIN_CLOCK_KHZ': main_clock_khz,
     }
@@ -92,7 +91,7 @@ def main():
     # sim/model.py
     check('GROUP_SIZE in sim/model.py', model.GROUP_SIZE, int(dispatcher['G_GROUP_SIZE']))
     for name in ['NUM_COLS', 'NUM_ROWS', 'ROWS_IN_JOB', 'NUM_ITERATORS', 'PIXELS',
-                 'MAIN_CLOCK_KHZ', 'FRAC_BITS', 'MAX_COUNT']:
+                 'MAIN_CLOCK_KHZ', 'MAX_COUNT']:
         check(f'{name} in sim/model.py', getattr(model, name), mega65[name])
         check(f'NEXYS4DDR_{name} in sim/model.py', getattr(model, 'NEXYS4DDR_' + name),
               nexys4ddr[name])
@@ -106,7 +105,7 @@ def main():
 
     # The defaults of the generics of sim/main_tb.vhd
     for name in ['NUM_ITERATORS', 'PIXELS', 'ROWS_IN_JOB', 'NUM_COLS', 'NUM_ROWS',
-                 'COL_STRIDE', 'ADDR_BITS', 'FRAC_BITS', 'MAX_COUNT']:
+                 'COL_STRIDE', 'ADDR_BITS', 'MAX_COUNT']:
         check(f'The default of G_{name} in sim/main_tb.vhd', int(main_tb['G_' + name]),
               mega65[name])
 

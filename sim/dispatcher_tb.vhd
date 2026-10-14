@@ -1,13 +1,13 @@
 -- This is a simple self-checking testbench for the dispatcher. It is not an
--- exhaustive test. It uses four instances of the dispatcher: A normal one,
--- where each picture column is divided into four jobs; one with a single
--- picture column (i.e. with fewer picture columns than job modules) and one
--- row in each job, so every job is the last picture column of its block; one
--- with four pixels in each write, where each picture column is divided into
--- two jobs, of two writes each; and one like the third, but with the wide
--- numbers (2.33 fixed point, with job_wide.vhd, as on the MEGA65). In the
--- first two, the address is the column followed by the row, and in the last
--- two the address distance between two columns is not a power of two (see
+-- exhaustive test. It uses three instances of the dispatcher, all with four
+-- pixels in each write (as the job modules, job_wide.vhd, need): A normal one,
+-- where each picture column is divided into four jobs of a single write, and
+-- the job modules are in groups of five (see dispatcher.vhd); one with a
+-- single picture column (i.e. with fewer picture columns than job modules), so
+-- every job is the last picture column of its block; and one where each
+-- picture column is divided into two jobs, of two writes each. In the first
+-- one, the address is the column followed by the row, and in the last one the
+-- address distance between two columns is not a power of two (see
 -- dispatcher.vhd). It calculates two small pictures with each of them, one
 -- after the other, and checks the following for each picture:
 -- * Nothing is written, and done is low, when idle. Done goes low after a
@@ -16,10 +16,10 @@
 --   write starts at a row that is a multiple of the pixels in a write.
 -- * All pixels have been written when done goes high, and nothing is written
 --   after that.
--- * The value of each pixel is exactly the count calculated by the
+-- * The value of each pixel is exactly the value calculated by the
 --   bit-accurate model in iterator_model_pkg.vhd, for the value of c of that
---   pixel (with the wide numbers: the count, or 511 for the points in the
---   set, see job_wide.vhd). This also checks that each pixel is calculated
+--   pixel (the count, or 511 for the points in the set, see job_wide.vhd).
+--   This also checks that each pixel is calculated
 --   with the right value of c, i.e. that the results are written to the right
 --   address.
 --
@@ -45,11 +45,11 @@ architecture simulation of dispatcher_tb is
 
    -- Rows in each job, in the three instances
    constant C_ROWS_IN_JOB   : positive := 4;
-   constant C_SMALL_ROWS    : positive := 1;
+   constant C_SMALL_ROWS    : positive := 4;
    constant C_WIDE_ROWS     : positive := 8;
 
-   -- Pixels in each write in the third instance
-   constant C_WIDE_PIXELS   : positive := 4;
+   -- Pixels in each write
+   constant C_PIXELS        : positive := 4;
 
    -- Address distance between two picture columns, in the three instances
    constant C_STRIDE        : positive := 512;
@@ -68,13 +68,10 @@ architecture simulation of dispatcher_tb is
    -- Maximum number of clock cycles to wait for a picture
    constant C_TIMEOUT       : positive := 30000;
 
-   -- Fraction bits of the values in the fourth instance
-   constant C_WIDE_FRAC     : positive := 33;
-
    type pixel_t is array (0 to C_NUM_COLS-1, 0 to C_NUM_ROWS-1) of integer;
 
    -- The signals connected to a dispatcher. The values are 2.33 fixed point
-   -- (35 bits) or 2.16 (the lowest 18 bits).
+   -- (35 bits).
    type dut_in_t is record
       start  : std_logic;
       startx : std_logic_vector(34 downto 0);
@@ -85,7 +82,7 @@ architecture simulation of dispatcher_tb is
 
    type dut_out_t is record
       wr_addr : std_logic_vector(18 downto 0);
-      wr_data : std_logic_vector(9*C_WIDE_PIXELS-1 downto 0);
+      wr_data : std_logic_vector(9*C_PIXELS-1 downto 0);
       wr_en   : std_logic;
       done    : std_logic;
    end record dut_out_t;
@@ -103,25 +100,6 @@ architecture simulation of dispatcher_tb is
    signal dut2_out : dut_out_t;
    signal dut3_in  : dut_in_t := C_IN_INIT;
    signal dut3_out : dut_out_t;
-   signal dut4_in  : dut_in_t := C_IN_INIT;
-   signal dut4_out : dut_out_t;
-
-   -- Convert a real value to the 2.frac fixed point format (frac is 16 or 33),
-   -- sign extended to 35 bits
-   function to_fixed (r : real; frac : natural) return signed is
-   begin
-      if frac = 16 then
-         return to_signed(integer(round(r * 65536.0)), 35);
-      end if;
-      return to_fixed_wide(r);
-   end function to_fixed;
-
-   -- The lowest frac+2 bits of v, sign extended to 35 bits. This models the
-   -- additions in the dispatcher and the job modules, which wrap around.
-   function wrap (v : signed(34 downto 0); frac : natural) return signed is
-   begin
-      return resize(v(frac+1 downto 0), 35);
-   end function wrap;
 
 begin
 
@@ -158,18 +136,16 @@ begin
          signal   dut_out  : in  dut_out_t;
          num_cols : positive;
          stride   : positive;      -- Address distance between two columns
-         pixels   : positive;      -- Pixels in each write
          startx_r : real;
          starty_r : real;
          width_r  : real;          -- Size of the picture
          height_r : real;
-         name     : string;
-         frac     : positive := 16 -- Fraction bits of the values
+         name     : string
       ) is
-         variable startx_v   : signed(34 downto 0) := to_fixed(startx_r, frac);
-         variable starty_v   : signed(34 downto 0) := to_fixed(starty_r, frac);
-         variable stepx_v    : signed(34 downto 0) := to_fixed(width_r  / real(num_cols), frac);
-         variable stepy_v    : signed(34 downto 0) := to_fixed(height_r / real(C_NUM_ROWS), frac);
+         variable startx_v   : signed(34 downto 0) := to_fixed_wide(startx_r);
+         variable starty_v   : signed(34 downto 0) := to_fixed_wide(starty_r);
+         variable stepx_v    : signed(34 downto 0) := to_fixed_wide(width_r  / real(num_cols));
+         variable stepy_v    : signed(34 downto 0) := to_fixed_wide(height_r / real(C_NUM_ROWS));
          variable col_v      : natural;
          variable row_v      : natural;
          variable total_v    : natural := 0;
@@ -213,8 +189,8 @@ begin
             if dut_out.wr_en = '1' then
                col_v := to_integer(unsigned(dut_out.wr_addr)) / stride;
                row_v := to_integer(unsigned(dut_out.wr_addr)) mod stride;
-               if col_v < num_cols and row_v <= C_NUM_ROWS - pixels and row_v mod pixels = 0 then
-                  for i in 0 to pixels-1 loop
+               if col_v < num_cols and row_v <= C_NUM_ROWS - C_PIXELS and row_v mod C_PIXELS = 0 then
+                  for i in 0 to C_PIXELS-1 loop
                      assert seen_v(col_v, row_v+i) = -1
                         report name & ": Pixel (" & integer'image(col_v) & "," & integer'image(row_v+i) &
                                ") written more than once"
@@ -256,15 +232,11 @@ begin
          for c in 0 to num_cols-1 loop
             for r in 0 to C_NUM_ROWS-1 loop
                if seen_v(c, r) /= -1 then
-                  -- The dispatcher and the job modules add the steps in
-                  -- frac+2 bits
-                  cx_v := wrap(startx_v + resize(to_signed(c, 8) * stepx_v, 35), frac);
-                  cy_v := wrap(starty_v + resize(to_signed(r, 8) * stepy_v, 35), frac);
-                  if frac = 16 then
-                     exp_v := iterator_count(to_integer(cx_v), to_integer(cy_v), C_MAX_COUNT);
-                  else
-                     exp_v := to_pixel(iterator_count(cx_v, cy_v, C_MAX_COUNT), C_MAX_COUNT);
-                  end if;
+                  -- The dispatcher and the job modules add the steps in 35
+                  -- bits, which wrap around
+                  cx_v  := startx_v + resize(to_signed(c, 8) * stepx_v, 35);
+                  cy_v  := starty_v + resize(to_signed(r, 8) * stepy_v, 35);
+                  exp_v := to_pixel(iterator_count(cx_v, cy_v, C_MAX_COUNT), C_MAX_COUNT);
                   assert seen_v(c, r) = exp_v
                      report name & ": Wrong count for pixel (" & integer'image(c) & "," &
                             integer'image(r) & "): got " & integer'image(seen_v(c, r)) &
@@ -287,34 +259,28 @@ begin
          wait until rising_edge(clk);
          assert dut1_out.done = '0' and dut1_out.wr_en = '0' and
                 dut2_out.done = '0' and dut2_out.wr_en = '0' and
-                dut3_out.done = '0' and dut3_out.wr_en = '0' and
-                dut4_out.done = '0' and dut4_out.wr_en = '0'
+                dut3_out.done = '0' and dut3_out.wr_en = '0'
             report "Not idle before the first picture"
             severity error;
       end loop;
 
       -- Normal dispatcher. The second picture is started right after the
       -- first, which also checks that the dispatcher can be restarted.
-      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE, 1, -1.0, -0.3, 0.8, 0.6, "picture 1");
-      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE, 1,  0.0,  0.3, 0.5, 0.5, "picture 2");
+      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 1");
+      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 2");
 
       -- Dispatcher with a single picture column, and two pictures.
-      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE, 1, -1.0, -0.3, 0.8, 0.6, "picture 3");
-      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE, 1,  0.0,  0.3, 0.5, 0.5, "picture 4");
+      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 3");
+      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 4");
 
-      -- Dispatcher with four pixels in each write, an address distance between
-      -- two columns that is not a power of two, and two pictures.
-      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE, C_WIDE_PIXELS, -1.0, -0.3, 0.8, 0.6, "picture 5");
-      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE, C_WIDE_PIXELS,  0.0,  0.3, 0.5, 0.5, "picture 6");
-
-      -- The same with the wide numbers. The second picture is very small (a
-      -- pixel is 2^-28), and wraps around from 2 to -2 in cy, which checks
-      -- that the wide values are used everywhere.
-      run_picture(dut4_in, dut4_out, C_NUM_COLS, C_WIDE_STRIDE, C_WIDE_PIXELS,
-                  -1.0, -0.3, 0.8, 0.6, "picture 7", C_WIDE_FRAC);
-      run_picture(dut4_in, dut4_out, C_NUM_COLS, C_WIDE_STRIDE, C_WIDE_PIXELS,
-                  -0.75, 1.99999995, 2.384185791015625E-7, 5.9604644775390625E-8, "picture 8",
-                  C_WIDE_FRAC);
+      -- Dispatcher with two writes in each job, an address distance between
+      -- two columns that is not a power of two, and two pictures. The second
+      -- picture is very small (a pixel is 2^-28), and wraps around from 2 to
+      -- -2 in cy, which checks that all the bits of the values are used
+      -- everywhere.
+      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 5");
+      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE,
+                  -0.75, 1.99999995, 2.384185791015625E-7, 5.9604644775390625E-8, "picture 6");
 
       report "dispatcher_tb: finished";
       std.env.finish;
@@ -335,18 +301,18 @@ begin
          G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_GROUP_SIZE    => C_GROUP_SIZE,
-         G_PIXELS        => 1
+         G_PIXELS        => C_PIXELS
       )
       port map (
          clk_i     => clk,
          rst_i     => rst,
          start_i   => dut1_in.start,
-         startx_i  => dut1_in.startx(17 downto 0),
-         starty_i  => dut1_in.starty(17 downto 0),
-         stepx_i   => dut1_in.stepx(17 downto 0),
-         stepy_i   => dut1_in.stepy(17 downto 0),
+         startx_i  => dut1_in.startx,
+         starty_i  => dut1_in.starty,
+         stepx_i   => dut1_in.stepx,
+         stepy_i   => dut1_in.stepy,
          wr_addr_o => dut1_out.wr_addr,
-         wr_data_o => dut1_out.wr_data(8 downto 0),
+         wr_data_o => dut1_out.wr_data,
          wr_en_o   => dut1_out.wr_en,
          done_o    => dut1_out.done
       ); -- i_dispatcher
@@ -360,18 +326,18 @@ begin
          G_ADDR_BITS     => C_ADDR_BITS,
          G_ROWS_IN_JOB   => C_SMALL_ROWS,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
-         G_PIXELS        => 1
+         G_PIXELS        => C_PIXELS
       )
       port map (
          clk_i     => clk,
          rst_i     => rst,
          start_i   => dut2_in.start,
-         startx_i  => dut2_in.startx(17 downto 0),
-         starty_i  => dut2_in.starty(17 downto 0),
-         stepx_i   => dut2_in.stepx(17 downto 0),
-         stepy_i   => dut2_in.stepy(17 downto 0),
+         startx_i  => dut2_in.startx,
+         starty_i  => dut2_in.starty,
+         stepx_i   => dut2_in.stepx,
+         stepy_i   => dut2_in.stepy,
          wr_addr_o => dut2_out.wr_addr,
-         wr_data_o => dut2_out.wr_data(8 downto 0),
+         wr_data_o => dut2_out.wr_data,
          wr_en_o   => dut2_out.wr_en,
          done_o    => dut2_out.done
       ); -- i_dispatcher_small
@@ -386,47 +352,20 @@ begin
          G_ROWS_IN_JOB   => C_WIDE_ROWS,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_GROUP_SIZE    => C_GROUP_SIZE,
-         G_PIXELS        => C_WIDE_PIXELS
+         G_PIXELS        => C_PIXELS
       )
       port map (
          clk_i     => clk,
          rst_i     => rst,
          start_i   => dut3_in.start,
-         startx_i  => dut3_in.startx(17 downto 0),
-         starty_i  => dut3_in.starty(17 downto 0),
-         stepx_i   => dut3_in.stepx(17 downto 0),
-         stepy_i   => dut3_in.stepy(17 downto 0),
+         startx_i  => dut3_in.startx,
+         starty_i  => dut3_in.starty,
+         stepx_i   => dut3_in.stepx,
+         stepy_i   => dut3_in.stepy,
          wr_addr_o => dut3_out.wr_addr,
          wr_data_o => dut3_out.wr_data,
          wr_en_o   => dut3_out.wr_en,
          done_o    => dut3_out.done
       ); -- i_dispatcher_wide
-
-   i_dispatcher_wide_frac : entity work.dispatcher
-      generic map (
-         G_MAX_COUNT     => C_MAX_COUNT,
-         G_NUM_ROWS      => C_NUM_ROWS,
-         G_NUM_COLS      => C_NUM_COLS,
-         G_COL_STRIDE    => C_WIDE_STRIDE,
-         G_ADDR_BITS     => C_ADDR_BITS,
-         G_ROWS_IN_JOB   => C_WIDE_ROWS,
-         G_NUM_ITERATORS => C_NUM_ITERATORS,
-         G_GROUP_SIZE    => C_GROUP_SIZE,
-         G_PIXELS        => C_WIDE_PIXELS,
-         G_FRAC_BITS     => C_WIDE_FRAC
-      )
-      port map (
-         clk_i     => clk,
-         rst_i     => rst,
-         start_i   => dut4_in.start,
-         startx_i  => dut4_in.startx,
-         starty_i  => dut4_in.starty,
-         stepx_i   => dut4_in.stepx,
-         stepy_i   => dut4_in.stepy,
-         wr_addr_o => dut4_out.wr_addr,
-         wr_data_o => dut4_out.wr_data,
-         wr_en_o   => dut4_out.wr_en,
-         done_o    => dut4_out.done
-      ); -- i_dispatcher_wide_frac
 
 end architecture simulation;

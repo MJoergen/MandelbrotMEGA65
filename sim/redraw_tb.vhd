@@ -6,7 +6,7 @@
 -- * At each update of the view (upd in main.vhd), the latest picture is
 --   finished, and its view is the current view, i.e. every change of the view
 --   has given a new picture (p_check). An update takes 17 clock cycles, and a
---   picture at most about 2200 (reported at the end), less than the time
+--   picture at most about 3000 (reported at the end), less than the time
 --   between two updates, so the picture of an update is finished before the
 --   next update.
 -- * Each picture writes exactly the number of words of a picture, and nothing
@@ -48,16 +48,15 @@ end entity redraw_tb;
 architecture simulation of redraw_tb is
 
    constant C_NUM_ITERATORS : positive := 5;
-   constant C_PIXELS        : positive := 2;
-   constant C_ROWS_IN_JOB   : positive := 6;
+   constant C_PIXELS        : positive := 4;
+   constant C_ROWS_IN_JOB   : positive := 4;
    constant C_NUM_COLS      : positive := 16;
    constant C_NUM_ROWS      : positive := 12;
    constant C_COL_STRIDE    : positive := 16;
-   -- The number format and the maximum count, as on the Nexys 4 DDR. The
-   -- control of the pictures in main.vhd is the same for both formats, and
-   -- 2.16 keeps the pictures short.
-   constant C_FRAC_BITS     : positive := 16;
-   constant C_MAX_COUNT     : positive := 511;
+   -- The maximum count is lower than on the boards (1023), to keep the
+   -- pictures short. The control of the pictures in main.vhd does not depend
+   -- on it.
+   constant C_MAX_COUNT     : positive := 127;
    -- The display memory has 8 blocks of 4096 pixels, i.e. a single group of
    -- blocks. The address has one bit more than this needs, as in
    -- disp_mem_tb, because otherwise the number of the group has no bits,
@@ -87,10 +86,10 @@ architecture simulation of redraw_tb is
    constant C_MAX_GAP       : positive := 10;
 
    -- The view, i.e. startx, starty, stepx, and stepy
-   subtype view_t is std_logic_vector(4*C_FRAC_BITS+7 downto 0);
+   subtype view_t is std_logic_vector(4*35-1 downto 0);
 
    -- One of the values of the view
-   subtype value_t is std_logic_vector(C_FRAC_BITS+1 downto 0);
+   subtype value_t is std_logic_vector(34 downto 0);
 
    signal clk       : std_logic;
    signal rst       : std_logic := '1';
@@ -160,7 +159,6 @@ begin
          G_NUM_ROWS      => C_NUM_ROWS,
          G_COL_STRIDE    => C_COL_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
-         G_FRAC_BITS     => C_FRAC_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
@@ -211,7 +209,6 @@ begin
          G_NUM_ROWS      => C_NUM_ROWS,
          G_COL_STRIDE    => C_COL_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
-         G_FRAC_BITS     => C_FRAC_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
@@ -482,10 +479,10 @@ begin
 
       alias upd    is << signal .redraw_tb.i_main_fast.upd : std_logic >>;
       alias start  is << signal .redraw_tb.i_main_fast.start : std_logic >>;
-      alias startx is << signal .redraw_tb.i_main_fast.startx : std_logic_vector(17 downto 0) >>;
-      alias starty is << signal .redraw_tb.i_main_fast.starty : std_logic_vector(17 downto 0) >>;
-      alias stepx  is << signal .redraw_tb.i_main_fast.stepx : std_logic_vector(17 downto 0) >>;
-      alias stepy  is << signal .redraw_tb.i_main_fast.stepy : std_logic_vector(17 downto 0) >>;
+      alias startx is << signal .redraw_tb.i_main_fast.startx : std_logic_vector(34 downto 0) >>;
+      alias starty is << signal .redraw_tb.i_main_fast.starty : std_logic_vector(34 downto 0) >>;
+      alias stepx  is << signal .redraw_tb.i_main_fast.stepx : std_logic_vector(34 downto 0) >>;
+      alias stepy  is << signal .redraw_tb.i_main_fast.stepy : std_logic_vector(34 downto 0) >>;
 
       signal view_s : view_t;
 

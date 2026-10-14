@@ -2,8 +2,7 @@
 -- This module iterates the Mandelbrot fractal equation
 --    new_z = z^2 + c
 -- for four points at the same time, with numbers in 2.33 fixed point format
--- (35 bits). It is the iterator of the MEGA65 design, see job_wide.vhd. The
--- Nexys 4 DDR uses iterator.vhd, with numbers in 2.16 format.
+-- (35 bits). It is the iterator of the job modules, see job_wide.vhd.
 --
 -- The four points are four consecutive rows of a picture column: they have
 -- the same cx, and cy, cy+stepy, cy+2*stepy, and cy+3*stepy. Inputs to this
@@ -13,8 +12,7 @@
 -- points are finished, with the iteration count of each point in cnt_o (the
 -- first point in the lowest bits). Both stay unchanged until the next
 -- start_i. The count is the number of the first iteration where x or y is
--- out of range (see below), or G_MAX_COUNT if this does not happen, as in
--- iterator.vhd.
+-- out of range (see below), or G_MAX_COUNT if this does not happen.
 --
 -- Separating real and imaginary parts, each iteration is:
 --    new_x = (x+y)*(x-y) + cx
@@ -56,7 +54,7 @@
 -- In each clock cycle, each stage works on a different point. So the four
 -- points are calculated in turns, one iteration of each point in every four
 -- clock cycles, and the iterator calculates one iteration in every clock
--- cycle, like iterator.vhd. The point in x_r and y_r is called the slot
+-- cycle. The point in x_r and y_r is called the slot
 -- (sl_r): the four slots are 0, 1, 2, 3, 0, 1, ... in consecutive clock
 -- cycles, and each slot has its own value of cy, its own saved values for the
 -- periodicity detection, and its own count. All four points have done the
@@ -76,11 +74,10 @@
 -- enable is run_r), so the iterator does not toggle while it is idle: the
 -- inputs of the DSPs do not change, so their registers stop changing three
 -- clock cycles after done_o goes high. Otherwise the iterator would go on
--- iterating, and use as much power as when it calculates, as in
--- iterator.vhd. The DSPs themselves have no clock enable, so they are the
+-- iterating, and use as much power as when it calculates. The DSPs themselves have no clock enable, so they are the
 -- same as without it.
 --
--- Periodicity detection: As in iterator.vhd, x and y are saved after
+-- Periodicity detection: x and y are saved after
 -- iterations 1, 2, 4, 8, 16, ..., and compared with the saved values in each
 -- iteration. When they are equal, the iteration of that point stops, with the
 -- count G_MAX_COUNT. The saved values of the four slots are in a shift register
@@ -89,19 +86,21 @@
 --
 -- Overflow: The iteration stops when the new x or y is outside the range -2
 -- to 2 (not including 2). The range is checked on the sums, before they are
--- truncated to 35 bits, as in iterator.vhd. The new value of x is between -6
+-- truncated to 35 bits. The new value of x is between -6
 -- and 6 (37 bits), and the new value of y between -10 and 10 (38 bits).
 --
 -- The values x+y and x-y are between -4 and 4, so they need 36 bits (3.33
 -- format). The multiplication splits them into a high part of 19 bits and a
 -- low part of 17 bits, but the high part of the second input can only have
--- 18 bits (the B input of the DSP). As in iterator.vhd, at most one of x+y and
--- x-y is outside the range -2 to 2: If x and y have the same sign bit, then
+-- 18 bits (the B input of the DSP). But at most one of x+y and x-y is
+-- outside the range -2 to 2: If x and y have the same sign bit, then
 -- x-y is in range, and otherwise x+y is in range. So the one that may be out
 -- of range is a, and the other one is b, and each of them is calculated by an
 -- adder that adds or subtracts y.
 --
--- The XC7A200T (MEGA65) has 740 DSPs, so 120 iterators use 720 of them.
+-- The XC7A200T (MEGA65) has 740 DSPs, so 120 iterators use 720 of them, and
+-- the XC7A100T (Nexys 4 DDR) has 240 DSPs in three columns of 80, so 39
+-- iterators use 234 of them (a cascade must be in one column).
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -390,8 +389,9 @@ begin
 
    -- The saved values move along with the slots, like cy_r (also only while
    -- run_r is high). The values of the slot in x_r and y_r are saved if it_r
-   -- is a power of two. The saved values are not cleared at the start, as in
-   -- iterator.vhd.
+   -- is a power of two. The saved values are not cleared at the start
+   -- (otherwise each bit would need a LUT), because they are first saved
+   -- after iteration 1, before they are compared (from iteration 2).
    p_save : process (clk_i)
    begin
       if rising_edge(clk_i) then
