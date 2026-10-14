@@ -33,12 +33,13 @@
 -- too. view_text_o is changed together with the frame rate, at the end of the
 -- picture (fps_valid_o), so the text and the frame rate on the screen are
 -- always those of the same picture, i.e. the latest one, and the top level
--- moves them to the VGA clock domain together. The conversion takes 130
+-- moves them to the VGA clock domain together. The conversion takes 194
 -- clock cycles (for 1280x1024), which is much less than a picture.
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std_unsigned.all;
+use ieee.math_real.all;
 
 entity main is
    generic (
@@ -83,7 +84,7 @@ entity main is
       fps_valid_o  : out std_logic;
 
       -- The view of the latest picture, as text, see view_text.vhd
-      view_text_o  : out std_logic_vector(99 downto 0);
+      view_text_o  : out std_logic_vector(119 downto 0);
 
       -- Write port of the display memory
       wr_addr_o    : out std_logic_vector(G_ADDR_BITS-1 downto 0);
@@ -106,9 +107,11 @@ architecture structural of main is
    constant C_SIZE_Y        : real :=  C_SIZE_X * real(G_NUM_ROWS) / real(G_NUM_COLS);
    constant C_START_Y       : real := -C_SIZE_Y / 2.0;
 
-   -- The initial size of a pixel in LSBs of 2.16, as in viewport.vhd. The
-   -- text of the view (view_text.vhd) is calculated in 2.16, see below.
-   constant C_INIT_STEP     : positive := integer(C_SIZE_X*real(2**16))/G_NUM_COLS;
+   -- The initial size of a pixel in LSBs of 2.33, as in viewport_axis.vhd,
+   -- for the zoom in the text of the view (view_text.vhd): 17895697 for 1280
+   -- columns, and 35791394 for 640.
+   constant C_INIT_STEP     : positive :=
+      natural(floor(floor(C_SIZE_X*2.0**33 + 0.5) / real(G_NUM_COLS)));
 
    signal startx         : std_logic_vector(34 downto 0);
    signal starty         : std_logic_vector(34 downto 0);
@@ -145,16 +148,10 @@ architecture structural of main is
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
 
-   -- The view in 2.16, for view_text.vhd
-   signal txt_startx     : std_logic_vector(17 downto 0);
-   signal txt_starty     : std_logic_vector(17 downto 0);
-   signal txt_stepx      : std_logic_vector(17 downto 0);
-   signal txt_stepy      : std_logic_vector(17 downto 0);
-
    -- The view of the picture, as text. view_text_r is changed together with
    -- the frame rate. Nothing is shown before the first picture.
-   signal view_text      : std_logic_vector(99 downto 0);
-   signal view_text_r    : std_logic_vector(99 downto 0) := (others => '1');
+   signal view_text      : std_logic_vector(119 downto 0);
+   signal view_text_r    : std_logic_vector(119 downto 0) := (others => '1');
 
    -- The view is updated 18 times per second.
    constant C_UPD_PERIOD : natural := G_CLK_FREQ / 18;
@@ -342,21 +339,6 @@ begin
    -- Convert the view of the picture to text
    --------------------------------------------------
 
-   -- view_text.vhd only handles 2.16, so the view is truncated to 2.16, i.e.
-   -- the top 18 bits are used. The size of a pixel is at least one LSB of
-   -- 2.16. This is only an approximation: the centre is calculated with the
-   -- truncated size of a pixel, so it is off by up to G_NUM_COLS/2 LSBs of
-   -- 2.16 (about 0.01 for 1280 columns, and 0.005 for 640), and the zoom
-   -- shown stops at the initial size of a pixel in LSBs of 2.16 (136.00x for
-   -- 1280 columns, and 273.00x for 640), although the view can be zoomed in
-   -- 2^17 times further.
-   txt_startx <= startx(34 downto 17);
-   txt_starty <= starty(34 downto 17);
-   txt_stepx  <= stepx(34 downto 17) when stepx(34 downto 17) /= 0 else
-                 to_slv(1, 18);
-   txt_stepy  <= stepy(34 downto 17) when stepy(34 downto 17) /= 0 else
-                 to_slv(1, 18);
-
    -- The dispatcher takes the view when it sees the start, so the text is of
    -- the same view.
    i_view_text : entity work.view_text
@@ -369,10 +351,10 @@ begin
          clk_i    => clk_i,
          rst_i    => rst_i,
          start_i  => start,
-         startx_i => txt_startx,
-         starty_i => txt_starty,
-         stepx_i  => txt_stepx,
-         stepy_i  => txt_stepy,
+         startx_i => startx,
+         starty_i => starty,
+         stepx_i  => stepx,
+         stepy_i  => stepy,
          text_o   => view_text,
          valid_o  => open
       ); -- i_view_text

@@ -21,7 +21,7 @@ package text_pkg is
    constant C_CHAR_X     : std_logic_vector(3 downto 0) := X"E";  -- "x"
    constant C_CHAR_NONE  : std_logic_vector(3 downto 0) := X"F";  -- Not shown
 
-   constant C_VIEW_CHARS : natural := 25;
+   constant C_VIEW_CHARS : natural := 30;
 
 end package text_pkg;
 

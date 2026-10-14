@@ -125,14 +125,11 @@ the real axis near -1.755):
 The top left corner of the picture shows the view, in white on black: the
 centre of the picture as a complex number, with five digits after the point,
 and the zoom, which is 1.00 for the initial view, e.g.
-`-0.33858-0.00418i   1.00x`. The zoom is the initial size of a pixel divided
-by the current one, so it goes from 0.67 (zoomed out as far as possible) to
-136.00 (273.00 on the Nexys 4 DDR). The rows go down the screen, so the
-imaginary part increases downwards. The text is calculated with the view
-truncated to 2.16, so it is only approximate: the centre is off by up to about
-0.01 (0.005 on the Nexys 4 DDR; the centre of the initial view is -0.33337,
-but it is shown as -0.33858), and the zoom stops at 136.00x (273.00x),
-although the view can be zoomed in 2^17 times further.
+`-0.33337-0.00000i        1.00x`. The zoom is the initial size of a pixel
+divided by the current one, so it goes from 0.67 (zoomed out as far as
+possible) to 17895697.00 (35791394.00 on the Nexys 4 DDR), at the smallest
+pixel (2^-33). The rows go down the screen, so the imaginary part increases
+downwards.
 
 The frame rate, i.e. the number of pictures the design could calculate per
 second, rounded down to an integer, is shown in the top right corner of the
@@ -207,9 +204,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 720 (97%)           | 740       | 234 (98%)                | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,703 (68%)        | 33,650    | 9,840 (62%)              | 15,850
-| LUTs               | 61,213 (46%)        | 134,600   | 21,353 (34%)             | 63,400
-| Registers          | 71,503 (27%)        | 269,200   | 30,918 (24%)             | 126,800
+| Slices             | 22,702 (68%)        | 33,650    | 9,819 (62%)              | 15,850
+| LUTs               | 61,390 (46%)        | 134,600   | 21,468 (34%)             | 63,400
+| Registers          | 71,877 (27%)        | 269,200   | 31,736 (25%)             | 126,800
 
 The performance and timing are:
 
@@ -221,14 +218,16 @@ The performance and timing are:
 | Clock frequency | 187.83 MHz      | 120.00 MHz
 | Initial FPS     | 170 (measured)  | 141 (estimated)
 | Worst-case FPS  | 17 (estimated)  | 15 (estimated)
-| Setup slack     | +0.093 ns       | +0.347 ns
-| Hold slack      | +0.020 ns       | +0.008 ns
+| Setup slack     | +0.095 ns       | +0.290 ns
+| Hold slack      | +0.018 ns       | +0.009 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.129 ns (22,544 slices, +0.007 ns hold slack). The MEGA65
-design runs on the R6 (the current build), and shows 170 pictures per second
-for the initial view; the R3 build has not been tested on a board.
-The previous builds, at 192 MHz, met timing with +0.018 ns on the R6 (22,670
+R3 met timing with +0.135 ns (22,035 slices, +0.015 ns hold slack). The MEGA65
+design ran on the R6 (the previous build, before the view as text in 2.33),
+and showed 170 pictures per second for the initial view; the current builds
+have not been tested on a board. The previous builds met timing with
++0.093 ns on the R6 (22,703 slices) and +0.129 ns on the R3.
+The builds before those, at 192 MHz, met timing with +0.018 ns on the R6 (22,670
 slices) and +0.057 ns on the R3, with the worst setup paths in the keyboard
 driver (copied unchanged from the C64MEGA65 core), and only after the
 post-route `phys_opt_design`, so the main clock was lowered to 187.8 MHz for
@@ -390,7 +389,7 @@ and two for `main`: `redraw` checks that it only calculates a picture when the
 view changes, and that the pictures end up in the display memory, and
 `picture` compares every pixel of three small pictures (64x48) with the
 bit-accurate model. `core` checks the whole design from the buttons to the
-VGA output, with two small pictures (560x4).
+VGA output, with two small pictures (640x4).
 All of them are self-checking, and stop with an error if the result is wrong.
 They stop by themselves when they are finished, and report
 `<name>_tb: finished`. `make sim` only counts a testbench as passed when it
@@ -532,7 +531,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/main/main.vhd`](src/main/main.vhd) | Everything in the MAIN clock domain: view control from the buttons and switches (which the MEGA65 takes from the joysticks and the keyboard), the dispatcher, the view as text (shown on the VGA output), and the frame rate (shown on the VGA output, and on the 7-segment display of the Nexys 4 DDR).
 | [`src/main/viewport.vhd`](src/main/viewport.vhd) | View control. Pans and zooms the view, and keeps it inside the range of the number format (2.33). It holds the state machine and instantiates `viewport_axis` ([`src/main/viewport_axis.vhd`](src/main/viewport_axis.vhd)) once for x and once for y, which calculates the view along one axis. The states are in [`src/main/viewport_pkg.vhd`](src/main/viewport_pkg.vhd).
 | [`src/main/fps.vhd`](src/main/fps.vhd), [`src/main/seg.vhd`](src/main/seg.vhd) | Frame rate. `fps` divides the clock frequency by the time taken by the latest picture, and converts the result to decimal, and `seg` multiplexes the digits on the 7-segment display of the Nexys 4 DDR.
-| [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal. It calculates in 2.16, so the text is only approximate.
+| [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal.
 | [`src/vga/vga.vhd`](src/vga/vga.vhd) | Everything in the VGA clock domain: pixel counters, VGA output, and the overlay of the view and the frame rate.
 | [`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd) | Iterates the Mandelbrot function for four points (rows) at the same time, with 2.33 fixed point, one iteration in each clock cycle, using six DSPs.
 | [`src/main/job_wide.vhd`](src/main/job_wide.vhd) | A job module. Calculates one job (64 rows of a picture column, 120 on the Nexys 4 DDR) at a time, four rows at a time, using one wide iterator.

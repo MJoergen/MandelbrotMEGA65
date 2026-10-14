@@ -67,19 +67,19 @@ architecture structural of core is
    signal fps_blank      : std_logic_vector( 7 downto 0);
    signal fps_valid      : std_logic;
 
-   signal view_text      : std_logic_vector(99 downto 0);
+   signal view_text      : std_logic_vector(119 downto 0);
 
-   -- The frame rate (the digits followed by the blanking) and the view (25
+   -- The frame rate (the digits followed by the blanking) and the view (30
    -- characters) in the MAIN clock domain, and in the VGA clock domain. Until
    -- the first frame rate, all the digits are blanked, and all the characters
    -- are 15 (not shown), so nothing is shown.
-   constant C_FPS_INIT   : std_logic_vector(139 downto 0) :=
-      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFF";
-   signal fps            : std_logic_vector(139 downto 0);
-   signal vga_fps        : std_logic_vector(139 downto 0);
+   constant C_FPS_INIT   : std_logic_vector(159 downto 0) :=
+      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+   signal fps            : std_logic_vector(159 downto 0);
+   signal vga_fps        : std_logic_vector(159 downto 0);
    signal vga_fps_digits : std_logic_vector(31 downto 0);
    signal vga_fps_blank  : std_logic_vector( 7 downto 0);
-   signal vga_view_text  : std_logic_vector(99 downto 0);
+   signal vga_view_text  : std_logic_vector(119 downto 0);
 
 begin
 
@@ -158,9 +158,9 @@ begin
          m_data_o  => vga_fps
       ); -- i_cdc_data
 
-   vga_fps_digits <= vga_fps(139 downto 108);
-   vga_fps_blank  <= vga_fps(107 downto 100);
-   vga_view_text  <= vga_fps( 99 downto   0);
+   vga_fps_digits <= vga_fps(159 downto 128);
+   vga_fps_blank  <= vga_fps(127 downto 120);
+   vga_view_text  <= vga_fps(119 downto   0);
 
 
    --------------------------------------------------

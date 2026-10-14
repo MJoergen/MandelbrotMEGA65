@@ -398,7 +398,7 @@ from the buttons and switches to the VGA output, i.e. `core` with the clocks
 of the Nexys 4 DDR (in the same ratio, 120 MHz and 25 MHz, but about 17 times
 faster). A picture of a real size is too slow to simulate (the first picture
 is the initial view, which is mostly inside the set), so the video mode is
-560x4 (560 is the smallest width that `vga` accepts, because of the overlay),
+640x4 (640 is the smallest width that `vga` accepts, because of the overlay),
 with short blanking, and the maximum count is 127 instead of 1023. For two
 pictures (the initial view with palette 1, and the view after pan right held
 down for one update, with palette 3) it waits until the picture is complete,
@@ -1291,61 +1291,61 @@ frame. It prints the overlay of the last frame.
 
 **The view as text.** The top left corner of the VGA output shows the view
 of the picture: the centre as a complex number, and the zoom, e.g.
-`-0.33858-0.00418i   1.00x` for the initial view of the MEGA65. The module
-[`src/main/view_text.vhd`](src/main/view_text.vhd) converts the view to this
-text (25 characters) when a picture is started, with the view that the
+`-0.33337-0.00000i        1.00x` for the initial view of the MEGA65. The
+module [`src/main/view_text.vhd`](src/main/view_text.vhd) converts the view to
+this text (30 characters) when a picture is started, with the view that the
 dispatcher takes. `main` keeps the text until the frame rate of the picture
 is ready (`fps_valid_o`), and then outputs it together with the frame rate,
 so the screen always shows the view and the frame rate of the same picture,
 the latest one.
 
-`view_text` only handles 2.16 numbers, so `main` gives it the view
-truncated to 2.16 (the top 18 bits of startx, starty, stepx, and stepy),
-with the size of a pixel at least one LSB of 2.16. The text is then only
-approximate: the centre is calculated with the truncated size of a pixel, so
-it is off by up to 640 LSBs of 2.16 (about 0.01, and 320 LSBs or about 0.005
-on the Nexys 4 DDR). E.g. the centre
-of the initial view is -0.33337-0.00000i, but it is shown as
--0.33858-0.00418i. The zoom stops at 136.00 (a pixel of one LSB of 2.16;
-273.00 on the Nexys 4 DDR), although the view can be zoomed in 2^17 times further. The values below are
-those of the truncated view.
+The text is calculated from the whole view in 2.33, so the centre is exact
+before it is rounded to five digits, and the zoom can be shown up to the
+smallest pixel. An earlier version calculated it with the view truncated to
+2.16, see [HISTORY.md](HISTORY.md#the-view-as-text).
 * The centre is the point of the pixel in column 640 and row 512 (320 and
   240 on the Nexys 4 DDR), the one that is kept fixed when zooming (see *The
   view* above), i.e. startx + 640 * stepx and starty + 512 * stepy. The real
   and the imaginary part are each shown with a sign, one digit before the
-  point, and five after it, rounded to the nearest (one LSB of the 2.16
-  format is 0.000015). The rows go down the screen, so the imaginary part
-  increases downwards.
-* The zoom is the initial size of a pixel (136 LSBs, or 273 on the Nexys 4
-  DDR) divided by stepx, with two digits after the point, rounded to the
-  nearest, and the leading zeros not shown. It is 1.00 for the initial view,
-  from 0.67 when zoomed out as far as possible to 136.00 (273.00) when
-  zoomed in as far as possible. The size of a pixel is an integer number of
-  LSBs, so the zoom has only a few possible values when zoomed in far, e.g.
-  136.00 and 68.00 for a pixel of 1 and 2 LSBs. A zoom above 999.99 is
-  shown as 999.99, but that only happens for a picture of fewer than 175
-  columns.
+  point, and five after it, rounded to the nearest. The rows go down the
+  screen, so the imaginary part increases downwards. E.g. the centre of the
+  initial view is -0.33337-0.0000000040i, shown as -0.33337-0.00000i, and the
+  largest value, 2-2^-33, is shown as +2.00000.
+* The zoom is the initial size of a pixel (17895697 LSBs of 2.33, or
+  35791394 on the Nexys 4 DDR) divided by stepx, with eight digits before the
+  point and two after it, rounded to the nearest, and the leading zeros not
+  shown. It is 1.00 for the initial view, from 0.67 when zoomed out as far as
+  possible to 17895697.00 (35791394.00) when zoomed in as far as possible, to
+  a pixel of one LSB. The size of a pixel is an integer number of LSBs, so the
+  zoom has only a few possible values when zoomed in far, e.g. 17895697.00
+  and 8947848.50 for a pixel of 1 and 2 LSBs. A zoom above 99999999.99 is
+  shown as 99999999.99, but that only happens for a picture of fewer than
+  230 columns (e.g. the 16 columns of `redraw_tb`).
 
 Like the frame rate, the conversion is done one bit per clock cycle, with at
-most one addition or subtraction of 30 bits per clock cycle: the
+most one addition or subtraction of 47 bits per clock cycle: the
 multiplication by the constant column (row) of the centre with shifts and
-additions, then the magnitude of the centre times 100000/2^16 (i.e. times
-3125 and divided by 2^11, with 2^10 added for the rounding), also with shifts
+additions, then the magnitude of the centre times 100000/2^33 (i.e. times
+3125 and divided by 2^28, with 2^27 added for the rounding), also with shifts
 and additions, the zoom times 100 with a restoring division (with half of
 stepx added to the dividend, for the rounding), and each value to decimal
-with the double dabble algorithm. The conversion takes 130 clock cycles on
-the MEGA65 (0.72 us), much less than a picture.
+with the double dabble algorithm. The conversion takes 194 clock cycles on
+the MEGA65 (1.03 us), much less than a picture.
 
 The testbench [`sim/view_text_tb.vhd`](sim/view_text_tb.vhd) is
 self-checking. It has three instances of `view_text`, with the size of the
 picture and the initial size of a pixel of the MEGA65, of the Nexys 4 DDR,
-and of `redraw_tb` (16x12, where the zoom is always above 999.99, the
-largest value shown), and gives them the initial views, views at the edges of the range (the
-centre as far left and right as possible, with the smallest and the largest
-pixel, at 0 and one LSB from it, and with the largest fraction), and 2000
-random views inside the range. It checks the text of each against a model
-that calculates the centre and the zoom with integers, and prints the text
-of the first views. It also checks that nothing is shown before the first
+and of `redraw_tb` (16x12, where the zoom is often above 99999999.99, the
+largest value shown), and gives them the initial views, views at the edges
+of the range (the centre as far left and right as possible, with the
+smallest and the largest pixel, at 0 and one LSB from it, with the largest
+fraction, and just below and above half of the last digit, and a pixel of 2
+and 3 LSBs), and 2000 random views inside the range, half of them zoomed in
+far. It checks the text of each against a model that calculates the centre
+and the zoom exactly, and prints the text of the first views. The values
+have 35 bits, so the model uses real numbers (exact for integers up to
+2^53), with its own rounding down, because `floor` of GHDL returns its
+argument unchanged from 2^31 on. It also checks that nothing is shown before the first
 conversion, that the text only changes with a pulse of one clock cycle on
 `valid_o`, and that a start during a conversion is ignored.
 
@@ -1577,17 +1577,17 @@ rows (1024 is not a multiple of the 120 rows of the Nexys 4 DDR). A run of
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 720      | 740       | 97
 | Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
-| Slices           | 22,703   | 33,650    | 68
-| LUTs             | 61,213   | 134,600   | 46
-| Registers        | 71,503   | 269,200   | 27
+| Slices           | 22,702   | 33,650    | 68
+| LUTs             | 61,390   | 134,600   | 46
+| Registers        | 71,877   | 269,200   | 27
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.093 ns (TNS 0)
-| Hold (WHS)  | +0.020 ns (THS 0)
+| Setup (WNS) | +0.095 ns (TNS 0)
+| Hold (WHS)  | +0.018 ns (THS 0)
 
 The "Report Cell Usage" table in `build/mega65-r6/vivado.log` gives the cell
-counts after synthesis instead: 81,588 LUT cells and 71,471 registers, and
+counts after synthesis instead: 81,794 LUT cells and 71,719 registers, and
 12,623 shift registers (SRL16E, 105 in each iterator: the four entries of cy
 and of the saved values of x and y). The number of LUT cells is larger than
 the number of LUTs used, because two small LUT cells can share one LUT (the
@@ -1595,30 +1595,34 @@ placer does this, "LUT Combining"). Each job module (with its iterator) uses
 459 or 460 LUTs (57 of them as shift registers) and 519 registers
 (`report_utilization -hierarchical`). The runs before the rebase (see *The
 main clock* below) and the count modulo 511 (see [Jobs](#jobs)) used about
-2,800 fewer LUTs, and about 3,800 fewer LUT cells after synthesis.
+2,800 fewer LUTs, and about 3,800 fewer LUT cells after synthesis. The
+view as text in 2.33 (see [Overlay](#overlay)) uses 412 LUTs and 554
+registers (193 slices), and added about 180 LUTs and 370 registers to the
+design.
 
-The timing is met after the routing (+0.094 ns), before the post-route
-`phys_opt_design`. The worst setup path of the main clock is from the
+The timing is met after the routing (+0.096 ns), before the post-route
+`phys_opt_design`. The worst setup path of the main clock is in the display
+memory, from the write data (`wr_data`) to the data register of a group
+(`grp_data_r`), only routing (4.91 ns of 5.34 ns). The next is from the
 register of stepy of a group in the dispatcher (`grp_stepy_r` in
 `dispatcher_jobs`) to the register of cy of a job module (`res_cy_r`),
-mostly routing (3.99 ns of 5.37 ns). The next is in an iterator, from y to
-the input B of a DSP, through the adder of x+y or x-y (4.55 ns, of which
-2.11 ns is logic: a LUT and nine CARRY4). The worst path in the keyboard
-driver (`m2m_keyb`, copied unchanged from the C64MEGA65 core, from the
-counter of the keyboard scan, `keyscan_counter`, to the debounce RAM) has
-+0.140 ns. The path that was the worst one at 180 MHz, from `grp_stepy_r` to
++0.133 ns, mostly routing (3.35 ns of 5.23 ns). The worst path in the
+keyboard driver (`m2m_keyb`, copied unchanged from the C64MEGA65 core, from
+the counter of the keyboard scan, `keyscan_counter`, to the debounce RAM)
+has +0.207 ns, and the worst path in `view_text` +0.601 ns (the subtraction
+of the division). The path that was the worst one at 180 MHz, from `grp_stepy_r` to
 the accumulator of cy in an iterator (`cy_acc_r`), mostly routing (4.39 ns
 of 5.60 ns at 180 MHz), now ends in a register of the iterator (`stepy_r`),
 which is in each iterator, and the adder of cy has the register as its
-input. The worst hold slack is +0.020 ns, on the VGA clock. On the main
-clock it is +0.028 ns, in an iterator, from the register of cx (`cx_r`) to x
-(`x_r`). The
-VGA clock has +0.219 ns of setup slack: its worst path is from the row
-counter (`pix_y` in `pix`) to the read address of one of the groups of the
-display memory (`rd_grp_addr`, see [Display memory](#display-memory)), only
-routing (8.40 ns of the 8.75 ns). The 118 paths from the MAIN clock to the
+input. The worst hold slack is +0.018 ns, on the main clock, in `view_text`,
+from the text being calculated (`text`) to the output (`text_r`). On the
+VGA clock it is +0.061 ns. The
+VGA clock has +0.161 ns of setup slack: its worst path is from the column
+counter (`pix_x` in `pix`) to the block of one of the groups of the
+display memory (`rd_grp_blk`, see [Display memory](#display-memory)). The
+138 paths from the MAIN clock to the
 VGA clock (the frame rate, the view, and their toggle signal to `cdc_data`,
-and the palette from `controls` to `vga`) have +7.62 ns of slack, and
+and the palette from `controls` to `vga`) have +8.87 ns of slack, and
 `report_cdc` reports all of them as safe. The TMDS clock (540 MHz) has
 +0.259 ns of pulse width slack, on its BUFG. The colour and sync outputs to
 the video DAC are registered in the IOBs. The router leaves about 8,700
@@ -1630,13 +1634,13 @@ time take about 11 minutes (for the R6: synthesis 3 minutes, placement
 A run of `make mega65-r3` gives almost the same: the design is the same,
 except that the R3 reads the reset button from the MAX10 (with `max10`, in
 the clock domain of the 100 MHz input clock, and with one more BUFG), and has
-52 IOBs instead of 62. It uses 22,544 slices and 61,263 LUTs, and the timing
-is met with +0.129 ns (the same after the routing), from `grp_cx_r` to
-`res_cx_r` of a job module, only routing (4.75 ns of 5.10 ns), and
-+0.007 ns of hold slack (in an iterator, from `stepy_r` to `cy_acc_r`). The
-VGA clock has +0.202 ns of setup slack (from `pix_y` to `rd_grp_addr`), the
-paths from the MAIN clock to the VGA clock +8.69 ns, and the input clock (in
-`max10`) +4.93 ns.
+52 IOBs instead of 62. It uses 22,035 slices, 61,452 LUTs, and 72,121
+registers, and the timing is met with +0.135 ns (+0.134 ns after the
+routing), on the VGA clock, from `pix_x` to `rd_grp_blk`, and +0.015 ns of
+hold slack (in an iterator, from `stepy_r` to `cy_acc_r`). The main clock
+has +0.165 ns of setup slack (from `grp_stepy_r` to `res_cy_r` of a job
+module), the paths from the MAIN clock to the VGA clock +8.61 ns, and the
+input clock (in `max10`) +5.09 ns.
 
 **The main clock.** The first runs of the wide iterator were at 180 MHz. With
 the register of stepy in each iterator (so that the long route from the
@@ -1668,9 +1672,11 @@ was tried: the macro with DSPs and slices needs the absolute grid of
 `update_macro`, and the placer could not place the macros in the pblocks of
 the floorplan ("Could not place shape in pblock"), so it is not used.
 
-The previous runs, at 192.0 MHz, met timing with +0.018 ns on the R6
-(22,670 slices, 61,226 LUTs) and +0.057 ns on the R3 (22,789 slices). The
-runs at 192.0 MHz before those were made before the wide iterator was
+The previous runs, before the view as text in 2.33, met timing with
++0.093 ns on the R6 (22,703 slices, 61,213 LUTs) and +0.129 ns on the R3
+(22,544 slices). The runs before those, at 192.0 MHz, met timing with
++0.018 ns on the R6 (22,670 slices, 61,226 LUTs) and +0.057 ns on the R3
+(22,789 slices). The runs at 192.0 MHz before those were made before the wide iterator was
 rebased onto the design that is the same on all the boards in `core.vhd`,
 the moving palette, the palettes with all 9 bits of the count, the BRAMs
 that select the pixel in the word, and the keyboard ignored after power-on,
@@ -1755,9 +1761,9 @@ which meets timing with a 120 MHz main clock.
 | ---------------- | -------- | --------- | --------
 | DSP48E1          | 234      | 240       | 98
 | Block RAM        | 128 RAMB36 + 1 RAMB18 | 135 RAMB36 | about 95
-| Slices           | 9,840    | 15,850    | 62
-| LUTs             | 21,353   | 63,400    | 34
-| Registers        | 30,918   | 126,800   | 24
+| Slices           | 9,819    | 15,850    | 62
+| LUTs             | 21,468   | 63,400    | 34
+| Registers        | 31,736   | 126,800   | 25
 | Clock buffers    | 3 BUFG, 1 MMCM | |
 
 The available numbers are the totals for the XC7A100T. Its 240 DSPs are in
@@ -1768,7 +1774,7 @@ modules the placer could not place the macros of the iterators. The job
 modules use less than two thirds of the slices, and there is no floorplan.
 
 The "Report Cell Usage" table in `build/nexys4ddr/vivado.log` gives the cell
-counts after synthesis instead: 23,421 LUT cells (LUT1 to LUT6), 30,862
+counts after synthesis instead: 23,623 LUT cells (LUT1 to LUT6), 31,110
 registers (FDRE and FDSE cells), and 4,108 shift registers (SRL16E, 105 in
 each iterator), see [MEGA65](#mega65). Each job module (with its iterator)
 uses 461 to 464 LUTs (57 of them as shift registers) and 521 registers,
@@ -1784,24 +1790,25 @@ The timing after routing is:
 
 | Check | Slack
 | ----- | -----
-| Setup (WNS) | +0.347 ns (TNS 0)
-| Hold (WHS)  | +0.008 ns (THS 0)
+| Setup (WNS) | +0.290 ns (TNS 0)
+| Hold (WHS)  | +0.009 ns (THS 0)
 
-The timing is met after the routing (+0.346 ns), before the post-route
-`phys_opt_design`. The previous run, before the rebase onto the design that
-is the same on all the boards in `core.vhd`, the moving palette, the
-palettes with all 9 bits of the count, and the BRAMs that select the pixel
-in the word, and before the count modulo 511, met timing with +0.266 ns
-(10,017 slices), the run before that, without the register of stepy in the
+The timing is met after the routing (+0.288 ns), before the post-route
+`phys_opt_design`. The previous run, before the view as text in 2.33, met
+timing with +0.347 ns (9,840 slices), the run before that, before the rebase
+onto the design that is the same on all the boards in `core.vhd`, the moving
+palette, the palettes with all 9 bits of the count, and the BRAMs that
+select the pixel in the word, and before the count modulo 511, with
++0.266 ns (10,017 slices), the run before that, without the register of stepy in the
 iterator, with +0.308 ns (9,694 slices), and the last run with the 2.16
 iterator, on main before the rebase, with +0.090 ns (9,294 slices), see
 [HISTORY.md](HISTORY.md#builds-of-the-nexys-4-ddr). The worst setup path is
-from the reset of the main clock (`main_rst_r` in `clk_rst`) to the reset of
-the start of the view (`start` in `viewport_axis`), only routing (6.94 ns of
-7.39 ns). The worst hold path (+0.008 ns) is in the display memory, from the
-data register of a block (`blk_data_r`) to its BRAM. The 115 paths from the
+in an iterator, from x (`x_r`) through the adder of x+y to the input A of a
+DSP (7.32 ns, of which 2.31 ns is logic: a LUT and nine CARRY4). The
+worst hold path (+0.009 ns) is in the display memory, from the
+data register of a block (`blk_data_r`) to its BRAM. The 135 paths from the
 MAIN clock to the VGA clock (the frame rate, the view, and their toggle
-signal) have +8.47 ns of slack against the maximum delay of 10 ns, and
+signal) have +8.24 ns of slack against the maximum delay of 10 ns, and
 `report_cdc` reports all of them as safe.
 
 The 120 MHz main clock (period 8.33 ns) is generated from the 100 MHz input
@@ -1849,10 +1856,13 @@ the design between the pictures:
 
 | Board | Busy | Idle | Main (busy / idle) | Display memory (busy / idle)
 | ----- | ---- | ---- | ------------------ | ----------------------------
-| MEGA65 R6   | 3.72 W | 0.89 W | 2.97 W / 0.36 W | 0.25 W / 0.04 W
-| Nexys 4 DDR | 1.14 W | 0.38 W | 0.73 W / 0.11 W | 0.16 W / 0.03 W
+| MEGA65 R6   | 3.73 W | 0.90 W | 2.97 W / 0.36 W | 0.25 W / 0.04 W
+| Nexys 4 DDR | 1.13 W | 0.38 W | 0.73 W / 0.11 W | 0.16 W / 0.03 W
 
-The MEGA65 R3 gives almost the same (3.71 W and 0.89 W). The MEGA65 builds
+The MEGA65 R3 gives almost the same (3.73 W and 0.89 W). The totals are
+from the runs with the view as text in 2.33, which changed them by at most
+0.01 W; the columns of `main` and the display memory are from the previous
+runs. The MEGA65 builds
 are at 187.8 MHz, with the HDMI output and the keyboard. While a button is
 held down, the design is busy for about 10% of the time on the MEGA65 and
 13% on the Nexys 4 DDR, and otherwise it is idle. The values of
@@ -1866,8 +1876,9 @@ modules. The idle power is mostly the clocks (0.40 W), the I/O (0.17 W, the
 VGA and HDMI outputs), the static power (0.16 W), and the MMCM (0.13 W). The
 block RAM uses 0.005 W, and the signals 0.02 W. The clocks use more than with
 the 2.16 iterator (0.25 W while idle), because the main clock is faster and
-there are more registers. The previous runs, at 192 MHz, gave 3.78 W and
-0.90 W on the R6 (the DSPs 1.29 W). The runs before those, before the rebase
+there are more registers. The previous runs, before the view as text in
+2.33, gave 3.72 W and 0.89 W on the R6. The runs before those, at 192 MHz,
+gave 3.78 W and 0.90 W on the R6 (the DSPs 1.29 W). The runs before those, before the rebase
 and the count modulo 511, gave 3.77 W and 0.92 W on the R6 (the DSPs
 1.24 W). The runs
 before those, at 180 MHz and without the register of stepy in the
@@ -1884,7 +1895,8 @@ revisions. The earlier runs, also those with the 2.16 iterator, are in
 On the Nexys 4 DDR the busy power is mostly the signals (0.39 W), the DSPs
 (0.25 W), and the clocks (0.14 W), and the idle power the clocks (0.12 W), the
 MMCM (0.12 W), and the static power (0.10 W). The previous run, before the
-rebase and the count modulo 511, gave 0.98 W busy and 0.39 W idle (the
+view as text in 2.33, gave 1.14 W busy and 0.38 W idle. The run before that,
+before the rebase and the count modulo 511, gave 0.98 W busy and 0.39 W idle (the
 signals 0.23 W). With the 2.16 iterator (120
 job modules) it was 1.20 W busy and 0.36 W idle, see
 [HISTORY.md](HISTORY.md#power).

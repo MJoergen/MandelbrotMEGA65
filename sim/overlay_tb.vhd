@@ -67,9 +67,9 @@ architecture simulation of overlay_tb is
 
    -- The value shown in each frame
    constant C_VALUES    : value_vector(0 to 2) := (
-      (text => "                         ", digits => X"00000000", blank => "11111111"),
-      (text => "-0.74531+0.10234i   1.00x", digits => X"00001234", blank => "11110000"),
-      (text => "+1.23456-7.89012i 345.67x", digits => X"90567801", blank => "00000000"));
+      (text => "                              ", digits => X"00000000", blank => "11111111"),
+      (text => "-0.74531+0.10234i        1.00x", digits => X"00001234", blank => "11110000"),
+      (text => "+1.23456-7.89012i 12345678.90x", digits => X"90567801", blank => "00000000"));
 
    -- The code of a character
    function code (c : character) return natural is
@@ -292,7 +292,9 @@ begin
       -- 33 lines before the first line
       wait until rising_edge(vga_vs);
       wait_line(33 + 20);
-      set_value((text => "+0.00000+0.00000i 111.11x", digits => X"00000077", blank => "11111100"));
+      set_value((text   => "+0.00000+0.00000i      111.11x",
+                 digits => X"00000077",
+                 blank  => "11111100"));
       wait_line(100);
       set_value(C_VALUES(1));
       wait until rising_edge(vga_vs);

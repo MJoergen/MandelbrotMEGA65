@@ -49,7 +49,7 @@ entity vga is
 
       -- The view, moved from the MAIN clock domain together with the frame
       -- rate, see view_text.vhd and text_pkg.vhd
-      view_text_i  : in  std_logic_vector(99 downto 0);
+      view_text_i  : in  std_logic_vector(119 downto 0);
 
       vga_hs_o     : out std_logic;
       vga_vs_o     : out std_logic;

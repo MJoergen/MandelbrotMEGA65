@@ -20,6 +20,7 @@ to the pull requests of that repository.
 * [The display memory](#the-display-memory)
 * [When a picture is calculated](#when-a-picture-is-calculated)
 * [The frame rate](#the-frame-rate)
+* [The view as text](#the-view-as-text)
 * [The colours](#the-colours)
 * [Timing](#timing)
   * [Several pixels in each write](#several-pixels-in-each-write)
@@ -300,6 +301,21 @@ average, which had `G_AVG_SHIFT` fractional bits), but `main` used
 `G_AVG_SHIFT` = 0, so it was removed. The calculation then took one clock
 cycle more (59 clock cycles, 57 on the Nexys 4 DDR).
 
+## The view as text
+The first version of `view_text` only handled 2.16 numbers, so `main` gave
+it the view truncated to 2.16 (the top 18 bits of startx, starty, stepx, and
+stepy), with the size of a pixel at least one LSB of 2.16. The text was then
+only approximate: the centre was calculated with the truncated size of a
+pixel, so it was off by up to 640 LSBs of 2.16 (about 0.01, and 320 LSBs or
+about 0.005 on the Nexys 4 DDR). E.g. the centre of the initial view,
+-0.33337-0.00000i, was shown as -0.33858-0.00418i. The zoom was the initial
+size of a pixel in LSBs of 2.16 (136, or 273 on the Nexys 4 DDR) divided by
+the truncated stepx, shown with three digits before the point, so it stopped
+at 136.00 (273.00) when the pixel was one LSB of 2.16, although the view
+could be zoomed in 2^17 times further. The text had 25 characters, e.g.
+`-0.33858-0.00418i   1.00x`, the additions and subtractions had at most 30
+bits, and a conversion took 130 clock cycles on the MEGA65.
+
 ## The colours
 An earlier version stored only the lower 8 bits of the count in the display
 memory, so the (few) points with the count 255 had the same value as the set,
@@ -552,7 +568,19 @@ last result has been selected).
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, at 192 MHz (the divider 5.625) and
+The previous run of `make mega65-r6`, at 187.8 MHz and before the view as
+text in 2.33, met timing with +0.093 ns (+0.094 ns after the routing), from
+the register of stepy of a group (`grp_stepy_r`) to `res_cy_r` of a job
+module, with +0.020 ns of hold slack (on the VGA clock). It used 22,703
+slices, 61,213 LUTs, and 71,503 registers (81,588 LUT cells and 71,471
+registers after synthesis). The worst path in the keyboard driver had
++0.140 ns, and the VGA clock +0.219 ns (from `pix_y` to `rd_grp_addr`).
+This build ran on the R6, and showed 170 pictures per second for the
+initial view. The run of `make mega65-r3` met timing with +0.129 ns (22,544
+slices, 61,263 LUTs), from `grp_cx_r` to `res_cx_r`, with +0.007 ns of hold
+slack.
+
+The run of `make mega65-r6` before that, at 192 MHz (the divider 5.625) and
 after the rebase onto `core.vhd` and the count modulo 511, met timing with
 +0.018 ns, but only after the post-route `phys_opt_design` (-0.036 ns after
 the routing), with +0.002 ns of hold slack (in an iterator, from the
@@ -988,7 +1016,16 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, with stepy registered in each
+The previous run of `make nexys4ddr`, before the view as text in 2.33, used
+9,840 slices (62%), 21,353 LUTs, and 30,918 registers (23,421 LUT cells and
+30,862 registers after synthesis). It met timing with +0.347 ns (+0.346 ns
+after the routing), from the reset of the main clock (`main_rst_r` in
+`clk_rst`) to the reset of the start of the view (`start` in
+`viewport_axis`), only routing (6.94 ns of 7.39 ns), with +0.008 ns of hold
+slack (in the display memory, from `blk_data_r` to its BRAM). The 115 paths
+from the MAIN clock to the VGA clock had +8.47 ns of slack.
+
+The run before that, with stepy registered in each
 iterator, was made before the rebase onto the design that is the same on all
 the boards in `core.vhd`, the moving palette, the palettes with all 9 bits
 of the count, and the BRAMs that select the pixel in the word, and before
@@ -1305,7 +1342,11 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, at 192 MHz, after the rebase and the count modulo 511, gave
+The previous runs, before the view as text in 2.33, gave 3.72 W busy and
+0.89 W idle on the R6 (3.71 W and 0.89 W on the R3), and 1.14 W and 0.38 W
+on the Nexys 4 DDR.
+
+The runs before those, at 192 MHz, after the rebase and the count modulo 511, gave
 3.78 W busy and 0.90 W idle on the R6, of which `main` used 3.03 W and
 0.37 W, and the display memory 0.25 W and 0.04 W (3.79 W and 0.91 W on the
 R3). Their busy power was mostly the DSPs (1.29 W), the signals (1.00 W),

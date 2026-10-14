@@ -2,8 +2,8 @@
 -- the buttons and switches to the VGA output, with the display memory and the
 -- clock domain crossing of the frame rate between the two clock domains. A
 -- picture of a real size is too slow to simulate (the first picture is the
--- initial view, which is mostly inside the set), so the video mode is 560x4
--- (560 is the smallest width that vga.vhd accepts, because of the overlay),
+-- initial view, which is mostly inside the set), so the video mode is 640x4
+-- (640 is the smallest width that vga.vhd accepts, because of the overlay),
 -- with short blanking so that a frame is short, 16 job modules, and jobs of
 -- one word (4 rows). The clocks are in the ratio of the Nexys 4 DDR (120 MHz
 -- and 25 MHz), but about 17 times faster (2 GHz and 417 MHz).
@@ -44,7 +44,7 @@ end entity core_tb;
 architecture simulation of core_tb is
 
    constant C_VIDEO         : video_mode_t := (
-      h_visible => 560, h_front =>  8, h_sync =>  8, h_back =>  8,
+      h_visible => 640, h_front =>  8, h_sync =>  8, h_back =>  8,
       v_visible =>   4, v_front =>  1, v_sync =>  1, v_back =>  1,
       sync_active => '0');
    constant C_MAX_COUNT     : positive := 127;    -- Smaller than on the boards
@@ -55,8 +55,8 @@ architecture simulation of core_tb is
    constant C_CLK_FREQ      : positive := 18*20000;
 
    -- The values at reset of the frame rate and the view, see core.vhd
-   constant C_FPS_INIT      : std_logic_vector(139 downto 0) :=
-      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFF";
+   constant C_FPS_INIT      : std_logic_vector(159 downto 0) :=
+      X"00000000FF" & X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
 
    signal main_clk : std_logic;
    signal main_rst : std_logic := '1';
@@ -133,8 +133,8 @@ begin
 
       alias upd        is << signal .core_tb.i_core.i_main.upd : std_logic >>;
       alias fps_valid  is << signal .core_tb.i_core.fps_valid : std_logic >>;
-      alias fps        is << signal .core_tb.i_core.fps : std_logic_vector(139 downto 0) >>;
-      alias vga_fps    is << signal .core_tb.i_core.vga_fps : std_logic_vector(139 downto 0) >>;
+      alias fps        is << signal .core_tb.i_core.fps : std_logic_vector(159 downto 0) >>;
+      alias vga_fps    is << signal .core_tb.i_core.vga_fps : std_logic_vector(159 downto 0) >>;
       alias pic_startx is << signal .core_tb.i_core.i_main.pic_startx :
                                  std_logic_vector(34 downto 0) >>;
       alias pic_starty is << signal .core_tb.i_core.i_main.pic_starty :
