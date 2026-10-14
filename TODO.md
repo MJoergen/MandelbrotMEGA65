@@ -25,7 +25,8 @@ for the current design.
    include the test, so that the design can still be compared with it bit for
    bit.
 
-7. A faster main clock. The main clock is 192 MHz (+0.089 ns). The register of
+7. A faster main clock. The main clock is 192 MHz (+0.018 ns on the R6, in the
+   keyboard driver, and +0.076 ns outside it). The register of
    stepy in each iterator removed the long route from the group registers of
    the dispatcher to the accumulator of cy from the worst paths. The
    iterators now meet timing up to about 201 MHz, but the clock can not be

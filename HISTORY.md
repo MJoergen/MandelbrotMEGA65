@@ -552,7 +552,29 @@ last result has been selected).
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, at 180 MHz and before stepy was
+The previous run of `make mega65-r6`, at 192 MHz, was made before the wide
+iterator was rebased onto the design that is the same on all the boards in
+`core.vhd`, the moving palette, the palettes with all 9 bits of the count,
+the BRAMs that select the pixel in the word, and the keyboard ignored after
+power-on, and before the count modulo 511 in the display memory. It met
+timing with +0.089 ns (the same after the routing), with +0.015 ns of hold
+slack (in the frame rate, from one bit of the quotient, `quot` in `fps`, to
+the next). It used 22,743 slices, 58,443 LUTs, and 71,589 registers (77,800
+LUT cells, 71,467 registers, and 12,626 shift registers after synthesis;
+each job module 415 LUTs and 520 registers). The worst setup path was from
+the address register of a group of the display memory (`grp_addr_r` in
+`disp_mem`) to the address input of a BRAM, mostly routing (4.12 ns of
+4.56 ns). The VGA clock had +0.154 ns of setup slack (from `pix_x` to
+`rd_grp_addr`, only routing, 8.74 ns of 9.17 ns), and the 117 paths from the
+MAIN clock to the VGA clock +6.84 ns. The router left about 7,700 nodes with
+overlaps after the initial routing. The run for the R3 met timing with
++0.103 ns (the same after the routing), from `grp_cx_r` to `res_cx_r` of a
+job module, mostly routing (4.71 ns of 5.14 ns), and +0.012 ns of hold slack
+(in `cy_r` of an iterator). It used 22,659 slices and 58,516 LUTs. Its VGA
+clock had +0.109 ns of setup slack (from `pix_x` to `rd_grp_blk`), the paths
+from the MAIN clock to the VGA clock +8.63 ns, and the input clock +5.45 ns.
+
+The run of `make mega65-r6` before that, at 180 MHz and before stepy was
 registered in each iterator, met timing with +0.083 ns (the same after the
 routing), with +0.020 ns of hold slack (from the count of a slot of an
 iterator, `cnt_r`, to the result register of its job module, `res_data_d`).
@@ -943,7 +965,22 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before stepy was registered in each
+The previous run of `make nexys4ddr`, with stepy registered in each
+iterator, was made before the rebase onto the design that is the same on all
+the boards in `core.vhd`, the moving palette, the palettes with all 9 bits
+of the count, and the BRAMs that select the pixel in the word, and before
+the count modulo 511 in the display memory. It used 10,017 slices (63%),
+20,554 LUTs, and 30,862 registers (22,354 LUT cells, 30,878 registers, and
+4,117 shift registers after synthesis; each job module 416 LUTs and 513
+registers). It met timing with +0.266 ns (+0.265 ns after the routing), with
++0.007 ns of hold slack (in `dispatcher_results`, from `acc_data_dd` to
+`wr_data_r`). The worst setup path was from the start of a picture (`start`
+in `main`) to the start row of the job (`job_starty_r` in
+`dispatcher_jobs`), mostly routing (6.29 ns of 8.08 ns). The 115 paths from
+the MAIN clock to the VGA clock had +8.18 ns of slack. The router left about
+2,800 nodes with overlaps after the initial routing.
+
+The run before that, before stepy was registered in each
 iterator, used 9,694 slices (61%), 20,567 LUTs, and 29,821 registers, and
 all 234 DSPs of the 39 job modules. It met timing with +0.308 ns, with
 +0.007 ns of hold slack. The worst setup path was in an iterator, from its
@@ -1245,14 +1282,25 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs of the MEGA65, at 180 MHz and before stepy was registered in
-each iterator, gave 3.53 W busy and 0.86 W idle on the R6, of which `main`
-used 2.82 W and 0.34 W, and the display memory 0.22 W and 0.05 W (3.53 W and
-0.85 W on the R3). Their busy power was mostly the DSPs (1.21 W), the signals
-(0.90 W), the logic (0.50 W), and the clocks (0.46 W). The previous run of the
-Nexys 4 DDR, with the wide iterator and before stepy was registered, gave
-1.09 W busy and 0.38 W idle, of which `main` used 0.74 W and 0.11 W, and the
-display memory 0.11 W and 0.03 W.
+The previous runs, at 192 MHz, before the rebase onto `core.vhd` and the
+count modulo 511, gave 3.77 W busy and 0.92 W idle on the R6, of which
+`main` used 2.97 W and 0.38 W, and the display memory 0.25 W and 0.05 W
+(3.77 W and 0.92 W on the R3). Their busy power was mostly the DSPs
+(1.24 W), the signals (0.99 W), the logic (0.52 W), and the clocks (0.50 W),
+and the idle power the clocks (0.40 W), the I/O (0.17 W), the static power
+(0.16 W), and the MMCM (0.13 W). The previous run of the Nexys 4 DDR, with
+stepy registered, gave 0.98 W busy and 0.39 W idle, of which `main` used
+0.63 W and 0.11 W, and the display memory 0.10 W and 0.03 W. Its busy power
+was mostly the DSPs (0.25 W), the signals (0.23 W), and the clocks (0.13 W).
+
+The runs of the MEGA65 before those, at 180 MHz and before stepy was
+registered in each iterator, gave 3.53 W busy and 0.86 W idle on the R6, of
+which `main` used 2.82 W and 0.34 W, and the display memory 0.22 W and 0.05 W
+(3.53 W and 0.85 W on the R3). Their busy power was mostly the DSPs (1.21 W),
+the signals (0.90 W), the logic (0.50 W), and the clocks (0.46 W). The run of
+the Nexys 4 DDR before that, with the wide iterator and before stepy was
+registered, gave 1.09 W busy and 0.38 W idle, of which `main` used 0.74 W and
+0.11 W, and the display memory 0.11 W and 0.03 W.
 
 The run of the Nexys 4 DDR before that, the last one with the 2.16 iterator
 (120 job modules), on main before the wide iterator was rebased onto it, gave

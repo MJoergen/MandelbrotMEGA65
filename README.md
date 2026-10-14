@@ -207,9 +207,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 720 (97%)           | 740       | 234 (98%)                | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,743 (68%)        | 33,650    | 10,017 (63%)             | 15,850
-| LUTs               | 58,443 (44%)        | 134,600   | 20,554 (32%)             | 63,400
-| Registers          | 71,589 (27%)        | 269,200   | 30,862 (24%)             | 126,800
+| Slices             | 22,670 (68%)        | 33,650    | 9,840 (62%)              | 15,850
+| LUTs               | 61,226 (46%)        | 134,600   | 21,353 (34%)             | 63,400
+| Registers          | 71,647 (27%)        | 269,200   | 30,918 (24%)             | 126,800
 
 The performance and timing are:
 
@@ -221,18 +221,23 @@ The performance and timing are:
 | Clock frequency | 192.00 MHz      | 120.00 MHz
 | Initial FPS     | 174 (estimated) | 141 (estimated)
 | Worst-case FPS  | 17 (estimated)  | 15 (estimated)
-| Setup slack     | +0.089 ns       | +0.266 ns
-| Hold slack      | +0.015 ns       | +0.007 ns
+| Setup slack     | +0.018 ns       | +0.347 ns
+| Hold slack      | +0.002 ns       | +0.008 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.103 ns (22,659 slices, +0.012 ns hold slack). These
-builds (on both boards) were made before the wide iterator was rebased onto
-the design that is the same on all the boards in `core.vhd`, the moving
-palette, the palettes with all 9 bits of the count, the BRAMs that select the
-pixel in the word, and the keyboard ignored after power-on, and they have not
-been made again since. The MEGA65 design with the wide iterator runs on the
-R6 (a build before this rebase, at 180 MHz). The previous builds, at 180 MHz
-and without the register of stepy in the iterator, met timing with
+R3 met timing with +0.057 ns (22,789 slices, +0.050 ns hold slack). On both
+revisions the worst setup paths are in the keyboard driver (copied unchanged
+from the C64MEGA65 core), and the timing is only met after the post-route
+`phys_opt_design`. The MEGA65 design with the wide iterator runs on the R6 (a
+build before the rebase onto `core.vhd`, at 180 MHz); the current builds have
+not been tested on a board. The previous builds at 192 MHz, made before the
+wide iterator was rebased onto the design that is the same on all the boards
+in `core.vhd`, the moving palette, the palettes with all 9 bits of the count,
+the BRAMs that select the pixel in the word, and the keyboard ignored after
+power-on, and before the count modulo 511 in the display memory, met timing
+with +0.089 ns on the R6 (22,743 slices) and +0.103 ns on the R3, and
++0.266 ns on the Nexys 4 DDR (10,017 slices). The builds before those, at
+180 MHz and without the register of stepy in the iterator, met timing with
 +0.083 ns on the R6 (23,173 slices) and +0.089 ns on the R3, and the builds
 before those, where Vivado left out a register of the last DSP of the
 multiplication (x+y)\*(x-y), so the picture on the board was wrong (see
