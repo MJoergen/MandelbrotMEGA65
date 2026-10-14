@@ -552,7 +552,30 @@ last result has been selected).
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, at 192 MHz, was made before the wide
+The previous run of `make mega65-r6`, at 192 MHz (the divider 5.625) and
+after the rebase onto `core.vhd` and the count modulo 511, met timing with
++0.018 ns, but only after the post-route `phys_opt_design` (-0.036 ns after
+the routing), with +0.002 ns of hold slack (in an iterator, from the
+register of the iteration, `it_d`, to the count of a slot, `cnt_r`). It used
+22,670 slices, 61,226 LUTs, and 71,647 registers (81,583 LUT cells and
+71,471 registers after synthesis; each job module 459 LUTs and 519
+registers). The worst setup paths were in the keyboard driver (`m2m_keyb`,
+from `keyscan_counter` to the debounce RAM), mostly routing (3.02 ns of
+4.75 ns), and the worst path outside it (+0.076 ns) in the view, from the
+zoom (`zoom` in `viewport_axis`) to the clock enable of the size of a pixel
+(`d`), mostly routing (3.87 ns of 4.77 ns). The VGA clock had +0.199 ns of
+setup slack (from `pix_x` to `rd_grp_blk`), and the 118 paths from the MAIN
+clock to the VGA clock +8.85 ns. The router left about 9,900 nodes with
+overlaps after the initial routing. The run for the R3 met timing with
++0.057 ns (-0.005 ns after the routing), in the keyboard driver too, and
++0.050 ns of hold slack (in `cy_r` of an iterator); the worst path outside
+the keyboard driver (+0.070 ns) was from `grp_stepy_r` to `res_cy_r`. It
+used 22,789 slices and 61,297 LUTs. Its VGA clock had +0.139 ns of setup
+slack (from `pix_y` to `rd_grp_addr`), the paths from the MAIN clock to the
+VGA clock +8.66 ns, and the input clock +4.58 ns. Because of the small slack
+the main clock was lowered to 187.8 MHz.
+
+The run of `make mega65-r6` before that, at 192 MHz, was made before the wide
 iterator was rebased onto the design that is the same on all the boards in
 `core.vhd`, the moving palette, the palettes with all 9 bits of the count,
 the BRAMs that select the pixel in the word, and the keyboard ignored after
@@ -1282,7 +1305,13 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, at 192 MHz, before the rebase onto `core.vhd` and the
+The previous runs, at 192 MHz, after the rebase and the count modulo 511, gave
+3.78 W busy and 0.90 W idle on the R6, of which `main` used 3.03 W and
+0.37 W, and the display memory 0.25 W and 0.04 W (3.79 W and 0.91 W on the
+R3). Their busy power was mostly the DSPs (1.29 W), the signals (1.00 W),
+the logic (0.52 W), and the clocks (0.50 W).
+
+The runs before those, at 192 MHz, before the rebase onto `core.vhd` and the
 count modulo 511, gave 3.77 W busy and 0.92 W idle on the R6, of which
 `main` used 2.97 W and 0.38 W, and the display memory 0.25 W and 0.05 W
 (3.77 W and 0.92 W on the R3). Their busy power was mostly the DSPs

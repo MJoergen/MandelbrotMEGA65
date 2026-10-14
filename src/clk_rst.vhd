@@ -19,7 +19,7 @@
 -- * MEGA65: The VCO is 100 MHz / 5 * 54 = 1080 MHz (speed grade -2 allows up
 --   to 1440 MHz), the only VCO frequency which gives the 108 MHz pixel clock
 --   of 1280x1024 exactly. The VGA clock is 1080/10 = 108 MHz, and the main
---   clock is 1080/5.625 = 192 MHz. The TMDS clock of the HDMI output is
+--   clock is 1080/5.75 = 187.8 MHz. The TMDS clock of the HDMI output is
 --   1080/2 = 540 MHz, i.e. five times the VGA clock, because the HDMI
 --   serialisers output ten bits in each VGA clock cycle on both edges of the
 --   TMDS clock (see serialiser_10to1_selectio.vhd).

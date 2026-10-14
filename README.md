@@ -10,9 +10,9 @@ see [Nexys 4 DDR](#nexys-4-ddr).
 
 720 of the 740 DSPs of the FPGA are used in parallel for the calculation, and
 the picture is stored in block RAM. The numbers have 33 fractional bits, and
-the maximum count is 1023. Generating a complete picture takes about 6.1 ms
-(about 174 pictures per second, estimated by the model), with the main clock at
-192 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
+the maximum count is 1023. Generating a complete picture takes about 5.9 ms
+(about 170 pictures per second, estimated by the model), with the main clock at
+187.8 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
 takes about 7.1 ms (141 pictures per second, estimated by the model), for a
 picture with less than a quarter of the pixels.
 
@@ -53,10 +53,10 @@ modules write four pixels (consecutive rows of a picture column) to the
 display memory at a time. The display
 memory takes one write per clock cycle, so with one pixel in each write the
 picture would take at least 1280x1024 clock cycles (7.28 ms), whatever the
-number of job modules. The model estimates 5.75 ms for the initial view, i.e.
-about 174 pictures per second (against 396 with the earlier 16 fractional
+number of job modules. The model estimates 5.88 ms for the initial view, i.e.
+about 170 pictures per second (against 396 with the earlier 16 fractional
 bits and 368 job modules, see [HISTORY.md](HISTORY.md#the-iterator)). If
-every pixel needed the maximum count, it would take about 58 ms (17 pictures
+every pixel needed the maximum count, it would take about 60 ms (17 pictures
 per second), see [MEGA65](ALGORITHM.md#mega65).
 
 [ALGORITHM.md](ALGORITHM.md) explains the design in detail: the number format,
@@ -207,9 +207,9 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 720 (97%)           | 740       | 234 (98%)                | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 22,670 (68%)        | 33,650    | 9,840 (62%)              | 15,850
-| LUTs               | 61,226 (46%)        | 134,600   | 21,353 (34%)             | 63,400
-| Registers          | 71,647 (27%)        | 269,200   | 30,918 (24%)             | 126,800
+| Slices             | 22,703 (68%)        | 33,650    | 9,840 (62%)              | 15,850
+| LUTs               | 61,213 (46%)        | 134,600   | 21,353 (34%)             | 63,400
+| Registers          | 71,503 (27%)        | 269,200   | 30,918 (24%)             | 126,800
 
 The performance and timing are:
 
@@ -218,19 +218,21 @@ The performance and timing are:
 | Resolution      | 1280x1024       | 640x480
 | Number format   | 2.33            | 2.33
 | Maximum count   | 1023            | 1023
-| Clock frequency | 192.00 MHz      | 120.00 MHz
-| Initial FPS     | 174 (estimated) | 141 (estimated)
+| Clock frequency | 187.83 MHz      | 120.00 MHz
+| Initial FPS     | 170 (estimated) | 141 (estimated)
 | Worst-case FPS  | 17 (estimated)  | 15 (estimated)
-| Setup slack     | +0.018 ns       | +0.347 ns
-| Hold slack      | +0.002 ns       | +0.008 ns
+| Setup slack     | +0.093 ns       | +0.347 ns
+| Hold slack      | +0.020 ns       | +0.008 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.057 ns (22,789 slices, +0.050 ns hold slack). On both
-revisions the worst setup paths are in the keyboard driver (copied unchanged
-from the C64MEGA65 core), and the timing is only met after the post-route
-`phys_opt_design`. The MEGA65 design with the wide iterator runs on the R6 (a
-build before the rebase onto `core.vhd`, at 180 MHz); the current builds have
-not been tested on a board. The previous builds at 192 MHz, made before the
+R3 met timing with +0.129 ns (22,544 slices, +0.007 ns hold slack). The MEGA65
+design with the wide iterator runs on the R6 (a build before the rebase onto
+`core.vhd`, at 180 MHz); the current builds have not been tested on a board.
+The previous builds, at 192 MHz, met timing with +0.018 ns on the R6 (22,670
+slices) and +0.057 ns on the R3, with the worst setup paths in the keyboard
+driver (copied unchanged from the C64MEGA65 core), and only after the
+post-route `phys_opt_design`, so the main clock was lowered to 187.8 MHz for
+some margin. The builds at 192 MHz before those, made before the
 wide iterator was rebased onto the design that is the same on all the boards
 in `core.vhd`, the moving palette, the palettes with all 9 bits of the count,
 the BRAMs that select the pixel in the word, and the keyboard ignored after
@@ -547,7 +549,7 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/vga/overlay.vhd`](src/vga/overlay.vhd), [`src/vga/font_pkg.vhd`](src/vga/font_pkg.vhd), [`src/text_pkg.vhd`](src/text_pkg.vhd) | Overlay of the view and the frame rate. `overlay` shows a line of text at the top of the picture (the view on the left, and the frame rate on the right), with the font in `font_pkg`. `text_pkg` defines the characters (the digits and `.-+ix`).
 | [`font/`](font) | The script that generates `font_pkg.vhd` from the [Spleen](https://github.com/fcambus/spleen) 16x32 font, and the license of the font (BSD 2-Clause, see [`font/LICENSE.spleen`](font/LICENSE.spleen)). The font itself (version 2.2.0) is not in this repository; the script says how to get it.
 | [`src/util_pkg.vhd`](src/util_pkg.vhd) | The function `log2`, the number of bits needed for a range of values, used in both clock domains.
-| [`src/clk_rst.vhd`](src/clk_rst.vhd) | Clock and reset generation: the main clock for the calculation (192 MHz, or 120 MHz on the Nexys 4 DDR), the pixel clock for VGA (108 MHz for 1280x1024, 25 MHz for 640x480), each with a synchronous reset, and the TMDS clock for the HDMI output of the MEGA65 (540 MHz).
+| [`src/clk_rst.vhd`](src/clk_rst.vhd) | Clock and reset generation: the main clock for the calculation (187.8 MHz, or 120 MHz on the Nexys 4 DDR), the pixel clock for VGA (108 MHz for 1280x1024, 25 MHz for 640x480), each with a synchronous reset, and the TMDS clock for the HDMI output of the MEGA65 (540 MHz).
 | [`sim/`](sim) | Testbenches and [GTKWave](https://github.com/gtkwave/gtkwave) setups, a vectorized model of the complete picture (`model.py`), the same bit-accurate model in VHDL (`iterator_model_pkg.vhd`, used by the testbenches), and a script (`cmp_rtl.py`) that compares the output of the testbench `main_tb` with this model.
 | [`formal/`](formal) | Formal verification with [SymbiYosys](https://github.com/YosysHQ/sby): the properties of each module (`<name>.psl`), the tasks (`<name>.sby`), and the iterator stub used for `job_wide`, see [Formal verification](#formal-verification).
 | [`mega65.xdc`](mega65.xdc), [`mega65-r3.xdc`](mega65-r3.xdc), [`mega65-r6.xdc`](mega65-r6.xdc), [`nexys4ddr.xdc`](nexys4ddr.xdc), [`mandelbrot.tcl`](mandelbrot.tcl), [`mega65_floorplan.tcl`](mega65_floorplan.tcl) | Pin and timing constraints for each board (the timing constraints and the configuration of the bitstream of the MEGA65 are in `mega65.xdc`, and the pins of each revision in its own file), script for synthesis and implementation with Vivado (including the optimization directives needed to meet timing), see [Running](#running), and the floorplan of the job modules on the MEGA65, which the script reads after the synthesis. The script gets the FPGA part, the top level, and the list of source files from the Makefile, so it must be run through `make mega65-r3`, `make mega65-r6`, or `make nexys4ddr`.

@@ -1,7 +1,7 @@
 # TODO
 
 5. Measure the design (2.33 numbers, wide iterator) on the boards. Its frame
-   rates (174 pictures per second for the initial view on the MEGA65, and 141
+   rates (170 pictures per second for the initial view on the MEGA65, and 141
    on the Nexys 4 DDR) are only estimated by the model (`sim/model.py`). The
    model agrees with a simulation of a complete 160x128 picture within 0.4%.
    The design runs on the MEGA65 R6, but its frame rate has not been measured
@@ -16,18 +16,18 @@ for the current design.
    the set, and there is a closed-form test for both, so the iterator does not
    need to iterate them at all. In the initial view 24% of the pixels are
    inside them, and they take most of the iterations. With the test, the model
-   gives 380 instead of 174 pictures per second for the initial view, and 142
-   instead of 43 for Seahorse Valley (0.08 wide, centred near -0.75+0.15i). It
-   does not help for deep zooms away from the cardioid and the bulb, or for the
-   worst case. The test needs a few multiplications for each pixel, but only
+   gives about 372 instead of 170 pictures per second for the initial view,
+   and 139 instead of 42 for Seahorse Valley (0.08 wide, centred near
+   -0.75+0.15i). It does not help for deep zooms away from the cardioid and
+   the bulb, or for the worst case. The test needs a few multiplications for each pixel, but only
    with low precision (with a safety margin), so it could be done in LUTs, or
    in the DSPs of the iterator before the iteration starts. The model must
    include the test, so that the design can still be compared with it bit for
    bit.
 
-7. A faster main clock. The main clock is 192 MHz (+0.018 ns on the R6, in the
-   keyboard driver, and +0.076 ns outside it). The register of
-   stepy in each iterator removed the long route from the group registers of
+7. A faster main clock. The main clock is 187.8 MHz (+0.093 ns on the R6). At
+   192 MHz the slack was only +0.018 ns (in the keyboard driver). The register
+   of stepy in each iterator removed the long route from the group registers of
    the dispatcher to the accumulator of cy from the worst paths. The
    iterators now meet timing up to about 201 MHz, but the clock can not be
    raised much more: the keyboard driver (`src/keyboard`, copied unchanged
