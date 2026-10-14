@@ -10,7 +10,7 @@
 --   frame rate is updated (fps_valid_o, at the end of the picture).
 -- * The value of each pixel is the value of the model, for the value of c of
 --   the pixel: 511 for the points in the set, and otherwise the count modulo
---   256 (see job_wide.vhd). The view of the picture (pic_startx etc.) is
+--   511 (see job_wide.vhd). The view of the picture (pic_startx etc.) is
 --   inside main.vhd, so it is read with external names.
 -- The pictures are the initial view, then the view after an update with zoom
 -- in, pan right, and pan down, and then the view after an update with zoom

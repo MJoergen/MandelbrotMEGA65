@@ -551,11 +551,11 @@ rows, with cy plus 4\*stepy, which gives exactly the same values as adding
 stepy for each row (in 35 bits). The maximum count is 1023, so the count has
 10 bits, but the display memory has 9 bits for each pixel. So the value of a
 pixel is 511 for the points in the set (the count is G\_MAX\_COUNT), and
-otherwise the count modulo 256, which is converted in the output register of
-the job module. The palette 1 only uses the lowest 8 bits of the count, so its
-picture is the same as with the full count, but the palettes 2 to 4 use all 9
-bits, so they repeat their colours of the values 0 to 255 every 256 counts
-(see [Colours](#colours)).
+otherwise the count modulo 511 (0 to 510), which is converted in the output
+register of the job module: 511 is subtracted from the count once or twice,
+if it is at least 511. The palettes have 512 entries (see
+[Colours](#colours)), and the palette offset is also calculated modulo 511,
+so the colours of the counts 0 to 510 repeat for the larger counts.
 
 The testbench for the job module ([`sim/job_wide_tb.vhd`](sim/job_wide_tb.vhd))
 is self-checking. It runs a few jobs, of 12 rows (three results) and of 4
@@ -1356,9 +1356,9 @@ full range is used. The points in the set (the value 511) get the colour of the 
 other counts, the value (all 9 bits, except in palette 1) is converted to the
 colour by one of four palettes in [`src/vga/palette_pkg.vhd`](src/vga/palette_pkg.vhd).
 The maximum count is 1023, so the count has 10 bits, and the job module
-writes 511 for the points in the set, and the count modulo 256 for the other
-points (see [Jobs](#jobs)). So the palettes 2 to 4 only use their colours of
-the values 0 to 255, and repeat them every 256 counts.
+writes 511 for the points in the set, and the count modulo 511 for the other
+points (see [Jobs](#jobs)), so the colours of the counts 0 to 510 repeat for
+the larger counts.
 On the MEGA65 the palette is selected with the keys `1` to `4` (see
 "The joysticks and the keyboard" in [The top level](#the-top-level)), and on
 the Nexys 4 DDR by switches 0 and 1 (switch 1 is the high bit, both off is palette 1):

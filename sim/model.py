@@ -152,9 +152,9 @@ def view(startx: Optional[int] = None, starty: Optional[int] = None,
 def pixel(cnt: ArrayLike, max_count: int) -> IntArray:
     """The value written to the display memory by job_wide.vhd for the count
     cnt: 511 for the points in the set (the count is max_count), and otherwise
-    the count modulo 256."""
+    the count modulo 511."""
     c: IntArray = np.asarray(cnt, np.int64)
-    return np.where(c == max_count, 511, c & 0xFF)
+    return np.where(c == max_count, 511, c % 511)
 
 
 def hw_stop(cx: ArrayLike, cy: ArrayLike,

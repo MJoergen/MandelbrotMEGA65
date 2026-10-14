@@ -3,7 +3,7 @@
 src/vga/palette_pkg.vhd (all 9 bits of the value of a pixel, except in
 palette 1). The values are those of the bit-accurate model (model.py),
 converted as in job_wide.vhd (511 for the set, and otherwise the count modulo
-256), so the pictures show what the design calculates.
+511), so the pictures show what the design calculates.
 
 Usage: palette_images.py [directory]   (default: doc)
 Writes <directory>/mandelbrot_palette<n>.png, the initial view in each of the

@@ -7,7 +7,7 @@
 # sim/main_out.txt, and then one line "address data" for each pixel written to
 # the display memory. The size of the picture (columns and rows) gives the
 # initial view, the address is column*stride + row (see dispatcher.vhd), and
-# the data is the count modulo 256, or 511 for the points in the set (see
+# the data is the count modulo 511, or 511 for the points in the set (see
 # job_wide.vhd).
 # A complete picture takes a long time to simulate, so a partial picture is
 # fine too: All the pixels written so far are compared, and the last line is

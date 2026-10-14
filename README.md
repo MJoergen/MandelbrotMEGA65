@@ -25,7 +25,7 @@ count decides the colour of the pixel, using one of four colour palettes
 (selected with the keys `1` to `4` on the MEGA65, see [Controls](#controls)).
 The points in the set (the maximum count) have their own colour, and the
 other counts use the value of the pixel in the display memory, which is the
-count modulo 256 (see below).
+count modulo 511 (see below).
 
 The numbers are 35-bit
 [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) (2 integer
@@ -47,10 +47,10 @@ the next job to a job module as soon as it is idle.
 
 The display memory has 1280x1024 pixels in 320 BRAMs (of the 365 in the
 XC7A200T), with 21 bits of address (the column and the row), and 9 bits for
-each pixel: 511 for the points in the set, and otherwise the count modulo 256.
-So the palettes 2 to 4 only use their colours of the values 0 to 255, and
-repeat them every 256 counts. The job modules write four pixels (consecutive
-rows of a picture column) to the display memory at a time. The display
+each pixel: 511 for the points in the set, and otherwise the count modulo 511.
+So the colours of the counts 0 to 510 repeat for the larger counts. The job
+modules write four pixels (consecutive rows of a picture column) to the
+display memory at a time. The display
 memory takes one write per clock cycle, so with one pixel in each write the
 picture would take at least 1280x1024 clock cycles (7.28 ms), whatever the
 number of job modules. The model estimates 6.13 ms for the initial view, i.e.

@@ -14,10 +14,10 @@
 -- The display memory has 9 bits for each pixel, but the count has more bits
 -- when G_MAX_COUNT is larger than 511. So the value of a pixel is 511 for the
 -- points in the set (the count is G_MAX_COUNT), and otherwise the count
--- modulo 256. The colour palette 1 (palette_pkg.vhd) only uses the lowest 8
--- bits, so its picture is the same as with the full count. The palettes 2 to
--- 4 use all 9 bits, so they repeat their colours of the values 0 to 255 every
--- 256 counts.
+-- modulo 511, i.e. 0 to 510. The colour palettes (palette_pkg.vhd) have 512
+-- entries, and the palette offset is also calculated modulo 511, so the
+-- colours of the counts 0 to 510 repeat for the larger counts. With the
+-- maximum count 1023 the count is reduced by subtracting 511 at most twice.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -53,13 +53,20 @@ architecture rtl of job_wide is
    constant C_ADDR_BITS : natural := maximum(log2(G_NUM_ROWS), 1);
    constant C_CNT_BITS  : natural := log2(G_MAX_COUNT+1);
 
-   -- The value of a pixel in the display memory, for the count cnt
+   -- The value of a pixel in the display memory, for the count cnt: 511 for
+   -- the points in the set, and otherwise the count modulo 511
    function to_pixel (cnt : std_logic_vector) return std_logic_vector is
+      variable cnt_v : std_logic_vector(cnt'length-1 downto 0) := cnt;
    begin
       if cnt = G_MAX_COUNT then
          return "111111111";
       end if;
-      return '0' & resize(cnt, 8);
+      for i in 1 to G_MAX_COUNT / 511 loop
+         if cnt_v >= 511 then
+            cnt_v := cnt_v - 511;
+         end if;
+      end loop;
+      return resize(cnt_v, 9);
    end function to_pixel;
 
    -- The reset, registered locally, so the reset from the dispatcher only goes

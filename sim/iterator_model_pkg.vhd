@@ -27,7 +27,7 @@ package iterator_model_pkg is
 
    -- The value of a pixel in the display memory, for the count cnt, in
    -- job_wide.vhd: 511 for the points in the set (cnt = max_count), and
-   -- otherwise the count modulo 256, see palette_pkg.vhd.
+   -- otherwise the count modulo 511, see palette_pkg.vhd.
    function to_pixel (cnt : integer; max_count : integer) return integer;
 
 end package iterator_model_pkg;
@@ -101,7 +101,7 @@ package body iterator_model_pkg is
       if cnt = max_count then
          return 511;
       end if;
-      return cnt mod 256;
+      return cnt mod 511;
    end function to_pixel;
 
 end package body iterator_model_pkg;
