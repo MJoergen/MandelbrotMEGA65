@@ -1,11 +1,11 @@
 # TODO
 
-5. Measure the design (2.33 numbers, wide iterator) on the boards. Its frame
-   rates (170 pictures per second for the initial view on the MEGA65, and 141
-   on the Nexys 4 DDR) are only estimated by the model (`sim/model.py`). The
-   model agrees with a simulation of a complete 160x128 picture within 0.4%.
-   The design runs on the MEGA65 R6, but its frame rate has not been measured
-   yet.
+5. Measure the design (2.33 numbers, wide iterator) on the Nexys 4 DDR. Its
+   frame rate (141 pictures per second for the initial view) is only
+   estimated by the model (`sim/model.py`). On the MEGA65 R6 the design runs,
+   and shows 170 pictures per second for the initial view, as the model
+   estimates (170.2). The model agrees with a simulation of a complete
+   160x128 picture within 0.4%.
 
 The next items are ideas for making the MEGA65 design faster. The numbers are
 from the model unless stated otherwise. See

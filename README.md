@@ -11,8 +11,8 @@ see [Nexys 4 DDR](#nexys-4-ddr).
 720 of the 740 DSPs of the FPGA are used in parallel for the calculation, and
 the picture is stored in block RAM. The numbers have 33 fractional bits, and
 the maximum count is 1023. Generating a complete picture takes about 5.9 ms
-(about 170 pictures per second, estimated by the model), with the main clock at
-187.8 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
+(about 170 pictures per second, measured on an R6, the same as the model
+estimates), with the main clock at 187.8 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
 takes about 7.1 ms (141 pictures per second, estimated by the model), for a
 picture with less than a quarter of the pixels.
 
@@ -219,15 +219,15 @@ The performance and timing are:
 | Number format   | 2.33            | 2.33
 | Maximum count   | 1023            | 1023
 | Clock frequency | 187.83 MHz      | 120.00 MHz
-| Initial FPS     | 170 (estimated) | 141 (estimated)
+| Initial FPS     | 170 (measured)  | 141 (estimated)
 | Worst-case FPS  | 17 (estimated)  | 15 (estimated)
 | Setup slack     | +0.093 ns       | +0.347 ns
 | Hold slack      | +0.020 ns       | +0.008 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
 R3 met timing with +0.129 ns (22,544 slices, +0.007 ns hold slack). The MEGA65
-design with the wide iterator runs on the R6 (a build before the rebase onto
-`core.vhd`, at 180 MHz); the current builds have not been tested on a board.
+design runs on the R6 (the current build), and shows 170 pictures per second
+for the initial view; the R3 build has not been tested on a board.
 The previous builds, at 192 MHz, met timing with +0.018 ns on the R6 (22,670
 slices) and +0.057 ns on the R3, with the worst setup paths in the keyboard
 driver (copied unchanged from the C64MEGA65 core), and only after the

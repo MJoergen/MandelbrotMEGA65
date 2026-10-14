@@ -1498,9 +1498,11 @@ took 27 minutes. It was made before the clock enables of the iterator (see
 [Iterator](#iterator)) and before `main` only calculated a picture when the
 view changes (see [Redraw](#redraw)).
 
-The frame rates of the wide iterator have not been measured on the boards
-yet. With the 2.16 iterator the measured frame rates agreed with the model
-within 0.3%, see [HISTORY.md](HISTORY.md#timing-of-the-216-iterator). The
+On the MEGA65 R6 the design shows 170 pictures per second for the initial
+view, and the model gives 1103544 clock cycles, i.e. 170.2 pictures per
+second at 187.8 MHz. The frame rate of the wide iterator has not been
+measured on the Nexys 4 DDR yet. With the 2.16 iterator the measured frame
+rates agreed with the model within 0.3%, see [HISTORY.md](HISTORY.md#timing-of-the-216-iterator). The
 frame rate changes slightly from picture to picture, because the counter of
 the scheduler for the jobs runs freely, so each picture starts at a
 different position of it, and the job modules get their first jobs in a
