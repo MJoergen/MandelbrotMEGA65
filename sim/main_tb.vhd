@@ -1,22 +1,24 @@
 -- This testbench runs the MAIN clock domain (main.vhd) with the initial view,
 -- and no buttons pressed. The first line of the file sim/main_out.txt is the
--- size of the picture and the address distance between two picture columns,
--- "columns rows stride". Then every pixel written to the display memory is
+-- size of the picture, the address distance between two picture columns, the
+-- fraction bits of the numbers, and the maximum count, "columns rows stride
+-- frac_bits max_count". Then every pixel written to the display memory is
 -- written to the file, as one line "address data" (all as decimal numbers).
 -- The testbench stops when a complete picture has been written.
 --
 -- The generics are the number of job modules, the number of pixels in each
 -- write, the rows in a job, the size of the picture, the address distance
--- between two picture columns, and the bits of the address, by default as on
--- the MEGA65 (mega65.vhd). They can be set with GENERICS, e.g. as on the
--- Nexys 4 DDR (nexys4ddr.vhd):
---   GENERICS="G_NUM_ITERATORS=120 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19"
+-- between two picture columns, the bits of the address, the fraction bits of
+-- the numbers, and the maximum count, by default as on the MEGA65
+-- (mega65.vhd). They can be set with GENERICS, e.g. as on the Nexys 4 DDR
+-- (nexys4ddr.vhd):
+--   GENERICS="G_NUM_ITERATORS=120 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19 G_FRAC_BITS=16 G_MAX_COUNT=511"
 --
 -- The testbench is not self-checking. Instead the output is compared with the
 -- bit-accurate model using the script cmp_rtl.py. A complete picture takes a
 -- long time to simulate (about 40 minutes for the Nexys 4 DDR, i.e. 1.44 ms
 -- of simulated time, and with make check TB=main a waveform of a few GB), but
--- a partial picture can be compared too, e.g. (about 14 minutes for the
+-- a partial picture can be compared too, e.g. (about 10 minutes for the
 -- MEGA65)
 --   make run TB=main STOP_TIME=200us
 --   sim/cmp_rtl.py
@@ -28,13 +30,15 @@ use std.textio.all;
 
 entity main_tb is
    generic (
-      G_NUM_ITERATORS : positive := 368;
+      G_NUM_ITERATORS : positive := 120;
       G_PIXELS        : positive := 4;
       G_ROWS_IN_JOB   : positive := 64;
       G_NUM_COLS      : positive := 1280;
       G_NUM_ROWS      : positive := 1024;
       G_COL_STRIDE    : positive := 1024;
-      G_ADDR_BITS     : positive := 21
+      G_ADDR_BITS     : positive := 21;
+      G_FRAC_BITS     : positive := 33;
+      G_MAX_COUNT     : positive := 1023
    );
 end entity main_tb;
 
@@ -84,7 +88,9 @@ begin
          G_NUM_COLS      => G_NUM_COLS,
          G_NUM_ROWS      => G_NUM_ROWS,
          G_COL_STRIDE    => G_COL_STRIDE,
-         G_ADDR_BITS     => G_ADDR_BITS
+         G_ADDR_BITS     => G_ADDR_BITS,
+         G_FRAC_BITS     => G_FRAC_BITS,
+         G_MAX_COUNT     => G_MAX_COUNT
       )
       port map (
          clk_i     => clk,
@@ -115,6 +121,10 @@ begin
          write(l_v, G_NUM_ROWS);
          write(l_v, string'(" "));
          write(l_v, G_COL_STRIDE);
+         write(l_v, string'(" "));
+         write(l_v, G_FRAC_BITS);
+         write(l_v, string'(" "));
+         write(l_v, G_MAX_COUNT);
          writeline(f, l_v);
          header_v := true;
       end if;

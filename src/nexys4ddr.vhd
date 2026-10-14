@@ -2,8 +2,11 @@
 -- entity are mapped directly to pins on the FPGA, see nexys4ddr.xdc.
 --
 -- It is the same design as mega65.vhd (the design for the MEGA65), see the
--- description there, only the size of the design, the resolution, and the
--- ports are different:
+-- description there, only the size of the design, the number format, the
+-- resolution, and the ports are different:
+-- * The numbers are in 2.16 fixed point format instead of 2.33, and the
+--   maximum count is 511 instead of 1023. The iterators (iterator.vhd) use
+--   two DSPs each, instead of six, and calculate one row at a time.
 -- * The VGA output is 640x480 @ 60 Hz, with a pixel clock of 25 MHz, instead
 --   of 1280x1024. There is no HDMI output.
 -- * The XC7A100T is smaller, so there are fewer job modules, and the display
@@ -47,6 +50,11 @@ architecture structural of nexys4ddr is
    -- The number of job modules. The XC7A100T has 240 DSPs, two for each
    -- job module (see iterator.vhd).
    constant C_NUM_ITERATORS : positive := 120;
+
+   -- The numbers are in 2.16 fixed point format, with iterator.vhd, and the
+   -- maximum count is 511 (see main.vhd).
+   constant C_FRAC_BITS     : positive := 16;
+   constant C_MAX_COUNT     : positive := 511;
 
    -- The number of pixels in each write to the display memory. Writing more
    -- than one pixel at a time makes the picture faster (see mega65.vhd).
@@ -133,7 +141,9 @@ begin
          G_COL_STRIDE    => C_COL_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
-         G_BLOCK_REGS    => C_BLOCK_REGS
+         G_BLOCK_REGS    => C_BLOCK_REGS,
+         G_FRAC_BITS     => C_FRAC_BITS,
+         G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
          main_clk_i => main_clk,

@@ -37,7 +37,7 @@ CI (`.github/workflows/ci.yml`) runs `make formal`, VSG, `make consts`, and
 * `sim/model.py` (about 1 minute): bit-accurate model, and the estimated
   time for the picture. `make run TB=main STOP_TIME=200us` and then
   `sim/cmp_rtl.py` compare the simulated design with the model (about
-  14 minutes).
+  10 minutes).
 * VSG, on the files that are checked:
   `vsg -c vsg.yml -ap -f $(git ls-files '*.vhd' ':!src/vga/font_pkg.vhd' ':!src/hdmi' ':!src/keyboard' ':!src/max10')`.
   It must report no errors. Lines over 100 columns (`length_001`) are only a
@@ -61,7 +61,7 @@ simulated by `core_tb`.
   idioms, including the conventions VSG does not check, and the parts of the
   code that do not follow them yet.
 * MEGA65 first. Where the boards differ, give the MEGA65 first and the
-  Nexys 4 DDR second, e.g. "368 job modules (120 on the Nexys 4 DDR)", and
+  Nexys 4 DDR second, e.g. "2.33 fixed point (2.16 on the Nexys 4 DDR)", and
   list the boards as mega65-r3, mega65-r6, nexys4ddr.
 * Never use the bit-file of one MEGA65 revision on the other one; some of
   the pins are different.

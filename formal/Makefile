@@ -3,6 +3,7 @@
 DUTS  = res_scheduler
 DUTS += job_scheduler
 DUTS += job
+DUTS += job_wide
 DUTS += dispatcher_jobs
 DUTS += dispatcher_results
 

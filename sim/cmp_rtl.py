@@ -3,11 +3,14 @@
 # Compares the picture calculated by the simulated design (main_tb.vhd) with
 # the bit-accurate model in model.py.
 #
-# The testbench main_tb.vhd writes the line "columns rows stride" to
-# sim/main_out.txt, and then one line "address data" for each pixel written to
-# the display memory. The size of the picture (columns and rows) gives the
-# initial view, the address is column*stride + row (see dispatcher.vhd), and
-# the data is the count.
+# The testbench main_tb.vhd writes the line "columns rows stride frac_bits
+# max_count" to sim/main_out.txt, and then one line "address data" for each
+# pixel written to the display memory. The size of the picture (columns and
+# rows) and the number format (2.frac_bits fixed point) give the initial view,
+# the address is column*stride + row (see dispatcher.vhd), and the data is the
+# count (with 2.33 fixed point: the count modulo 256, or 511 for the points in
+# the set,
+# see job_wide.vhd).
 # A complete picture takes a long time to simulate, so a partial picture is
 # fine too: All the pixels written so far are compared, and the last line is
 # ignored if it is incomplete.
@@ -35,10 +38,11 @@ def main() -> None:
 
     with open(filename) as f:
         lines: List[List[str]] = [line.split() for line in f]
-    if not lines or len(lines[0]) != 3:
-        print(f"No header line \"columns rows stride\" in {filename}")
+    if not lines or len(lines[0]) != 5:
+        print(f"No header line \"columns rows stride frac_bits max_count\" "
+              f"in {filename}")
         sys.exit(1)
-    cols, rows, stride = (int(v) for v in lines[0])
+    cols, rows, stride, frac, max_count = (int(v) for v in lines[0])
     writes: IntArray = np.array(
         [[int(v) for v in line] for line in lines[1:] if len(line) == 2],
         dtype=np.int64).reshape(-1, 2)
@@ -59,15 +63,18 @@ def main() -> None:
         print(f"{len(writes) - addrs} pixels written more than once")
         errors += 1
 
-    cx, cy = model.view(cols=cols, rows=rows)
-    expected: IntArray = model.hw_count(cx, cy)[row % rows, col % cols]
+    cx, cy = model.view(cols=cols, rows=rows, frac=frac)
+    count: IntArray = model.hw_count(cx, cy, max_count, frac)
+    if frac == 33:
+        count = model.pixel(count, max_count)
+    expected: IntArray = count[row % rows, col % cols]
     wrong: IntArray = np.flatnonzero(expected != data)
     for i in wrong[:10]:
         print(f"Pixel (column {col[i]}, row {row[i]}): got {data[i]}, "
               f"expected {expected[i]}")
     errors += len(wrong)
 
-    print(f"{cols}x{rows} picture: "
+    print(f"{cols}x{rows} picture (2.{frac} fixed point): "
           f"{len(writes)} pixels written ({len(set(col.tolist()))} columns, "
           f"rows up to {row.max()}), {len(wrong)} differ from the model")
     sys.exit(1 if errors else 0)

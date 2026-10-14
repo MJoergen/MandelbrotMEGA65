@@ -34,7 +34,9 @@ entity core is
       G_COL_STRIDE    : positive;
       G_ADDR_BITS     : positive;
       G_MEM_BLOCKS    : positive;
-      G_BLOCK_REGS    : boolean
+      G_BLOCK_REGS    : boolean;
+      G_FRAC_BITS     : positive;        -- Number format, see main.vhd
+      G_MAX_COUNT     : positive
    );
    port (
       main_clk_i : in  std_logic;
@@ -95,7 +97,9 @@ begin
          G_NUM_COLS      => G_VIDEO.h_visible,
          G_NUM_ROWS      => G_VIDEO.v_visible,
          G_COL_STRIDE    => G_COL_STRIDE,
-         G_ADDR_BITS     => G_ADDR_BITS
+         G_ADDR_BITS     => G_ADDR_BITS,
+         G_FRAC_BITS     => G_FRAC_BITS,
+         G_MAX_COUNT     => G_MAX_COUNT
       )
       port map (
          clk_i        => main_clk_i,

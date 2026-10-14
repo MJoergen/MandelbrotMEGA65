@@ -45,7 +45,7 @@ architecture simulation of core_tb is
       h_visible => 560, h_front =>  8, h_sync =>  8, h_back =>  8,
       v_visible =>   4, v_front =>  1, v_sync =>  1, v_back =>  1,
       sync_active => '0');
-   constant C_MAX_COUNT     : positive := 511;    -- As in main.vhd
+   constant C_MAX_COUNT     : positive := 511;    -- 2.16, as on the Nexys 4 DDR
 
    -- The frequency of the MAIN clock given to main.vhd sets the time between
    -- two updates of the view, so it is chosen such that this is longer than
@@ -108,7 +108,9 @@ begin
          G_COL_STRIDE    => 4,
          G_ADDR_BITS     => 16,
          G_MEM_BLOCKS    => 16,
-         G_BLOCK_REGS    => true
+         G_BLOCK_REGS    => true,
+         G_FRAC_BITS     => 16,
+         G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
          main_clk_i => main_clk,

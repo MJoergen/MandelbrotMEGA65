@@ -11,6 +11,8 @@
 ##          blocks, i.e. eight jobs.
 ##   7_3  - Seven job modules in three groups. A single picture column and
 ##          eight blocks, i.e. eight jobs.
+##   5_2w - The same as 5_2, but with the wide values (2.33 fixed point, as on
+##          the MEGA65) instead of 2.16.
 ##
 ## In each case there are more jobs than job modules, so some job modules get
 ## more than one job in a picture.
@@ -35,6 +37,7 @@ bmc_6_16    bmc    d6_16
 prove_6_16  prove  d6_16
 cover_7_3   cover  d7_3
 prove_7_3   prove  d7_3
+prove_5_2w  prove  d5_2w
 
 [options]
 cover: mode cover
@@ -51,6 +54,7 @@ smtbmc
 d5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
 d6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_COLS=2 -gG_NUM_ROWS=8  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
 d7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_COLS=1 -gG_NUM_ROWS=16 -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d5_2w: ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4  -gG_ROWS_IN_JOB=2 -gG_FRAC_BITS=33 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
 prep -top dispatcher_jobs
 
 [files]

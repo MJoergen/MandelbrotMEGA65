@@ -1,0 +1,44 @@
+## Formal verification of job_wide.vhd, with the wide iterator replaced by a
+## stub (iterator_wide_stub.vhd). The handshake of the iterator is given by
+## assumptions in job_wide.psl.
+##
+## Task naming:  <mode>_<G_NUM_ROWS>_<G_MAX_COUNT>
+##
+##   4_5     - A single result in each job, and counts of three bits (fewer
+##             than the eight bits of a pixel).
+##   8_1023  - Two results in each job, and the maximum count of the MEGA65.
+##   12_1023 - Three results in each job, so the result number has a value
+##             that is not used.
+##
+## Run one task:   sby --yosys "yosys -m ghdl" -f job_wide.sby prove_8_1023
+## Run everything: sby --yosys "yosys -m ghdl" -f job_wide.sby
+
+[tasks]
+cover_4_5     cover  p4_5
+prove_4_5     prove  p4_5
+cover_8_1023  cover  p8_1023
+prove_8_1023  prove  p8_1023
+cover_12_1023 cover  p12_1023
+prove_12_1023 prove  p12_1023
+
+[options]
+cover: mode cover
+cover: depth 40
+prove: mode prove
+prove: depth 10
+
+[engines]
+smtbmc
+
+[script]
+p4_5:     ghdl --std=08 -gG_MAX_COUNT=5    -gG_NUM_ROWS=4  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+p8_1023:  ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_ROWS=8  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+p12_1023: ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_ROWS=12 -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+prep -top job_wide
+
+[files]
+job_wide.psl
+iterator_wide_stub.vhd
+../src/util_pkg.vhd
+../src/main/dispatcher_pkg.vhd
+../src/main/job_wide.vhd

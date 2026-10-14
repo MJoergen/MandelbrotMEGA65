@@ -1,0 +1,353 @@
+vunit i_job_wide(job_wide(rtl))
+{
+   -- The same properties as job.psl, for the wide job module. The iterator
+   -- calculates the four rows of a result at the same time, so the rows are
+   -- counted in results here, and the counts of a result come from the
+   -- iterator at the same time.
+
+   -- The number of results of a job
+   constant C_NUM_RES : natural := G_NUM_ROWS / G_PIXELS;
+
+   type f_cnt_vector is array (natural range <>) of
+      std_logic_vector(4*C_CNT_BITS-1 downto 0);
+
+   -- The job is reset: either the input reset or the local, registered, one
+   signal f_rst       : std_logic;
+
+   -- The job, as given at the start (job_start_i)
+   signal f_cx        : std_logic_vector(34 downto 0);
+   signal f_starty    : std_logic_vector(34 downto 0);
+   signal f_stepy     : std_logic_vector(34 downto 0);
+
+   -- The result of the next start of the iterator, and of the current (or
+   -- last) one. The results are counted from the start of the job.
+   signal f_next_res  : natural range 0 to C_NUM_RES;
+   signal f_cur_res   : natural range 0 to C_NUM_RES-1;
+
+   -- The value of cy of the first row of the next result
+   signal f_next_cy   : std_logic_vector(34 downto 0);
+
+   -- The iterator is iterating, i.e. it has been started, and has not
+   -- finished since then. This is the state of the iterator, see the
+   -- assumptions about the iterator below.
+   signal f_iter_busy : std_logic;
+
+   -- The counts of the four rows of each result of the job, from the
+   -- iterator
+   signal f_cnt       : f_cnt_vector(0 to C_NUM_RES-1);
+
+   -- The number of results acknowledged in this job
+   signal f_res       : natural range 0 to C_NUM_RES;
+
+   -- The expected result: The address of its first row, and the values of the
+   -- pixels of its rows, with the first row in the lowest 9 bits
+   signal f_res_addr  : std_logic_vector(8 downto 0);
+   signal f_res_data  : std_logic_vector(9*G_PIXELS-1 downto 0);
+
+   -- The last result of the job is acknowledged
+   signal f_last_ack  : std_logic;
+
+   -- A job has been finished since the reset
+   signal f_finished  : std_logic;
+
+   -- The first pixel of the result is a point in the set
+   signal f_set_pix   : std_logic;
+
+   -- Invariants of the internal state, computed below
+   signal f_state_row   : std_logic;
+   signal f_state_c     : std_logic;
+   signal f_state_flag  : std_logic;
+   signal f_state_cnt   : std_logic;
+   signal f_state_out   : std_logic;
+   signal f_state_idle  : std_logic;
+   signal f_state_range : std_logic;
+
+
+   -- set all declarations to run on clk_i
+   default clock is rising_edge(clk_i);
+
+
+   f_rst <= rst_i or rst_r;
+
+   p_job : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         if job_start_i = '1' then
+            f_cx       <= job_cx_i;
+            f_starty   <= job_starty_i;
+            f_stepy    <= job_stepy_i;
+         end if;
+      end if;
+   end process p_job;
+
+   p_next_cy : process (all)
+      variable prod_v : std_logic_vector(43 downto 0);
+   begin
+      prod_v    := f_stepy * to_slv(f_next_res*G_PIXELS, 9);
+      f_next_cy <= f_starty + prod_v(34 downto 0);
+   end process p_next_cy;
+
+   p_iter : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         -- The counts are only taken when the iterator has finished the
+         -- result, not while done_o is still high from the result before.
+         if res_valid_s = '1' and f_iter_busy = '1' then
+            f_cnt(f_cur_res) <= res_cnt_s;
+            f_iter_busy      <= '0';
+         end if;
+
+         if res_start_r = '1' then
+            f_cur_res   <= minimum(f_next_res, C_NUM_RES-1);
+            f_next_res  <= minimum(f_next_res + 1, C_NUM_RES);
+            f_iter_busy <= '1';
+         end if;
+
+         if job_start_i = '1' then
+            f_next_res <= 0;
+         end if;
+
+         if rst_r = '1' then
+            f_iter_busy <= '0';
+         end if;
+
+         if rst_i = '1' then
+            f_next_res <= 0;
+            f_cur_res  <= 0;
+         end if;
+      end if;
+   end process p_iter;
+
+   p_res : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         if res_ack_i = '1' and f_res < C_NUM_RES then
+            f_res <= f_res + 1;
+         end if;
+         if f_last_ack = '1' and f_rst = '0' then
+            f_finished <= '1';
+         end if;
+         if job_start_i = '1' then
+            f_res <= 0;
+         end if;
+         if rst_i = '1' then
+            f_res      <= 0;
+            f_finished <= '0';
+         end if;
+      end if;
+   end process p_res;
+
+   f_last_ack <= res_ack_i when f_res = C_NUM_RES-1 else '0';
+
+   f_set_pix  <= '1' when res_data_o(8 downto 0) = "111111111" else '0';
+
+   p_expected : process (all)
+   begin
+      f_res_addr <= to_slv(f_res*G_PIXELS, 9);
+      f_res_data <= (others => '0');
+      for r in 0 to C_NUM_RES-1 loop
+         if f_res = r then
+            for k in 0 to G_PIXELS-1 loop
+               f_res_data(9*k+8 downto 9*k) <=
+                  to_pixel(f_cnt(r)(C_CNT_BITS*k+C_CNT_BITS-1 downto C_CNT_BITS*k));
+            end loop;
+         end if;
+      end loop;
+   end process p_expected;
+
+   p_state : process (all)
+      variable addr_v : natural;
+      variable prod_v : std_logic_vector(43 downto 0);
+      variable data_v : std_logic_vector(9*G_PIXELS-1 downto 0);
+   begin
+      addr_v := to_integer(res_addr_r);
+
+      -- The counters of the results are in their ranges. They have more bits
+      -- than that, when the number of values is not a power of two.
+      f_state_range <= '0';
+      if f_next_res <= C_NUM_RES and f_cur_res < C_NUM_RES and f_res <= C_NUM_RES then
+         f_state_range <= '1';
+      end if;
+
+      -- The first row of the result in res_addr_r is that of the result of
+      -- the iterator. In the clock cycle where the iterator is started, it is
+      -- the next result.
+      f_state_row <= '0';
+      if res_start_r = '1' then
+         if addr_v = f_next_res*G_PIXELS then
+            f_state_row <= '1';
+         end if;
+      elsif addr_v = f_cur_res*G_PIXELS and f_next_res = f_cur_res + 1 and f_res = f_cur_res then
+         f_state_row <= '1';
+      end if;
+
+      -- The value of c is that of the first row of the result
+      prod_v    := f_stepy * to_slv(addr_v, 9);
+      f_state_c <= '0';
+      if res_cx_r = f_cx and res_cy_r = f_starty + prod_v(34 downto 0) then
+         f_state_c <= '1';
+      end if;
+
+      -- The flag of the last result is that of res_addr_r
+      f_state_flag <= '1';
+      if (res_last_r = '1') /= (addr_v = G_NUM_ROWS-G_PIXELS) then
+         f_state_flag <= '0';
+      end if;
+
+      -- The iterator has the counts of the current result, when it is not
+      -- iterating
+      f_state_cnt <= '1';
+      if res_valid_s = '1' and f_iter_busy = '0' and res_cnt_s /= f_cnt(f_cur_res) then
+         f_state_cnt <= '0';
+      end if;
+
+      -- The output registers are from the previous clock cycle, and the job
+      -- module has not changed since then
+      for k in 0 to G_PIXELS-1 loop
+         data_v(9*k+8 downto 9*k) :=
+            to_pixel(res_cnt_s(C_CNT_BITS*k+C_CNT_BITS-1 downto C_CNT_BITS*k));
+      end loop;
+      f_state_out <= '1';
+      if res_valid_s = '0' or res_start_r = '1' or job_busy_r = '0' or
+         res_data_d /= data_v or res_addr_d /= res_addr_r then
+         f_state_out <= '0';
+      end if;
+
+      -- When the job module is idle, the iterator is either idle (after a
+      -- reset) or has finished the last result of the job
+      f_state_idle <= '1';
+      if res_start_r = '1' or f_iter_busy = '1' or (res_valid_s = '1' and res_last_r = '0') then
+         f_state_idle <= '0';
+      end if;
+   end process p_state;
+
+
+   -----------------------------
+   -- ASSERTIONS ABOUT OUTPUTS
+   -----------------------------
+
+   -- The reset is registered (rst_r) before it is used. The job is not busy
+   -- in the clock cycle after that, and there is no result in the clock cycle
+   -- after that again.
+   f_after_reset : assert always {rst_r} |=> {not job_busy_o};
+   f_after_reset_valid : assert always {rst_r; rst_r} |=> {not res_valid_o};
+
+   -- The job module is busy from the start of a job until the last result
+   -- has been acknowledged, and not otherwise
+   f_busy_start : assert always {job_start_i and not f_rst} |=> {job_busy_o};
+   f_busy_stays : assert always {job_busy_o and not f_last_ack and not f_rst} |=> {job_busy_o};
+   f_busy_ends  : assert always {f_last_ack and not f_rst} |=> {not job_busy_o};
+   f_idle_stays : assert always {not job_busy_o and not job_start_i} |=> {not job_busy_o};
+
+   -- There is only a result while busy, and only one for each group of
+   -- G_PIXELS rows
+   f_valid_busy : assert always {res_valid_o and not f_rst} |-> {job_busy_o};
+   f_valid_res  : assert always {res_valid_o and not f_rst} |-> {f_res < C_NUM_RES};
+
+   -- The result stays, and does not change, until it is acknowledged, and
+   -- it is removed when it is acknowledged
+   f_valid_stable : assert always {res_valid_o and not res_ack_i and not f_rst} |=>
+      {res_valid_o = '1' and stable(res_addr_o) and stable(res_data_o)};
+   f_valid_ack : assert always {res_ack_i and not f_rst} |=> {not res_valid_o};
+
+   -- The results come in order, and each result has the values of the pixels
+   -- of its rows, from the counts of the iterator
+   f_valid_addr : assert always {res_valid_o and not f_rst} |-> {res_addr_o = f_res_addr};
+   f_valid_data : assert always {res_valid_o and not f_rst} |-> {res_data_o = f_res_data};
+
+
+   -----------------------------
+   -- ASSERTIONS ABOUT THE ITERATOR
+   -----------------------------
+
+   -- The iterator is not started again while it is iterating
+   f_iter_start : assert always {res_start_r and not f_rst} |-> {not f_iter_busy};
+
+   -- The results of the job are calculated in order, each once, with the
+   -- values of c of the job (cy of the first row of the result, and the step
+   -- in cy)
+   f_iter_rows : assert always {res_start_r and not f_rst} |->
+      {f_next_res < C_NUM_RES and res_cx_r = f_cx and res_cy_r = f_next_cy and
+       job_stepy_i = f_stepy};
+
+   -- The value of c does not change while the iterator is iterating
+   f_iter_stable : assert always {f_iter_busy and not f_rst} |->
+      {stable(res_cx_r) and stable(res_cy_r)};
+
+
+   -----------------------------
+   -- ASSERTIONS ABOUT INTERNAL STATE
+   -----------------------------
+
+   -- These are needed for the induction, because the iterator can take any
+   -- number of clock cycles
+   f_state_range_a : assert always {not f_rst} |-> {f_state_range};
+   f_state_row_a   : assert always {job_busy_r and not f_rst} |-> {f_state_row};
+   f_state_c_a     : assert always {job_busy_r and not f_rst} |-> {f_state_c};
+   f_state_flag_a  : assert always {job_busy_r and not f_rst} |-> {f_state_flag};
+   f_state_cnt_a   : assert always {not f_rst} |-> {f_state_cnt};
+   f_state_out_a   : assert always {res_valid_o and not f_rst} |-> {f_state_out};
+   f_state_idle_a  : assert always {not job_busy_r and not f_rst} |-> {f_state_idle};
+
+   -- The job module waits for the iterator only while it is iterating
+   f_state_iter : assert always {job_busy_r and not res_start_r and not res_valid_s and not f_rst} |->
+      {f_iter_busy};
+
+
+   -----------------------------
+   -- ASSUMPTIONS ABOUT INPUTS
+   -----------------------------
+
+   -- Require reset at startup. The reset lasts at least two clock cycles.
+   f_reset      : assume {rst_i; rst_i};
+   f_reset_long : assume always {not rst_i; rst_i} |=> {rst_i};
+
+   -- A job is only started when the job module is idle, and not in the clock
+   -- cycle after a reset, when the job module is being reset (rst_r). In the
+   -- dispatcher, the start is reset one clock cycle before the job module.
+   f_start_idle : assume always {job_start_i} |-> {not job_busy_o};
+   f_start_rst  : assume always {rst_i} |=> {not job_start_i};
+
+   -- Only a result is acknowledged
+   f_ack_valid  : assume always {res_ack_i} |-> {res_valid_o};
+
+   -- The step in cy does not change during a job
+   f_stepy_same : assume always {job_busy_o and not job_start_i} |-> {job_stepy_i = f_stepy};
+
+
+   -----------------------------
+   -- ASSUMPTIONS ABOUT THE ITERATOR
+   -----------------------------
+
+   -- The iterator is replaced by a stub (iterator_wide_stub.vhd) with free
+   -- outputs, and these assumptions give its handshake, see
+   -- iterator_wide.vhd. The signals connected to it are start_i
+   -- (res_start_r), rst_i (rst_r), done_o (res_valid_s) and cnt_o
+   -- (res_cnt_s). The iteration takes any number of clock cycles, at least
+   -- two.
+
+   -- done_o is low in the clock cycle after a start or a reset
+   f_iter_done_low : assume always {res_start_r or rst_r} |=> {not res_valid_s};
+
+   -- done_o only goes high when the iteration is finished
+   f_iter_done_busy : assume always {not res_valid_s; res_valid_s} |-> {f_iter_busy};
+
+   -- done_o and cnt_o stay unchanged until the next start or reset
+   f_iter_done_stable : assume always {res_valid_s and not res_start_r and not rst_r} |=>
+      {res_valid_s = '1' and stable(res_cnt_s)};
+
+
+   --------------------------------------------
+   -- COVER STATEMENTS TO VERIFY REACHABILITY
+   --------------------------------------------
+
+   -- A result waits to be acknowledged
+   f_wait : cover {res_valid_o and not res_ack_i and not f_rst; res_valid_o and not f_rst};
+
+   -- A job is finished, and the next job is started
+   f_next : cover {job_start_i and f_finished and not f_rst};
+
+   -- A point in the set (the count is G_MAX_COUNT) is in a result
+   f_set : cover {res_valid_o and not f_rst and f_set_pix};
+
+} -- vunit i_job_wide(job_wide(rtl))

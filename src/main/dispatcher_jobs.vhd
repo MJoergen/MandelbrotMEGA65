@@ -10,6 +10,9 @@
 -- For each job, the index of the job module, the picture column, and the
 -- block are given to dispatcher_results.vhd (tbl_*_o), so the address of the
 -- results can be calculated.
+--
+-- The values (cx, cy, and the steps) are in 2.G_FRAC_BITS fixed point format,
+-- i.e. G_FRAC_BITS+2 bits, see dispatcher.vhd.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -24,16 +27,17 @@ entity dispatcher_jobs is
       G_NUM_COLS      : positive;
       G_ROWS_IN_JOB   : positive;         -- Rows in each job
       G_NUM_ITERATORS : positive;
-      G_GROUP_SIZE    : positive
+      G_GROUP_SIZE    : positive;
+      G_FRAC_BITS     : positive := 16    -- Fraction bits of the values
    );
    port (
       clk_i          : in  std_logic;
       rst_i          : in  std_logic;
       start_i        : in  std_logic;
-      startx_i       : in  std_logic_vector(17 downto 0);
-      starty_i       : in  std_logic_vector(17 downto 0);
-      stepx_i        : in  std_logic_vector(17 downto 0);
-      stepy_i        : in  std_logic_vector(17 downto 0);
+      startx_i       : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
+      starty_i       : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
+      stepx_i        : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
+      stepy_i        : in  std_logic_vector(G_FRAC_BITS+1 downto 0);
       -- High while the picture is being calculated
       sched_active_o : out std_logic;
       done_o         : out std_logic;
@@ -41,9 +45,12 @@ entity dispatcher_jobs is
       -- To and from the job modules. All but job_busy_i are one for each
       -- group of G_GROUP_SIZE job modules.
       job_rst_o      : out std_logic_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0);
-      job_cx_o       : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0);
-      job_starty_o   : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0);
-      job_stepy_o    : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0);
+      job_cx_o       : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
+                                      (G_FRAC_BITS+1 downto 0);
+      job_starty_o   : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
+                                      (G_FRAC_BITS+1 downto 0);
+      job_stepy_o    : out value_vector((G_NUM_ITERATORS+G_GROUP_SIZE-1)/G_GROUP_SIZE-1 downto 0)
+                                      (G_FRAC_BITS+1 downto 0);
       job_start_o    : out std_logic_vector(G_NUM_ITERATORS-1 downto 0);
       job_busy_i     : in  std_logic_vector(G_NUM_ITERATORS-1 downto 0);
 
@@ -59,8 +66,9 @@ end entity dispatcher_jobs;
 architecture rtl of dispatcher_jobs is
 
    -- The number of bits of the column (at least one, also for a single
-   -- column)
+   -- column), and of the values
    constant C_COL_BITS   : natural := maximum(1, log2(G_NUM_COLS));
+   constant C_VALUE_BITS : natural := G_FRAC_BITS + 2;
 
    -- The job (cx, starty, and stepy) and the reset go to all the job modules.
    -- To make the routing shorter, they go through an extra register in each
@@ -75,13 +83,13 @@ architecture rtl of dispatcher_jobs is
    signal sched_active_r    : std_logic;
    --
    -- The job: cx of the picture column, and cy of the first row of the block
-   signal job_cx_r          : std_logic_vector(17 downto 0);
-   signal job_starty_r      : std_logic_vector(17 downto 0);
-   signal job_startx_r      : std_logic_vector(17 downto 0);
-   signal job_stepx_r       : std_logic_vector(17 downto 0);
-   signal job_stepy_r       : std_logic_vector(17 downto 0);
+   signal job_cx_r          : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal job_starty_r      : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal job_startx_r      : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal job_stepx_r       : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal job_stepy_r       : std_logic_vector(C_VALUE_BITS-1 downto 0);
    -- The difference in cy between two blocks
-   signal job_blk_stepy_r   : std_logic_vector(17 downto 0);
+   signal job_blk_stepy_r   : std_logic_vector(C_VALUE_BITS-1 downto 0);
    --
    signal job_start_r       : std_logic_vector(G_NUM_ITERATORS-1 downto 0);
    signal job_started_r     : std_logic;
@@ -99,9 +107,9 @@ architecture rtl of dispatcher_jobs is
    signal cur_blk_r         : natural range 0 to C_NUM_BLOCKS := 0;
    --
    -- The job, delayed by one clock cycle, in each group of job modules
-   signal grp_cx_r          : value_vector(C_NUM_GROUPS-1 downto 0);
-   signal grp_starty_r      : value_vector(C_NUM_GROUPS-1 downto 0);
-   signal grp_stepy_r       : value_vector(C_NUM_GROUPS-1 downto 0);
+   signal grp_cx_r          : value_vector(C_NUM_GROUPS-1 downto 0)(C_VALUE_BITS-1 downto 0);
+   signal grp_starty_r      : value_vector(C_NUM_GROUPS-1 downto 0)(C_VALUE_BITS-1 downto 0);
+   signal grp_stepy_r       : value_vector(C_NUM_GROUPS-1 downto 0)(C_VALUE_BITS-1 downto 0);
    signal job_start_d       : std_logic_vector(G_NUM_ITERATORS-1 downto 0);
    signal job_started_d     : std_logic;
    signal job_started_dd    : std_logic;
@@ -230,18 +238,19 @@ begin
    ----------------------------------------
 
    -- After the last picture column of a block, cx starts again from the left
-   -- edge, and cy moves to the next block. The job modules add stepy in 18
-   -- bits, so adding G_ROWS_IN_JOB times stepy (also in 18 bits) gives exactly
-   -- the same values of cy as if all the rows were calculated in one job. The
-   -- value of job_blk_stepy_r is ready two clock cycles after a start
-   -- (start_i), and it is not used until the first job has been started, which
-   -- is at least five clock cycles after the start.
+   -- edge, and cy moves to the next block. The job modules add stepy in
+   -- C_VALUE_BITS bits, so adding G_ROWS_IN_JOB times stepy (also in
+   -- C_VALUE_BITS bits) gives exactly the same values of cy as if all the rows
+   -- were calculated in one job. The value of job_blk_stepy_r is ready two
+   -- clock cycles after a start (start_i), and it is not used until the first
+   -- job has been started, which is at least five clock cycles after the
+   -- start.
    p_job_cx : process (clk_i)
-      variable blk_stepy_v : std_logic_vector(35 downto 0);
+      variable blk_stepy_v : std_logic_vector(2*C_VALUE_BITS-1 downto 0);
    begin
       if rising_edge(clk_i) then
-         blk_stepy_v     := job_stepy_r * to_slv(G_ROWS_IN_JOB, 18);
-         job_blk_stepy_r <= blk_stepy_v(17 downto 0);
+         blk_stepy_v     := job_stepy_r * to_slv(G_ROWS_IN_JOB, C_VALUE_BITS);
+         job_blk_stepy_r <= blk_stepy_v(C_VALUE_BITS-1 downto 0);
 
          if job_started_r = '1' then
             job_cx_r <= job_cx_r + job_stepx_r;

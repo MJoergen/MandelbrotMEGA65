@@ -9,7 +9,7 @@
 -- * The latest value arrives at most one source clock cycle and four
 --   destination clock cycles after the pulse.
 -- This is done for the clocks of both boards (from the MAIN clock to the VGA
--- clock), each with its own instance: the MEGA65 (141.64 MHz and 108 MHz)
+-- clock), each with its own instance: the MEGA65 (180 MHz and 108 MHz)
 -- and the Nexys 4 DDR (120 MHz and 25 MHz). The time between two values is
 -- at least ten destination clock cycles.
 
@@ -30,7 +30,7 @@ architecture simulation of cdc_data_tb is
    type config_vector is array (natural range <>) of config_t;
 
    constant C_CONFIGS : config_vector := (
-      (s_period => 7.060 ns, m_period =>  9.259 ns),   -- MEGA65
+      (s_period => 5.556 ns, m_period =>  9.259 ns),   -- MEGA65
       (s_period => 8.333 ns, m_period => 40.000 ns));  -- Nexys 4 DDR
 
    -- The values have 40 bits, as the frame rate (32 bits of digits and 8

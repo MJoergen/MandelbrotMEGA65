@@ -34,6 +34,13 @@ def vhdl_constants(filename):
     return consts
 
 
+def real_value(expr):
+    """The value of a constant expression of reals, e.g. "8.0 / 3.0"."""
+    if not re.fullmatch(r'[\d.+\-*/ ()]+', expr):
+        raise ValueError(f'Not a constant expression: {expr}')
+    return float(eval(expr))  # Only digits and operators, see above
+
+
 def video_modes():
     """The visible size of each video mode in src/vga/video_pkg.vhd."""
     text = (TOP / 'src/vga/video_pkg.vhd').read_text()
@@ -59,6 +66,8 @@ def board(filename):
         'PIXELS':         int(c['C_PIXELS']),
         'COL_STRIDE':     int(c['C_COL_STRIDE']),
         'ADDR_BITS':      int(c['C_ADDR_BITS']),
+        'FRAC_BITS':      int(c['C_FRAC_BITS']),
+        'MAX_COUNT':      int(c['C_MAX_COUNT']),
         'MAIN_CLOCK_KHZ': main_clock_khz,
     }
 
@@ -81,26 +90,23 @@ def main():
     main_tb = vhdl_constants('sim/main_tb.vhd')
 
     # sim/model.py
-    check('MAX_COUNT in sim/model.py', model.MAX_COUNT, int(main_vhd['C_MAX_COUNT']))
     check('GROUP_SIZE in sim/model.py', model.GROUP_SIZE, int(dispatcher['G_GROUP_SIZE']))
     for name in ['NUM_COLS', 'NUM_ROWS', 'ROWS_IN_JOB', 'NUM_ITERATORS', 'PIXELS',
-                 'MAIN_CLOCK_KHZ']:
+                 'MAIN_CLOCK_KHZ', 'FRAC_BITS', 'MAX_COUNT']:
         check(f'{name} in sim/model.py', getattr(model, name), mega65[name])
         check(f'NEXYS4DDR_{name} in sim/model.py', getattr(model, 'NEXYS4DDR_' + name),
               nexys4ddr[name])
 
     # The initial view in sim/model.py (pixel_c) and src/main/main.vhd
     text = (TOP / 'sim/model.py').read_text()
-    startx = re.search(r'round\(\((-?[\d.]+) \+ 4\.0\) \* 65536\)', text)
-    sizex = re.search(r'round\(([\d.]+) \* 65536\)\) // cols', text)
+    startx = re.search(r'np\.floor\(\((-?[\d.]+) \+ 2\.0\) \* one \+ 0\.5\)', text)
     check('The start of the real axis in sim/model.py', float(startx.group(1)),
-          float(main_vhd['C_START_X']))
-    check('The size of the real axis in sim/model.py', float(sizex.group(1)),
-          float(main_vhd['C_SIZE_X']))
+          real_value(main_vhd['C_START_X']))
+    check('SIZE_X in sim/model.py', model.SIZE_X, real_value(main_vhd['C_SIZE_X']))
 
     # The defaults of the generics of sim/main_tb.vhd
     for name in ['NUM_ITERATORS', 'PIXELS', 'ROWS_IN_JOB', 'NUM_COLS', 'NUM_ROWS',
-                 'COL_STRIDE', 'ADDR_BITS']:
+                 'COL_STRIDE', 'ADDR_BITS', 'FRAC_BITS', 'MAX_COUNT']:
         check(f'The default of G_{name} in sim/main_tb.vhd', int(main_tb['G_' + name]),
               mega65[name])
 

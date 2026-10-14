@@ -332,13 +332,89 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, before the keyboard was ignored after
+The previous run of `make mega65-r6`, with the wide iterator, before it was
+rebased onto the view in the top left corner, the palette selected with the
+keys `1` to `4`, and the R3 reading the reset button from the MAX10, met
+timing with +0.069 ns (+0.070 ns after the routing), with +0.008 ns of hold
+slack (from the register of cx of a job module, `res_cx_r`, to the register
+of cx in its iterator, `cx_r`). It used 22,974 slices, 58,111 LUTs, and
+66,634 registers (77,416 LUT cells and 66,674 registers after synthesis).
+The worst setup path was from `grp_stepy_r` to the accumulator of cy in an
+iterator (`cy_acc_r`), mostly routing (4.41 ns of 5.62 ns). The VGA clock
+had +0.238 ns of setup slack (from `pix_x` to `rd_grp_blk`, only routing,
+8.24 ns of 8.59 ns), and the 40 paths from the MAIN clock to the VGA clock
++8.52 ns. The router left about 7,800 nodes with overlaps after the initial
+routing. The previous run of `make mega65-r3`, which did not use the reset
+button and had 49 IOBs, used 22,039 slices and 58,116 LUTs, and met timing
+with +0.092 ns (the same after the routing), from `grp_stepy_r` to
+`res_cy_r`, and +0.021 ns of hold slack. Its VGA clock had +0.112 ns of
+setup slack (from `pix_y` to `rd_grp_addr`), and the paths from the MAIN
+clock to the VGA clock +8.83 ns.
+
+The run of `make mega65-r6` before that, with the wide iterator, before the
+reset of the display memory was removed, the buttons and switches were
+synchronized with two registers, and the asynchronous inputs were declared
+as false paths, met timing with +0.109 ns (the same after the routing), with
++0.021 ns of hold slack (in the shift register of cy, `cy_r`, of an
+iterator). It used 22,035 slices, 58,129 LUTs, and 66,648 registers (77,433
+LUT cells and 66,674 registers after synthesis). The worst setup path was
+the same as now, from `grp_stepy_r` to `cy_acc_r`. The VGA clock had
++0.150 ns of setup slack (from `pix_x` to `rd_grp_blk`), and the paths from
+the MAIN clock to the VGA clock +8.91 ns. The run of `make mega65-r3` used
+22,009 slices and 58,126 LUTs, and met timing with
++0.118 ns (+0.119 ns after the routing) and +0.019 ns of hold slack. Its VGA
+clock had +0.174 ns of setup slack, and the paths from the MAIN clock to the
+VGA clock +8.88 ns.
+
+The run before that, the last one with the 2.16 iterator
+(368 job modules, the maximum count 511, and a 141.64 MHz main clock: the
+VCO divided by 7.625, on the output CLKOUT0 of the MMCM, the only output with
+a fractional divider), before the wide iterator (see
+[Wide iterator](ALGORITHM.md#wide-iterator)) was rebased onto it, with the
+design that is the same on all the boards in `core.vhd`, the moving palette,
+the palettes with all 9 bits of the count, the BRAMs that select the pixel in
+the word, and the keyboard ignored after power-on, gave:
+
+| Resource         | Used     | Available | Used (%)
+| ---------------- | -------- | --------- | --------
+| DSP48E1          | 736      | 740       | 99
+| Block RAM        | 320 RAMB36 + 2 RAMB18 | 365 RAMB36 | 88
+| Slices           | 22,137   | 33,650    | 66
+| LUTs             | 45,797   | 134,600   | 34
+| Registers        | 60,891   | 269,200   | 23
+
+| Check | Slack
+| ----- | -----
+| Setup (WNS) | +0.017 ns (TNS 0)
+| Hold (WHS)  | +0.010 ns (THS 0)
+
+The "Report Cell Usage" table gave 72,561 LUT cells and 59,785 registers
+after synthesis. The run included the HDMI output. The worst setup path of
+the main clock was in an iterator, from the register P of its second DSP,
+through the adder for x+y or x-y, to the input of its first DSP (3.64 ns,
+plus about 3.3 ns in the DSP from its input to its register P). The timing
+was met after the routing, but only just (+0.017 ns, within the variation
+between runs, see below). The worst hold path (+0.010 ns) was between two
+registers of the text of the view (`text` and `text_r` in `view_text`). The
+VGA clock had +0.146 ns of setup slack, from the row counter (`pix_y` in
+`pix`) to the address of one of the groups of the display memory
+(`rd_grp_addr`). The path through the palette had +0.916 ns. The 118 paths
+from the MAIN clock to the VGA clock (the frame rate, the view, and their
+toggle signal to `cdc_data`, and the palette and its movement from
+`controls` to `vga`) had +8.15 ns of slack. The run of `make mega65-r3`,
+which read the reset button from the MAX10 (in the clock domain of the
+100 MHz input clock, with one more BUFG) and had 52 IOBs, used 21,551 slices
+and 45,903 LUTs, and met timing with +0.002 ns, with +0.028 ns of hold slack.
+Its VGA clock had +0.241 ns of setup slack, the paths from the MAIN clock to
+the VGA clock +7.90 ns, and the input clock (in `max10`) +5.70 ns.
+
+The run of `make mega65-r6` before that, before the keyboard was ignored after
 power-on, met timing with +0.008 ns, and had 21,785 slices, 45,783 LUTs, and
 60,881 registers (72,549 LUT cells and 59,775 registers after synthesis), and
 +0.027 ns of hold slack (in the adder of the row number `res_cy_r` of a job
 module). Its VGA clock had +0.153 ns of setup slack (from the column counter
 `pix_x` to `rd_grp_blk`), the path through the palette +0.176 ns, and the 118
-paths from the MAIN clock to the VGA clock +8.41 ns. The previous run of
+paths from the MAIN clock to the VGA clock +8.41 ns. The run of
 `make mega65-r3` met timing with +0.074 ns, with 21,564 slices, 45,843 LUTs,
 +0.028 ns of hold slack, +0.213 ns of setup slack for the VGA clock, and
 +5.94 ns for the input clock.
@@ -378,31 +454,55 @@ VGA path was from the row counter (`pix_y`) to the read address of one of the
 groups (`rd_grp_addr`), and the worst hold path was in the adder of the row
 number (`res_cy_r`) of a job module.
 
-The run of `make mega65-r6` before that, before the palettes used all 9 bits of
-the count (and had 512 entries instead of 256), met timing with +0.086 ns,
-and had 22,151 slices, 48,267 LUTs, and 60,887 registers (75,017 LUT cells
-and 59,781 registers after synthesis), and +0.025 ns of hold slack. Its VGA
-clock had +0.212 ns of setup slack, and the 117 paths from the MAIN clock to
-the VGA clock +7.68 ns. The previous run of `make mega65-r3` met timing with
-+0.066 ns (+0.063 ns after the routing), with 22,231 slices, 48,369 LUTs,
-+0.022 ns of hold slack, and +0.161 ns of setup slack for the VGA clock.
+The run of `make mega65-r6` before that, before the palettes used all 9 bits
+of the count (and had 512 entries instead of 256), met timing with
++0.086 ns, and had 22,151 slices, 48,267 LUTs, and 60,887 registers (75,017
+LUT cells and 59,781 registers after synthesis). The worst setup path of the
+main clock was in an iterator (3.71 ns, plus about 3.3 ns in the DSP from its
+input to its register P), and was met after the routing (+0.085 ns). The
+worst hold path (+0.025 ns) was in the adder of the row number (`res_cy_r`)
+of a job module. The VGA clock had +0.212 ns of setup slack, from the column
+counter (`pix_x` in `pix`) to the number of the block of one of the groups
+of the display memory (`rd_grp_blk`), only routing (8.73 ns). The 117 paths
+from the MAIN clock to the VGA clock had +7.68 ns of slack. The run of
+`make mega65-r3` used 22,231 slices and 48,369 LUTs, and met timing with
++0.066 ns (+0.063 ns after the routing), with +0.022 ns of hold slack (in
+`res_cy_r`). Its VGA clock had +0.161 ns of setup slack (from `pix_y` to
+`rd_grp_addr`), the paths from the MAIN clock to the VGA clock +8.28 ns, and
+the input clock (in `max10`) +5.35 ns.
 
-The run of `make mega65-r6` before that, before the view was shown in the top
-left corner, the palette was selected with the keys `1` to `4`, and the R3
-read the reset button from the MAX10, met timing with +0.070 ns (+0.069 ns
-after the routing), and had 21,814 slices, 47,954 LUTs, and 60,294 registers
-(74,636 LUT cells and 59,188 registers after synthesis). Its worst setup path
-was in an iterator (3.57 ns), and its worst hold path (+0.022 ns) in
-`res_cy_r`. The VGA clock had +0.219 ns of setup slack (from `pix_y` to
-`rd_grp_addr`, only routing, 8.67 ns), and the 40 paths from the MAIN clock
-to the VGA clock (the frame rate and its toggle signal) +8.87 ns. The
-previous run of `make mega65-r3`, which did not use the reset button and had
-49 IOBs, met timing with +0.033 ns (+0.005 ns after the routing), with
-22,031 slices, 47,976 LUTs, and +0.025 ns of hold slack (in `res_cy_r`). Its
-VGA clock had +0.165 ns of setup slack, and the paths from the MAIN clock to
-the VGA clock +8.82 ns.
+With the 2.16 iterator the setup slack depended on the placement of the
+iterators, and varied by about 0.1 ns between runs. At 144 MHz (1080 MHz
+divided by 7.5) it varied from +0.091 to -0.076 ns, and at 148.97 MHz
+(divided by 7.25) three runs failed by 0.12 to 0.24 ns, so the main clock was
+141.64 MHz, which gave the iterators 0.116 ns more slack than 144 MHz (a
+period of 7.060 ns instead of 6.944 ns), for 1.7% fewer pictures per second.
+The router left about 19,000 nodes with overlaps after the initial routing,
+and resolved them in a few iterations. A complete run took about 13 minutes.
+With 320 or 368 job modules the routing also finished without the macros for
+the DSPs (the complete runs took 15 and 22 minutes), but then timing failed
+by 0.7 and 1.5 ns, because the two DSPs of an iterator were often in
+different columns. So the number of job modules was limited by the number of
+DSPs, not by the routing. A simulation of a partial picture with `main_tb`
+and this design (200 us of simulated time: all 1280 columns, rows 0 to 87,
+78,948 pixels, about 14 minutes) gave the same pixels as the model.
 
-The run of `make mega65-r6` before that, before the buttons and switches were
+The run with the 2.16 iterator before that, before the view was shown in the
+top left corner, the palette was selected with the keys `1` to `4`, and the
+R3 read the reset button from the MAX10, met timing with +0.070 ns
+(+0.069 ns after the routing), and had 21,814 slices, 47,954 LUTs, and
+60,294 registers (74,636 LUT cells and 59,188 registers after synthesis).
+Its worst setup path was in an iterator (3.57 ns), and its worst hold path
+(+0.022 ns) in `res_cy_r`. The VGA clock had +0.219 ns of setup slack (from
+`pix_y` to `rd_grp_addr`, only routing, 8.67 ns), and the 40 paths from the
+MAIN clock to the VGA clock (the frame rate and its toggle signal) +8.87 ns.
+The run of `make mega65-r3`, which did not use the reset button and had 49
+IOBs, met timing with +0.033 ns (+0.005 ns after the routing), with 22,031
+slices, 47,976 LUTs, and +0.025 ns of hold slack (in `res_cy_r`). Its VGA
+clock had +0.165 ns of setup slack, and the paths from the MAIN clock to the
+VGA clock +8.82 ns.
+
+The run before that, before the buttons and switches were
 synchronized with two registers, the asynchronous inputs were declared as
 false paths, and the clock domain crossing of the frame rate was moved to an
 entity of its own (fps_cdc.vhd, now the generic cdc_data.vhd), met timing with
@@ -591,7 +691,18 @@ one pixel in each write. The setup slack was +0.178 ns and the hold slack
 The current results are in [Nexys 4 DDR](ALGORITHM.md#nexys-4-ddr). The runs
 before them go back in time, starting with the latest one.
 
-The previous run of `make nexys4ddr`, before the design that is the same on
+The run of `make nexys4ddr` of the wide iterator before it was rebased onto
+the design that is the same on all the boards in `core.vhd`, the moving
+palette, the palettes with all 9 bits of the count, and the BRAMs that select
+the pixel in the word (the design of the Nexys 4 DDR was the same as on main,
+but the number format was a generic), met timing with +0.004 ns after the
+routing, and the post-route `phys_opt_design` gave +0.028 ns. It used 9,288
+slices, 16,836 LUTs, and 27,276 registers (21,135 LUT cells and 27,292
+registers after synthesis), with +0.007 ns of hold slack, and the 115 paths
+from the MAIN clock to the VGA clock had +8.14 ns of slack. Its worst setup
+path was in an iterator, from the register P of its second DSP.
+
+The run of `make nexys4ddr` before that, before the design that is the same on
 all the boards was moved into `core.vhd`, met timing with +0.046 ns, with
 9,269 slices, 15,846 LUTs, 27,260 registers (20,160 LUT cells and 27,276
 registers after synthesis), and +0.006 ns of hold slack. The 115 paths from the
@@ -613,14 +724,19 @@ The run of `make nexys4ddr` before that, before the palettes used all 9 bits of
 the count, met timing with +0.004 ns (+0.003 ns after the routing), with
 9,352 slices, 16,815 LUTs, 27,276 registers (21,127 LUT cells and 27,292
 registers after synthesis), and +0.010 ns of hold slack. The 115 paths from
-the MAIN clock to the VGA clock had +8.50 ns of slack.
+the MAIN clock to the VGA clock had +8.50 ns of slack. A run of the wide
+iterator before it was rebased onto the view in the top left corner used
+9,132 slices, 16,512 LUTs, and 26,690 registers, and met timing with
++0.010 ns (+0.000 ns after the routing) and +0.007 ns of hold slack, and the
+40 paths from the MAIN clock to the VGA clock had +8.16 ns of slack.
 
 The run of `make nexys4ddr` before that, before the view was shown in the top
 left corner, used 10,217 slices (64%), 16,510 LUTs, and 26,690 registers
 (20,752 LUT cells and 26,706 registers after synthesis). It met timing with
 +0.037 ns (+0.016 ns after the routing), with +0.050 ns of hold slack (from
 the data register of a block of the display memory to its BRAM), and the
-40 paths from the MAIN clock to the VGA clock had +8.35 ns of slack.
+40 paths from the MAIN clock to the VGA clock had +8.35 ns of slack. The
+worst setup path was the same as now, in an iterator.
 
 The run of `make nexys4ddr` before that, before the buttons and switches were
 synchronized with two registers and the asynchronous inputs were declared as
@@ -859,7 +975,36 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, before the keyboard was ignored after power-on, gave
+The previous runs, with the wide iterator on the MEGA65, before it was
+rebased onto the view in the top left corner, the palette selected with the
+keys, and the R3 reading the reset button from the MAX10, gave 3.57 W busy
+and 0.86 W idle on the R6, of which `main` used 2.81 W and 0.34 W, and the
+display memory 0.22 W and 0.05 W (3.54 W and 0.84 W on the R3). Their busy
+power was mostly the DSPs (1.25 W), the signals (0.91 W), the logic
+(0.50 W), and the clocks (0.46 W). The run of the Nexys 4 DDR gave 1.19 W
+busy and 0.36 W idle, of which `main` used 0.82 W and 0.08 W.
+
+The runs before those, with the wide iterator on the MEGA65, before the reset
+of the display memory was removed and the buttons and switches were
+synchronized with two registers, gave 3.50 W busy and 0.85 W idle on the R6,
+of which `main` used 2.84 W and 0.33 W, and the display memory 0.18 W and 0.05
+W (3.50 W and 0.85 W on the R3). Their busy power was mostly the DSPs (1.25
+W), the signals (0.86 W), the logic (0.50 W), and the clocks (0.44 W), and the
+idle power the clocks (0.36 W).
+
+The runs before those, the last ones of the MEGA65 with the 2.16 iterator (368
+job modules at 141.64 MHz, with the HDMI output, the design that is the same
+on all the boards in `core.vhd`, the moving palette, and the keyboard ignored
+after power-on), gave 3.53 W busy and 0.74 W idle on the R6, of which `main`
+used 2.87 W and 0.21 W, and the display memory 0.16 W and 0.04 W (3.49 W and
+0.74 W on the R3). While a button was held down, the design was busy for
+about 4.6% of the time on the MEGA65. The busy power was mostly the DSPs
+(1.19 W), the signals (1.05 W), and the logic (0.54 W), almost all in the job
+modules. The idle power was mostly the clocks (0.25 W), the I/O (0.17 W, the
+VGA and HDMI outputs), the static power (0.16 W), and the MMCM (0.13 W). The
+block RAM used 0.004 W, and the signals 0.02 W.
+
+The runs before that, before the keyboard was ignored after power-on, gave
 3.47 W busy and 0.73 W idle on the R6 (3.49 W and 0.74 W on the R3). The
 Nexys 4 DDR was not built again, because it does not read the keyboard.
 

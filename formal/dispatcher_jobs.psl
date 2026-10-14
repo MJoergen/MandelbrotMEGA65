@@ -16,10 +16,10 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
    signal f_tbl_blk_d   : natural range 0 to C_NUM_BLOCKS-1;
 
    -- The picture, as given at the start (start_i)
-   signal f_startx      : std_logic_vector(17 downto 0);
-   signal f_starty      : std_logic_vector(17 downto 0);
-   signal f_stepx       : std_logic_vector(17 downto 0);
-   signal f_stepy       : std_logic_vector(17 downto 0);
+   signal f_startx      : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal f_starty      : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal f_stepx       : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal f_stepy       : std_logic_vector(C_VALUE_BITS-1 downto 0);
 
    -- A picture has been started since the reset
    signal f_started     : std_logic;
@@ -32,8 +32,8 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
 
    -- The value of c of the job started in this clock cycle, i.e. of the
    -- picture column and the block in f_tbl_col_d and f_tbl_blk_d
-   signal f_cx          : std_logic_vector(17 downto 0);
-   signal f_cy          : std_logic_vector(17 downto 0);
+   signal f_cx          : std_logic_vector(C_VALUE_BITS-1 downto 0);
+   signal f_cy          : std_logic_vector(C_VALUE_BITS-1 downto 0);
 
    -- For each job module: Its group has the value of c of the job started in
    -- this clock cycle
@@ -135,13 +135,13 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
    end process p_picture;
 
    p_c : process (all)
-      variable prod_x_v : std_logic_vector(C_COL_BITS+17 downto 0);
-      variable prod_y_v : std_logic_vector(C_ROW_BITS+17 downto 0);
+      variable prod_x_v : std_logic_vector(C_COL_BITS+C_VALUE_BITS-1 downto 0);
+      variable prod_y_v : std_logic_vector(C_ROW_BITS+C_VALUE_BITS-1 downto 0);
    begin
       prod_x_v := f_tbl_col_d * f_stepx;
       prod_y_v := to_slv(f_tbl_blk_d * G_ROWS_IN_JOB, C_ROW_BITS) * f_stepy;
-      f_cx     <= f_startx + prod_x_v(17 downto 0);
-      f_cy     <= f_starty + prod_y_v(17 downto 0);
+      f_cx     <= f_startx + prod_x_v(C_VALUE_BITS-1 downto 0);
+      f_cy     <= f_starty + prod_y_v(C_VALUE_BITS-1 downto 0);
    end process p_c;
 
    f_job_c_gen : for i in 0 to G_NUM_ITERATORS-1 generate
@@ -171,9 +171,9 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
    p_state : process (all)
       variable col_v    : natural;
       variable blk_v    : natural;
-      variable prod_x_v : std_logic_vector(C_COL_BITS+17 downto 0);
-      variable prod_y_v : std_logic_vector(C_ROW_BITS+17 downto 0);
-      variable prod_b_v : std_logic_vector(35 downto 0);
+      variable prod_x_v : std_logic_vector(C_COL_BITS+C_VALUE_BITS-1 downto 0);
+      variable prod_y_v : std_logic_vector(C_ROW_BITS+C_VALUE_BITS-1 downto 0);
+      variable prod_b_v : std_logic_vector(2*C_VALUE_BITS-1 downto 0);
    begin
       -- The picture column and the block of the next job, in cur_addr_r and
       -- cur_blk_r. When a job is in tbl_*_o, they are already those of the
@@ -210,12 +210,12 @@ vunit i_dispatcher_jobs(dispatcher_jobs(rtl))
       -- registers is the one of the start
       prod_x_v  := to_slv(f_col, C_COL_BITS) * f_stepx;
       prod_y_v  := to_slv(f_blk * G_ROWS_IN_JOB, C_ROW_BITS) * f_stepy;
-      prod_b_v  := f_stepy * to_slv(G_ROWS_IN_JOB, 18);
+      prod_b_v  := f_stepy * to_slv(G_ROWS_IN_JOB, C_VALUE_BITS);
       f_state_c <= '0';
-      if job_cx_r     = f_startx + prod_x_v(17 downto 0) and
-         job_starty_r = f_starty + prod_y_v(17 downto 0) and
+      if job_cx_r     = f_startx + prod_x_v(C_VALUE_BITS-1 downto 0) and
+         job_starty_r = f_starty + prod_y_v(C_VALUE_BITS-1 downto 0) and
          job_startx_r = f_startx and job_stepx_r = f_stepx and
-         job_stepy_r  = f_stepy and job_blk_stepy_r = prod_b_v(17 downto 0) then
+         job_stepy_r  = f_stepy and job_blk_stepy_r = prod_b_v(C_VALUE_BITS-1 downto 0) then
          f_state_c <= '1';
       end if;
    end process p_state;

@@ -17,6 +17,11 @@
 -- video DAC, and the HDMI output. The same design, only smaller, also runs on
 -- the Nexys 4 DDR board, see nexys4ddr.vhd.
 --
+-- The numbers are in 2.33 fixed point format (2.16 on the Nexys 4 DDR), so it
+-- is possible to zoom 2^17 times deeper, and the maximum count is 1023 (511 on
+-- the Nexys 4 DDR). The iterators (iterator_wide.vhd) use six DSPs each,
+-- instead of two, and calculate four rows at the same time.
+--
 -- The ports of the MEGA65:
 -- * The view is controlled by the joysticks and the keyboard: The directions
 --   of joystick port 1 (fa_*) and the cursor keys pan the view. The fire
@@ -96,18 +101,29 @@ end entity mega65;
 
 architecture structural of mega65 is
 
-   -- The number of job modules. Each of them uses two DSPs (see
-   -- iterator.vhd), and the XC7A200T has 740, so 368 job modules is the
-   -- largest multiple of the group size (16, see dispatcher.vhd) that fits.
-   -- They use 66% of the slices.
-   constant C_NUM_ITERATORS : positive := 368;
+   -- The number of job modules. Each of them uses six DSPs (see
+   -- iterator_wide.vhd), in two cascades of three, and the XC7A200T has 740.
+   -- The two cascades of an iterator are placed next to each other, in a
+   -- column of six DSPs (see mandelbrot.tcl). The DSPs of the XC7A200T are in
+   -- five columns of 100 and four columns of 60, which have room for
+   -- 5*16 + 4*10 = 120 iterators (720 DSPs). Each job module has its own
+   -- region next to its DSPs, see mega65_floorplan.tcl, which is written for
+   -- 120 job modules.
+   constant C_NUM_ITERATORS : positive := 120;
+
+   -- The numbers are in 2.33 fixed point format, with iterator_wide.vhd, and
+   -- the maximum count is 1023 (see main.vhd and job_wide.vhd).
+   constant C_FRAC_BITS     : positive := 33;
+   constant C_MAX_COUNT     : positive := 1023;
 
    -- The number of pixels in each write to the display memory. The dispatcher
    -- accepts at most one result per clock cycle, so with one pixel in each
-   -- write the picture takes at least 1280*1024 clock cycles (9.25 ms), and
-   -- more job modules give little more. The model (sim/model.py) estimates
-   -- 2.53 ms for the initial picture with four pixels in each write, against
-   -- 9.29 ms with one.
+   -- write the picture would take at least 1280*1024 clock cycles (7.28 ms).
+   -- The wide iterator calculates the four rows of a result at the same time,
+   -- so this must be 4. The model (sim/model.py) estimates 1.10 million clock
+   -- cycles for the initial picture (6.13 ms, i.e. 163 pictures per second),
+   -- and about 11.2 million (62 ms, 16 pictures per second) if every pixel
+   -- needed the maximum count.
    constant C_PIXELS        : positive := 4;
 
    -- The VCO of the MMCM (see clk_rst.vhd): 100 MHz / 5 * 54 = 1080 MHz. This
@@ -125,21 +141,17 @@ architecture structural of mega65 is
    constant C_TMDS_DIVIDE   : positive := C_VGA_DIVIDE / 5;
 
    -- The divider of the MAIN clock (see clk_rst.vhd), and its frequency in Hz.
-   -- 1080 MHz / 7.625 = 141.64 MHz. The longest path is in the iterators (see
-   -- iterator.vhd). At 1080 MHz / 7.5 = 144 MHz its setup slack varied from
-   -- +0.091 to -0.076 ns between runs, and 141.64 MHz gives 0.116 ns more (a
-   -- period of 7.060 ns instead of 6.944 ns). 1080 MHz / 7.25 = 148.97 MHz
-   -- failed timing by 0.12 to 0.24 ns. The model (sim/model.py) estimates 1.9
-   -- million clock cycles for the worst case picture (every pixel needs the
-   -- maximum count), i.e. 75 pictures per second, against 396 for the initial
-   -- picture.
-   constant C_MAIN_DIVIDE   : real    := 7.625;
+   -- 1080 MHz / 6 = 180 MHz. The iterators (see iterator_wide.vhd) are
+   -- pipelined, so their paths are short, but the timing is only met with the
+   -- floorplan of the job modules (mega65_floorplan.tcl), which keeps the
+   -- logic of each iterator next to its DSPs.
+   constant C_MAIN_DIVIDE   : real    := 6.0;
    constant C_MAIN_FREQ     : natural :=
       natural(100.0E6 / real(C_VCO_DIVIDE) * C_VCO_MULT / C_MAIN_DIVIDE);
 
    -- Rows in each job given to a job module, see dispatcher.vhd. The
    -- number of rows (1024) must be a multiple of it, and of C_PIXELS. The
-   -- model gives 396 to 400 pictures per second for 32 to 128 rows.
+   -- model gives 161 to 164 pictures per second for 32 to 256 rows.
    constant C_ROWS_IN_JOB   : positive := 64;
 
    -- The address distance between two picture columns in the display memory,
@@ -294,7 +306,9 @@ begin
          G_COL_STRIDE    => C_COL_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
-         G_BLOCK_REGS    => C_BLOCK_REGS
+         G_BLOCK_REGS    => C_BLOCK_REGS,
+         G_FRAC_BITS     => C_FRAC_BITS,
+         G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
          main_clk_i => main_clk,

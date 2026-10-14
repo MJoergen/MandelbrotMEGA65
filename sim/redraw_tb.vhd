@@ -53,6 +53,11 @@ architecture simulation of redraw_tb is
    constant C_NUM_COLS      : positive := 16;
    constant C_NUM_ROWS      : positive := 12;
    constant C_COL_STRIDE    : positive := 16;
+   -- The number format and the maximum count, as on the Nexys 4 DDR. The
+   -- control of the pictures in main.vhd is the same for both formats, and
+   -- 2.16 keeps the pictures short.
+   constant C_FRAC_BITS     : positive := 16;
+   constant C_MAX_COUNT     : positive := 511;
    -- The display memory has 8 blocks of 4096 pixels, i.e. a single group of
    -- blocks. The address has one bit more than this needs, as in
    -- disp_mem_tb, because otherwise the number of the group has no bits,
@@ -82,7 +87,10 @@ architecture simulation of redraw_tb is
    constant C_MAX_GAP       : positive := 10;
 
    -- The view, i.e. startx, starty, stepx, and stepy
-   subtype view_t is std_logic_vector(71 downto 0);
+   subtype view_t is std_logic_vector(4*C_FRAC_BITS+7 downto 0);
+
+   -- One of the values of the view
+   subtype value_t is std_logic_vector(C_FRAC_BITS+1 downto 0);
 
    signal clk       : std_logic;
    signal rst       : std_logic := '1';
@@ -151,7 +159,9 @@ begin
          G_NUM_COLS      => C_NUM_COLS,
          G_NUM_ROWS      => C_NUM_ROWS,
          G_COL_STRIDE    => C_COL_STRIDE,
-         G_ADDR_BITS     => C_ADDR_BITS
+         G_ADDR_BITS     => C_ADDR_BITS,
+         G_FRAC_BITS     => C_FRAC_BITS,
+         G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
          clk_i        => clk,
@@ -200,7 +210,9 @@ begin
          G_NUM_COLS      => C_NUM_COLS,
          G_NUM_ROWS      => C_NUM_ROWS,
          G_COL_STRIDE    => C_COL_STRIDE,
-         G_ADDR_BITS     => C_ADDR_BITS
+         G_ADDR_BITS     => C_ADDR_BITS,
+         G_FRAC_BITS     => C_FRAC_BITS,
+         G_MAX_COUNT     => C_MAX_COUNT
       )
       port map (
          clk_i        => clk,
@@ -223,10 +235,10 @@ begin
 
       alias upd    is << signal .redraw_tb.i_main.upd : std_logic >>;
       alias start  is << signal .redraw_tb.i_main.start : std_logic >>;
-      alias startx is << signal .redraw_tb.i_main.startx : std_logic_vector(17 downto 0) >>;
-      alias starty is << signal .redraw_tb.i_main.starty : std_logic_vector(17 downto 0) >>;
-      alias stepx  is << signal .redraw_tb.i_main.stepx : std_logic_vector(17 downto 0) >>;
-      alias stepy  is << signal .redraw_tb.i_main.stepy : std_logic_vector(17 downto 0) >>;
+      alias startx is << signal .redraw_tb.i_main.startx : value_t >>;
+      alias starty is << signal .redraw_tb.i_main.starty : value_t >>;
+      alias stepx  is << signal .redraw_tb.i_main.stepx : value_t >>;
+      alias stepy  is << signal .redraw_tb.i_main.stepy : value_t >>;
 
       signal view_s : view_t;
 

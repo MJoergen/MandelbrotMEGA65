@@ -14,8 +14,9 @@ and are not covered.
 
 * One design unit per file, and the file is named after it, e.g. entity `job`
   is in `job.vhd`, package `video_pkg` is in `video_pkg.vhd`. A testbench has
-  the suffix `_tb`. (The exception is `formal/iterator_stub.vhd`, a second
-  architecture of `iterator` used for the formal verification.)
+  the suffix `_tb`. (The exceptions are `formal/iterator_stub.vhd` and
+  `formal/iterator_wide_stub.vhd`, second architectures of `iterator` and
+  `iterator_wide` used for the formal verification.)
 * Every file starts with a comment block that explains what the module does,
   its interface, and anything surprising about it. Write it for someone who
   has not seen the code before. A testbench says what it checks.
@@ -256,4 +257,4 @@ These parts of the code do not follow the conventions above yet:
   (`clk_rst.vhd`, `mega65_r6.vhd`) instead of the `_n` suffix used elsewhere.
 * Constrained array types use `_t` (e.g. `seg_table_t`), except `mem_vector`
   in `sim/overlay_tb.vhd`.
-* 20 lines are over 100 columns, mostly in the testbenches.
+* 19 lines are over 100 columns, mostly in the testbenches.

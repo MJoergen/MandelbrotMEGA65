@@ -53,6 +53,9 @@ MEGA65_SRC += src/hdmi/hdmi_tx_encoder.vhd
 MEGA65_SRC += src/hdmi/vga_to_hdmi.vhd
 MEGA65_SRC += src/hdmi/serialiser_10to1_selectio.vhd
 MEGA65_SRC += src/mega65.vhd
+# The floorplan of the job modules (see mega65_floorplan.tcl). The Vivado
+# script sources it after the synthesis.
+MEGA65_SRC += mega65_floorplan.tcl
 
 mega65-r3_PART = xc7a200tfbg484-2
 mega65-r3_TOP  = mega65_r3
@@ -73,14 +76,17 @@ nexys4ddr_XDC  = nexys4ddr.xdc
 
 # List of source files common to all boards. This is the only list: it is
 # also given to the Vivado script (mandelbrot.tcl), followed by the source
-# files of the board.
+# files of the board. The packages are first, because the iterators use
+# util_pkg.vhd and dispatcher_pkg.vhd too.
 SRC  = src/util_pkg.vhd
 SRC += src/text_pkg.vhd
+SRC += src/main/dispatcher_pkg.vhd
 SRC += src/main/iterator.vhd
 SRC += src/main/job.vhd
+SRC += src/main/iterator_wide.vhd
+SRC += src/main/job_wide.vhd
 SRC += src/main/job_scheduler.vhd
 SRC += src/main/res_scheduler.vhd
-SRC += src/main/dispatcher_pkg.vhd
 SRC += src/main/dispatcher_jobs.vhd
 SRC += src/main/dispatcher_results.vhd
 SRC += src/main/dispatcher.vhd
@@ -107,7 +113,7 @@ SRC += src/clk_rst.vhd
 
 # Testbenches, i.e. sim/<name>_tb.vhd. The slowest are listed first, so that
 # they are started first by "make sim".
-TBS = vga core redraw picture overlay dispatcher disp disp_mem iterator viewport job job_scheduler res_scheduler fps view_text cdc_data controls
+TBS = vga core redraw picture overlay dispatcher disp disp_mem iterator_wide iterator viewport job_wide job job_scheduler res_scheduler fps view_text cdc_data controls
 
 # Testbench simulated by the "run" and "check" targets. Must be specified on
 # the command line, e.g. "make run TB=iterator".
@@ -184,7 +190,8 @@ $(BOARDS): %: build/$$*/$$*.bit
 # The arguments of the Vivado script are the board name, the FPGA part, the
 # top level module, the source files, and the constraint files. The stem ($*)
 # is <board>/<board>, so the board name is $(notdir $*). The files are given
-# with absolute paths, because Vivado is run in build/<board>.
+# with absolute paths, because Vivado is run in build/<board>. The source files
+# of a board may include a floorplan (a .tcl file), see mandelbrot.tcl.
 $(BITS): build/%.bit: $(NAME).tcl $$($$(notdir $$*)_XDC) $(SRC) $$($$(notdir $$*)_SRC)
 	@mkdir -p $(@D)
 	cd $(@D) && bash -c "source $(XILINX_DIR)/settings64.sh ; vivado -mode tcl -source $(abspath $<) -tclargs $(notdir $*) $($(notdir $*)_PART) $($(notdir $*)_TOP) $(abspath $(SRC) $($(notdir $*)_SRC) $($(notdir $*)_XDC))"

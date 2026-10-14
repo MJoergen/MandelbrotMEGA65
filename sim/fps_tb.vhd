@@ -1,7 +1,7 @@
 -- This is a self-checking testbench for the frame rate (fps.vhd) and the
 -- 7-segment display (seg.vhd). It has two instances of fps, each driving a
 -- display. They have the clock frequencies of the boards, the MEGA65
--- (141,639,344 Hz, a quotient of 28 bits) and the Nexys 4 DDR (120,000,000 Hz,
+-- (180,000,000 Hz, a quotient of 28 bits) and the Nexys 4 DDR (120,000,000 Hz,
 -- a quotient of 27 bits). The testbench gives each of them a number of picture
 -- times, and for each one it checks:
 -- * The digits and the blanking from fps are the expected frame rate, i.e.
@@ -32,7 +32,7 @@ architecture simulation of fps_tb is
    -- The frequencies of the MAIN clock of the MEGA65 and of the Nexys 4 DDR
    -- (G_CLK_FREQ of main.vhd)
    type freq_vector is array (natural range <>) of natural;
-   constant C_CLK_FREQS    : freq_vector := (141_639_344, 120_000_000);
+   constant C_CLK_FREQS    : freq_vector := (180_000_000, 120_000_000);
 
    constant C_TIME_BITS    : natural := 27;
    constant C_REFRESH_BITS : natural := 6;
@@ -208,7 +208,7 @@ begin
             check(expected_fps(C_FREQ, t), t);
          end procedure test;
 
-         -- The frame rate is given for 141,639,344 Hz, and in brackets for
+         -- The frame rate is given for 180,000,000 Hz, and in brackets for
          -- 120,000,000 Hz when it differs.
          type time_list_t is array (natural range <>) of natural;
          constant C_TIMES : time_list_t := (
@@ -216,10 +216,10 @@ begin
             C_FREQ / 200,       -- 200
             C_FREQ / 100,       -- 100
             C_FREQ / 100 + 1,   -- 99
-            1_000,              -- 141639 (120000)
+            1_000,              -- 180000 (120000)
             C_FREQ / 1000,      -- 1000
             2**C_TIME_BITS - 1, -- 1 (0)
-            1, 2, 3,            -- Saturated, 70819672, 47213114 (60000000, 40000000)
+            1, 2, 3,            -- Saturated, 90000000, 60000000 (60000000, 40000000)
             0,                  -- Saturated
             C_FREQ / C_MAX,     -- 1 (saturated)
             C_FREQ / C_MAX + 1,

@@ -19,6 +19,11 @@ from numpy.typing import NDArray
 
 import model
 
+# The pictures are calculated in the number format of the Nexys 4 DDR (2.16,
+# with the maximum count 511), so the palettes get all 9 bits of the count.
+FRAC_BITS = model.NEXYS4DDR_FRAC_BITS
+MAX_COUNT = model.NEXYS4DDR_MAX_COUNT
+
 # The name, the centre, and the width of the view. The pixels are square, and
 # the height follows from the aspect ratio. The smallest width at 640 columns
 # is 640 * 2^-16 = 0.0098.
@@ -51,7 +56,7 @@ def count(cnt: NDArray[np.int64]) -> NDArray[np.uint8]:
     v = cnt & 0xFF
     rgb = np.stack([((v >> 5) & 7) * 255 // 7, ((v >> 2) & 7) * 255 // 7,
                     (v & 3) * 255 // 3], -1).astype(np.uint8)
-    rgb[cnt == model.MAX_COUNT] = 255
+    rgb[cnt == MAX_COUNT] = 255
     return rgb
 
 
@@ -65,7 +70,7 @@ def rainbow(cnt: NDArray[np.int64]) -> NDArray[np.uint8]:
     g = np.choose(k, [f, one, one, 1.0 - f, zero, zero])
     b = np.choose(k, [zero, zero, f, one, one, 1.0 - f])
     rgb = to_332(r, g, b)
-    rgb[cnt == model.MAX_COUNT] = 0
+    rgb[cnt == MAX_COUNT] = 0
     return rgb
 
 
@@ -80,7 +85,7 @@ def blue_orange(cnt: NDArray[np.int64]) -> NDArray[np.uint8]:
     t = x - np.floor(x)
     rgb = to_332(np.interp(t, stops, red), np.interp(t, stops, green),
                  np.interp(t, stops, blue))
-    rgb[cnt == model.MAX_COUNT] = 0
+    rgb[cnt == MAX_COUNT] = 0
     return rgb
 
 
@@ -90,7 +95,7 @@ def fire(cnt: NDArray[np.int64]) -> NDArray[np.uint8]:
     t = x - np.floor(x)
     rgb = to_332(np.clip(3.0 * t, 0, 1), np.clip(3.0 * t - 1.0, 0, 1),
                  np.clip(3.0 * t - 2.0, 0, 1))
-    rgb[cnt == model.MAX_COUNT] = 0
+    rgb[cnt == MAX_COUNT] = 0
     return rgb
 
 
@@ -104,8 +109,9 @@ def main() -> None:
         height_r = step * ROWS / 65536.0
         cx, cy = model.view(startx=round((centre_x - width_r / 2) * 65536),
                             starty=round((centre_y - height_r / 2) * 65536),
-                            stepx=step, stepy=step, cols=COLS, rows=ROWS)
-        cnt = model.hw_count(cx, cy)
+                            stepx=step, stepy=step, cols=COLS, rows=ROWS,
+                            frac=FRAC_BITS)
+        cnt = model.hw_count(cx, cy, MAX_COUNT, FRAC_BITS)
         if name == "initial":
             for n, palette in enumerate(palettes, 1):
                 file = f"{directory}/mandelbrot_palette{n}.png"
@@ -115,7 +121,7 @@ def main() -> None:
         file = f"{directory}/mandelbrot_{name}.png"
         Image.fromarray(fire(cnt)).save(file, optimize=True)
         print(f"{file}: centre {centre_x} {centre_y}, width {width_r:.5f}, "
-              f"{(cnt == model.MAX_COUNT).mean() * 100:.1f}% in the set")
+              f"{(cnt == MAX_COUNT).mean() * 100:.1f}% in the set")
 
 
 if __name__ == "__main__":
