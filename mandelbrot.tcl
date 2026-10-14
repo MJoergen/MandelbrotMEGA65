@@ -1,10 +1,9 @@
 # This is a tcl command script for the Vivado tool chain.
-# The board name, the FPGA part, the top level module, and the VHDL source
-# files are given as arguments (-tclargs), so this information is only in the
-# Makefile. Use "make mega65-r3", "make mega65-r6", or "make nexys4ddr". The
-# Makefile runs Vivado in build/<board>, so the output files (<board>.dcp,
-# <board>.bit, logs, etc.) are written there. The constraint file
-# (<board>.xdc) is next to this script.
+# The board name, the FPGA part, the top level module, the VHDL source files,
+# and the constraint files (.xdc) are given as arguments (-tclargs), so this
+# information is only in the Makefile. Use "make mega65-r3", "make mega65-r6",
+# or "make nexys4ddr". The Makefile runs Vivado in build/<board>, so the output
+# files (<board>.dcp, <board>.bit, logs, etc.) are written there.
 #
 # The reports of the routed design (timing.rpt, utilization.rpt, and
 # power.rpt) are written to build/<board> too. The bit-file is only written
@@ -17,11 +16,13 @@ if {[llength $argv] < 4} {
    exit 1
 }
 lassign $argv board part top
-set script_dir [file dirname [file normalize [info script]]]
 foreach src [lrange $argv 3 end] {
-   read_vhdl -vhdl2008 $src
+   if {[file extension $src] eq ".xdc"} {
+      read_xdc $src
+   } else {
+      read_vhdl -vhdl2008 $src
+   }
 }
-read_xdc [file join $script_dir $board.xdc]
 set_param messaging.defaultLimit 3000
 synth_design -verbose -top $top -part $part -flatten_hierarchy none -directive AreaOptimized_medium
 # The two DSPs of each iterator are placed next to each other in the same

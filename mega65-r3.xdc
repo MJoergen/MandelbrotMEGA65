@@ -1,6 +1,9 @@
 # This file is specific for the MEGA65 (board revision R3).
 # It contains only the pins used by this design, taken from the MiSTer2MEGA65
-# framework pin mapping (MEGA65-R3.xdc) by MJoergen and sy2002.
+# framework pin mapping (MEGA65-R3.xdc) by MJoergen and sy2002, and the timing
+# constraints of the link to the MAX10, which is only on the R3. The other
+# timing constraints and the configuration of the bitstream, which are the
+# same for both revisions, are in mega65.xdc.
 
 # Pin assignment
 set_property -dict {PACKAGE_PIN V13  IOSTANDARD LVCMOS33} [get_ports {clk_i}];                  # CLOCK_FPGA_MRCC
@@ -66,25 +69,6 @@ set_property -dict {PACKAGE_PIN AA5  IOSTANDARD TMDS_33}  [get_ports {tmds_data_
 set_property -dict {PACKAGE_PIN M15  IOSTANDARD LVCMOS33} [get_ports {hdmi_ct_hpd_o}];          # CT_HPD
 set_property -dict {PACKAGE_PIN AB8  IOSTANDARD LVCMOS33} [get_ports {hdmi_ls_oe_o}];           # LS_OE
 
-# Clock definition
-create_clock -name sys_clk -period 10.00 [get_ports {clk_i}];                          # 100 MHz
-
-# The frame rate and the view are moved from the MAIN clock domain to the VGA
-# clock domain with a toggle signal, which is synchronized, see cdc_data.vhd.
-# These are the only paths from the MAIN clock to the VGA clock. Their delay
-# only has to be shorter than the synchronizer (two VGA clock cycles), so the
-# relation between the two clocks is ignored.
-set_max_delay -datapath_only -from [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT0]] -to [get_clocks -of_objects [get_pins i_mega65/i_clk_rst/i_mmcm_adv/CLKOUT1]] 10.000
-
-# The inputs are asynchronous to the clocks of the design: they are
-# synchronized with two registers (the joystick lines in main.vhd), or sampled
-# long after they change (the data from the keyboard, once in each cycle of
-# the keyboard clock of about 312 kHz, see mega65kbd_to_matrix.vhd, and the
-# data from the MAX10, half a cycle (20 ns) after the edge of the 25 MHz clock
-# that the FPGA sends to it, see max10.vhd). So they have no input delay, and
-# the paths from them are not timed.
-set_false_path -from [get_ports {fa_up_n_i fa_down_n_i fa_left_n_i fa_right_n_i fa_fire_n_i fb_fire_n_i kb_io2_i max10_tx_i}]
-
 # The reset from the MAX10 is a register clocked by the input clock (see
 # max10.vhd). It is treated as asynchronous to the main clock and the VGA
 # clock: it is synchronized with two registers in clk_rst.vhd, so the paths
@@ -96,13 +80,3 @@ set_false_path -from [get_cells i_max10/reset_button_reg]
 create_pblock pblock_max10
 add_cells_to_pblock pblock_max10 [get_cells [list i_max10]]
 resize_pblock pblock_max10 -add {SLICE_X0Y150:SLICE_X7Y174}
-
-# Configuration Bank Voltage Select
-set_property CONFIG_VOLTAGE                  3.3   [current_design]
-set_property CFGBVS                          VCCO  [current_design]
-set_property BITSTREAM.GENERAL.COMPRESS      TRUE  [current_design]
-set_property BITSTREAM.CONFIG.CONFIGRATE     66    [current_design]
-set_property CONFIG_MODE                     SPIx4 [current_design]
-set_property BITSTREAM.CONFIG.SPI_32BIT_ADDR YES   [current_design]
-set_property BITSTREAM.CONFIG.SPI_BUSWIDTH   4     [current_design]
-

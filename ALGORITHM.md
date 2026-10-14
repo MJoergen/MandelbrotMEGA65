@@ -1195,9 +1195,8 @@ first frame rate, the output is the initial value (`G_INIT`), with all the
 characters not shown. The frame rate and the view change only at the end of
 a picture, so they are constant for much longer than the synchronizer takes
 (a few VGA clock cycles), and they are never copied while they change. The
-constraint in [`mega65-r3.xdc`](mega65-r3.xdc),
-[`mega65-r6.xdc`](mega65-r6.xdc), and [`nexys4ddr.xdc`](nexys4ddr.xdc)
-(`set_max_delay -datapath_only`) makes
+constraint in [`mega65.xdc`](mega65.xdc) and
+[`nexys4ddr.xdc`](nexys4ddr.xdc) (`set_max_delay -datapath_only`) makes
 sure that it arrives before the toggle signal, and excludes these paths from
 the normal timing between the two clocks. The new
 value is shown from the next frame on, so a frame never shows two values.
@@ -1463,8 +1462,12 @@ both board revisions R3 and R6. The design is the same for both (see
 [`src/mega65.vhd`](src/mega65.vhd)), but some of the pins are different, so
 each revision has its own top level module
 ([`src/mega65_r3.vhd`](src/mega65_r3.vhd) and
-[`src/mega65_r6.vhd`](src/mega65_r6.vhd)), constraint file, and make target
-(`make mega65-r3` and `make mega65-r6`). The R6 has an output for each
+[`src/mega65_r6.vhd`](src/mega65_r6.vhd)), constraint file with the pins
+([`mega65-r3.xdc`](mega65-r3.xdc) and [`mega65-r6.xdc`](mega65-r6.xdc)),
+and make target (`make mega65-r3` and `make mega65-r6`). The timing
+constraints and the configuration of the bitstream are the same for both, in
+[`mega65.xdc`](mega65.xdc), apart from those of the MAX10, which is only on
+the R3. The R6 has an output for each
 joystick line, which pulls the line low; the top level of the R6 drives them
 all high, because an unused pin has a weak pull-down, and then the joystick
 lines can be read as pressed. The R3 does not have these outputs, and uses
@@ -1626,8 +1629,10 @@ the paths from the MAIN clock to the VGA clock, which only carry the frame
 rate, the view, and their toggle signal to the synchronizer in `cdc_data` (see
 [Overlay](#overlay)), and a false path (`set_false_path`) from the inputs (the
 reset, the buttons, and the switches), which are asynchronous, and synchronized
-with two registers. The constraint files of the MEGA65 have the same, with the
-joysticks and the data from the keyboard as the inputs; there the paths from
+with two registers. The constraint file of the MEGA65,
+[`mega65.xdc`](mega65.xdc), has the same, with the joysticks, the data from
+the keyboard, and the reset button (R6) or the data from the MAX10 (R3) as the
+inputs; there the paths from
 the MAIN clock to the VGA clock also carry the palette and its movement (from
 `controls`), which `vga` synchronizes with two registers. Apart from these, the
 two clocks only meet in the display memory, which has a separate clock for each

@@ -13,10 +13,11 @@ CORETOOL = coretool
 NAME = mandelbrot
 
 # Target boards. Each board has its own FPGA part, top level module, source
-# files, and constraint file (<board>.xdc). The make target <board> generates
-# the bit-file build/<board>/<board>.bit. Vivado is run in build/<board>, so
-# all its files (logs, checkpoint, .Xil, etc.) go there, and the boards can be
-# built at the same time, e.g. "make -j3 mega65-r3 mega65-r6 nexys4ddr".
+# files, and constraint files (<board>.xdc, and also mega65.xdc on the
+# MEGA65). The make target <board> generates the bit-file
+# build/<board>/<board>.bit. Vivado is run in build/<board>, so all its files
+# (logs, checkpoint, .Xil, etc.) go there, and the boards can be built at the
+# same time, e.g. "make -j3 mega65-r3 mega65-r6 nexys4ddr".
 BOARDS = mega65-r3 mega65-r6 nexys4ddr
 BITS   = $(foreach b,$(BOARDS),build/$(b)/$(b).bit)
 
@@ -55,16 +56,19 @@ MEGA65_SRC += src/mega65.vhd
 mega65-r3_PART = xc7a200tfbg484-2
 mega65-r3_TOP  = mega65_r3
 mega65-r3_SRC  = $(MEGA65_SRC) src/max10/max10.vhd src/mega65_r3.vhd
+mega65-r3_XDC  = mega65.xdc mega65-r3.xdc
 
 mega65-r6_PART = xc7a200tfbg484-2
 mega65-r6_TOP  = mega65_r6
 mega65-r6_SRC  = $(MEGA65_SRC) src/mega65_r6.vhd
+mega65-r6_XDC  = mega65.xdc mega65-r6.xdc
 
 # The Nexys 4 DDR has a smaller FPGA, and its own top level module, with the
 # same design as src/mega65.vhd, but smaller.
 nexys4ddr_PART = xc7a100tcsg324-1
 nexys4ddr_TOP  = nexys4ddr
 nexys4ddr_SRC  = src/nexys4ddr.vhd
+nexys4ddr_XDC  = nexys4ddr.xdc
 
 # List of source files common to all boards. This is the only list: it is
 # also given to the Vivado script (mandelbrot.tcl), followed by the source
@@ -177,12 +181,12 @@ help:
 $(BOARDS): %: build/$$*/$$*.bit
 
 # The arguments of the Vivado script are the board name, the FPGA part, the
-# top level module, and the source files. The stem ($*) is <board>/<board>,
-# so the board name is $(notdir $*). The source files are given with absolute
-# paths, because Vivado is run in build/<board>.
-$(BITS): build/%.bit: $(NAME).tcl $$(notdir $$*).xdc $(SRC) $$($$(notdir $$*)_SRC)
+# top level module, the source files, and the constraint files. The stem ($*)
+# is <board>/<board>, so the board name is $(notdir $*). The files are given
+# with absolute paths, because Vivado is run in build/<board>.
+$(BITS): build/%.bit: $(NAME).tcl $$($$(notdir $$*)_XDC) $(SRC) $$($$(notdir $$*)_SRC)
 	@mkdir -p $(@D)
-	cd $(@D) && bash -c "source $(XILINX_DIR)/settings64.sh ; vivado -mode tcl -source $(abspath $<) -tclargs $(notdir $*) $($(notdir $*)_PART) $($(notdir $*)_TOP) $(abspath $(SRC) $($(notdir $*)_SRC))"
+	cd $(@D) && bash -c "source $(XILINX_DIR)/settings64.sh ; vivado -mode tcl -source $(abspath $<) -tclargs $(notdir $*) $($(notdir $*)_PART) $($(notdir $*)_TOP) $(abspath $(SRC) $($(notdir $*)_SRC) $($(notdir $*)_XDC))"
 
 # Make the core files of the MEGA65 boards, which are flashed into a slot with
 # MEGAFLASH. Each bit-file is built first, if needed. As with the bit-files,
