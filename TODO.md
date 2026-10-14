@@ -4,7 +4,8 @@
    frame rates (163 pictures per second for the initial view, 16 if every
    pixel needs the maximum count) are only estimated by the model
    (`sim/model.py`). The model agrees with a simulation of a complete 160x128
-   picture within 0.4%, but the design has not run on the board yet.
+   picture within 0.4%. The design runs on the R6, but its frame rate has not
+   been measured yet.
 
 The next items are ideas for making the MEGA65 design faster. The numbers are
 from the model unless stated otherwise. See

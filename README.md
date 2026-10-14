@@ -212,7 +212,7 @@ The resource usage is:
 | ------------------ | ------------------- | --------- | ------------------------ | ---------
 | DSP48E1            | 720 (97%)           | 740       | 240 (100%)               | 240
 | Block RAM (RAMB36) | 321 (88%)           | 365       | 128.5 (95%)              | 135
-| Slices             | 23,252 (69%)        | 33,650    | 9,294 (59%)              | 15,850
+| Slices             | 23,173 (69%)        | 33,650    | 9,294 (59%)              | 15,850
 | LUTs               | 58,422 (44%)        | 134,600   | 15,838 (25%)             | 63,400
 | Registers          | 67,263 (25%)        | 269,200   | 27,260 (21%)             | 126,800
 
@@ -226,25 +226,29 @@ The performance and timing are:
 | Clock frequency | 180.00 MHz      | 120.00 MHz
 | Initial FPS     | 163 (estimated) | 832-834 (measured)
 | Worst-case FPS  | 16 (estimated)  | 87 (estimated)
-| Setup slack     | +0.072 ns       | +0.090 ns
+| Setup slack     | +0.083 ns       | +0.090 ns
 | Hold slack      | +0.020 ns       | +0.014 ns
 
 The numbers for the MEGA65 are from the build for the R6. The build for the
-R3 met timing with +0.074 ns (22,219 slices, +0.013 ns hold slack). These
+R3 met timing with +0.089 ns (22,219 slices, +0.013 ns hold slack). These
 builds of the wide iterator were made before it was rebased onto the design
 that is the same on all the boards in `core.vhd`, the moving palette, the
 palettes with all 9 bits of the count, the BRAMs that select the pixel in the
 word, and the keyboard ignored after power-on, and they have not been made
 again since. The numbers for the Nexys 4 DDR are from the last build of main
 before the rebase; its design is the same (2.16, with the maximum count 511).
-The MEGA65 design with the wide iterator has not run on a board yet. The
-previous builds of the wide iterator, before it was rebased onto the view in
-the top left corner, the palette selected with the keys `1` to `4`, and the
-R3 reading the reset button from the MAX10, met timing with +0.069 ns on the
-R6 (22,974 slices) and +0.092 ns on the R3. The last builds for the MEGA65
-with the 2.16 iterator of the Nexys 4 DDR (368 job modules, 736 DSPs) and the
-main clock at 141.64 MHz met timing with +0.017 ns on the R6 (22,137 slices)
-and +0.002 ns on the R3; the initial view was 396 pictures per second
+The MEGA65 design with the wide iterator runs on the R6 (the build before
+this rebase). The previous builds, where Vivado left out a register of the
+last DSP of the multiplication (x+y)\*(x-y), so the picture on the board was
+wrong (see [Wide iterator](ALGORITHM.md#wide-iterator)), met timing with
++0.072 ns on the R6 (23,252 slices) and +0.074 ns on the R3. The builds of
+the wide iterator before those, before it was rebased onto the view in the
+top left corner, the palette selected with the keys `1` to `4`, and the R3
+reading the reset button from the MAX10, met timing with +0.069 ns on the R6
+(22,974 slices) and +0.092 ns on the R3. The last builds for the MEGA65 with
+the 2.16 iterator of the Nexys 4 DDR (368 job modules, 736 DSPs) and the main
+clock at 141.64 MHz met timing with +0.017 ns on the R6 (22,137 slices) and
++0.002 ns on the R3; the initial view was 396 pictures per second
 (estimated; 395 were measured on an R6), and the worst case 75. See
 [Resources and timing closure](ALGORITHM.md#resources-and-timing-closure)
 for details, and [HISTORY.md](HISTORY.md#builds-of-the-mega65) for the

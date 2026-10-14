@@ -332,7 +332,26 @@ ones.
 The current results are in [MEGA65](ALGORITHM.md#mega65). The runs before
 them go back in time, starting with the latest one.
 
-The previous run of `make mega65-r6`, with the wide iterator, before it was
+The previous run of `make mega65-r6`, where the inputs of the last DSP of
+each multiplication in the wide iterator were registered twice instead of
+using the register M, met timing with +0.072 ns (+0.073 ns after the
+routing), with +0.020 ns of hold slack (in the shift register of cy, `cy_r`,
+of an iterator). Vivado left out one of the registers of the input A of the
+last DSP of (x+y)\*(x-y), so the picture on the board was wrong (see
+[Wide iterator](ALGORITHM.md#wide-iterator)). It used 23,252 slices, 58,422
+LUTs, and 67,263 registers, the same LUTs and registers as the current run.
+The worst setup path was from `grp_stepy_r` to the register of cy of a job
+module (`res_cy_r`), mostly routing (3.82 ns of 5.62 ns). The VGA clock had
++0.231 ns of setup slack (from `pix_y` to `rd_grp_addr`, only routing,
+8.39 ns of 8.82 ns), and the 117 paths from the MAIN clock to the VGA clock
++6.77 ns. The router left about 7,600 nodes with overlaps after the initial
+routing. The previous run of `make mega65-r3` used 22,219 slices and 58,503
+LUTs (the same as the current run), and met timing with +0.074 ns (the same
+after the routing), from `grp_stepy_r` to `cy_acc_r`, and +0.013 ns of hold
+slack. Its VGA clock had +0.117 ns of setup slack, the paths from the MAIN
+clock to the VGA clock +8.03 ns, and the input clock +5.43 ns.
+
+The run of `make mega65-r6` before that, with the wide iterator, before it was
 rebased onto the view in the top left corner, the palette selected with the
 keys `1` to `4`, and the R3 reading the reset button from the MAX10, met
 timing with +0.069 ns (+0.070 ns after the routing), with +0.008 ns of hold
@@ -344,7 +363,7 @@ iterator (`cy_acc_r`), mostly routing (4.41 ns of 5.62 ns). The VGA clock
 had +0.238 ns of setup slack (from `pix_x` to `rd_grp_blk`, only routing,
 8.24 ns of 8.59 ns), and the 40 paths from the MAIN clock to the VGA clock
 +8.52 ns. The router left about 7,800 nodes with overlaps after the initial
-routing. The previous run of `make mega65-r3`, which did not use the reset
+routing. The run of `make mega65-r3` before that, which did not use the reset
 button and had 49 IOBs, used 22,039 slices and 58,116 LUTs, and met timing
 with +0.092 ns (the same after the routing), from `grp_stepy_r` to
 `res_cy_r`, and +0.021 ns of hold slack. Its VGA clock had +0.112 ns of
@@ -975,7 +994,14 @@ the DSP was used).
 ## Power
 The current estimates are in [Power](ALGORITHM.md#power).
 
-The previous runs, with the wide iterator on the MEGA65, before it was
+The previous runs, where the last DSPs of the wide iterator had their inputs
+registered twice instead of using the register M (and the picture on the
+board was wrong), gave 3.56 W busy and 0.86 W idle on the R6, of which
+`main` used 2.86 W and 0.34 W, and the display memory 0.22 W and 0.05 W
+(3.57 W and 0.85 W on the R3). Their busy power was mostly the DSPs
+(1.25 W), the signals (0.90 W), the logic (0.50 W), and the clocks (0.46 W).
+
+The runs before those, with the wide iterator on the MEGA65, before it was
 rebased onto the view in the top left corner, the palette selected with the
 keys, and the R3 reading the reset button from the MAX10, gave 3.57 W busy
 and 0.86 W idle on the R6, of which `main` used 2.81 W and 0.34 W, and the
