@@ -78,20 +78,21 @@ architecture structural of nexys4ddr is
    constant C_MAIN_FREQ     : natural :=
       natural(100.0E6 / real(C_VCO_DIVIDE) * C_VCO_MULT / C_MAIN_DIVIDE);
 
-   -- Rows in each job given to a job module, see dispatcher.vhd. The
-   -- number of rows (480) must be a multiple of it, and of C_PIXELS. The
-   -- model gives 141 to 142 pictures per second for 16 to 240 rows.
-   constant C_ROWS_IN_JOB   : positive := 120;
+   -- Columns in each job given to a job module, see dispatcher.vhd. The
+   -- number of columns (640) must be a multiple of it, and it must be a
+   -- multiple of C_PIXELS. The model gives 141 to 143 pictures per second for
+   -- 16 to 320 columns.
+   constant C_COLS_IN_JOB   : positive := 80;
 
-   -- The address distance between two picture columns in the display memory,
-   -- see dispatcher.vhd. 512 rows per column means the address is the column
-   -- followed by the row.
-   constant C_COL_STRIDE    : positive := 512;
+   -- The address distance between two picture rows in the display memory,
+   -- see dispatcher.vhd. 1024 columns per row means the address is the row
+   -- followed by the column.
+   constant C_ROW_STRIDE    : positive := 1024;
 
    -- The display memory (see disp_mem.vhd): 2^19 pixels, i.e. 128 blocks
    -- (BRAMs) of 4096 pixels, with 19 bits of address, and a register for the
-   -- write port of each block. The picture only uses the first 80 blocks (640
-   -- columns of 512 addresses).
+   -- write port of each block. The picture only uses the first 120 blocks
+   -- (480 rows of 1024 addresses).
    constant C_ADDR_BITS     : positive := 19;
    constant C_MEM_BLOCKS    : positive := 128;
    constant C_BLOCK_REGS    : boolean := true;
@@ -133,9 +134,9 @@ begin
          G_CLK_FREQ      => C_MAIN_FREQ,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_VIDEO         => C_VIDEO,
-         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ROW_STRIDE    => C_ROW_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
          G_BLOCK_REGS    => C_BLOCK_REGS,

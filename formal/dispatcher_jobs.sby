@@ -6,11 +6,13 @@
 ##
 ##   5_2  - Five job modules (the least the dispatcher allows) in three
 ##          groups, where the last one has a single job module. Three picture
-##          columns (not a power of two) and two blocks, i.e. six jobs.
-##   6_16 - Six job modules in a single group. Two picture columns and four
+##          rows (not a power of two) and two blocks, i.e. six jobs.
+##   6_16 - Six job modules in a single group. Two picture rows and four
 ##          blocks, i.e. eight jobs.
-##   7_3  - Seven job modules in three groups. A single picture column and
-##          eight blocks, i.e. eight jobs.
+##   7_3  - Seven job modules in three groups. A single picture row and
+##          eight blocks, i.e. eight jobs. (A single block in each row is not
+##          possible, because then the block of a job (tbl_blk_o) has no
+##          bits, which the solver does not accept.)
 ##
 ## In each case there are more jobs than job modules, so some job modules get
 ## more than one job in a picture.
@@ -48,9 +50,9 @@ prove: depth 16
 smtbmc
 
 [script]
-d5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
-d6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_COLS=2 -gG_NUM_ROWS=8  -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
-d7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_COLS=1 -gG_NUM_ROWS=16 -gG_ROWS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_ROWS=3 -gG_NUM_COLS=4  -gG_COLS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_ROWS=2 -gG_NUM_COLS=8  -gG_COLS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
+d7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_ROWS=1 -gG_NUM_COLS=16 -gG_COLS_IN_JOB=2 util_pkg.vhd dispatcher_pkg.vhd job_scheduler.vhd dispatcher_jobs.vhd dispatcher_jobs.psl -e dispatcher_jobs
 prep -top dispatcher_jobs
 
 [files]

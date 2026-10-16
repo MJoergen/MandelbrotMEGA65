@@ -152,15 +152,16 @@ architecture structural of mega65 is
    constant C_MAIN_FREQ     : natural :=
       natural(100.0E6 / real(C_VCO_DIVIDE) * C_VCO_MULT / C_MAIN_DIVIDE);
 
-   -- Rows in each job given to a job module, see dispatcher.vhd. The
-   -- number of rows (1024) must be a multiple of it, and of C_PIXELS. The
-   -- model gives 168 to 171 pictures per second for 32 to 256 rows.
-   constant C_ROWS_IN_JOB   : positive := 64;
+   -- Columns in each job given to a job module, see dispatcher.vhd. The
+   -- number of columns (1280) must be a multiple of it, and it must be a
+   -- multiple of C_PIXELS. The model gives 168 to 173 pictures per second for
+   -- 16 to 256 columns.
+   constant C_COLS_IN_JOB   : positive := 64;
 
-   -- The address distance between two picture columns in the display memory,
-   -- see dispatcher.vhd. 1024 rows per column means the address is the column
-   -- (11 bits) followed by the row (10 bits).
-   constant C_COL_STRIDE    : positive := 1024;
+   -- The address distance between two picture rows in the display memory,
+   -- see dispatcher.vhd. It is the number of columns, so that the 1280*1024
+   -- pixels fit in the 320 blocks (a stride of 2048 would need 512).
+   constant C_ROW_STRIDE    : positive := 1280;
 
    -- The display memory (see disp_mem.vhd): 1280*1024 pixels, i.e. 320 blocks
    -- (BRAMs) of 4096 pixels, with 21 bits of address. The XC7A200T has 365
@@ -304,9 +305,9 @@ begin
          G_CLK_FREQ      => C_MAIN_FREQ,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_VIDEO         => C_VIDEO,
-         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ROW_STRIDE    => C_ROW_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MEM_BLOCKS    => C_MEM_BLOCKS,
          G_BLOCK_REGS    => C_BLOCK_REGS,

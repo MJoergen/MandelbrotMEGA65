@@ -45,7 +45,7 @@ MAX_COUNT = 1023     # Must match C_MAX_COUNT in mega65.vhd
 FRAC_BITS = 33       # The number format (2.33) of iterator_wide.vhd
 NUM_COLS  = 1280     # Must match C_VIDEO in mega65.vhd
 NUM_ROWS  = 1024     # Must match C_VIDEO in mega65.vhd
-ROWS_IN_JOB = 64     # Must match C_ROWS_IN_JOB in mega65.vhd
+COLS_IN_JOB = 64     # Must match C_COLS_IN_JOB in mega65.vhd
 NUM_ITERATORS = 120  # Must match C_NUM_ITERATORS in mega65.vhd
 PIXELS = 4           # Must match C_PIXELS in mega65.vhd
 GROUP_SIZE = 16      # Must match G_GROUP_SIZE in dispatcher.vhd
@@ -54,7 +54,7 @@ MAIN_CLOCK_KHZ = 100e3 / 5 * 54 / 5.75   # Must match C_MAIN_DIVIDE in mega65.vh
 NEXYS4DDR_MAX_COUNT = 1023
 NEXYS4DDR_NUM_COLS = 640
 NEXYS4DDR_NUM_ROWS = 480
-NEXYS4DDR_ROWS_IN_JOB = 120
+NEXYS4DDR_COLS_IN_JOB = 80
 NEXYS4DDR_NUM_ITERATORS = 39
 NEXYS4DDR_PIXELS = 4
 NEXYS4DDR_MAIN_CLOCK_KHZ = 1200e3 / 10.0   # Must match C_MAIN_DIVIDE in nexys4ddr.vhd
@@ -203,7 +203,7 @@ def hw_stop(cx: ArrayLike, cy: ArrayLike,
 
 
 def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
-                   rows_in_job: int = ROWS_IN_JOB,
+                   cols_in_job: int = COLS_IN_JOB,
                    group_size: int = GROUP_SIZE,
                    pixels: int = PIXELS) -> Tuple[int, int]:
     """Estimate the number of clock cycles used to calculate the picture, by
@@ -212,10 +212,10 @@ def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
     [row, column]. Returns the number of clock cycles, and the total number of
     clock cycles the job modules wait for their results to be accepted.
 
-    Each job is rows_in_job rows of a picture column, and the jobs are given in
-    the same order as by the dispatcher (all the picture columns of the top
-    block of rows, then all the picture columns of the next block, and so
-    on). The clock cycles are counted as in src/main/dispatcher.vhd:
+    Each job is cols_in_job columns of a picture row, and the jobs are given
+    in the same order as by the dispatcher (all the blocks of the top row,
+    from left to right, then all the blocks of the next row, and so on). The
+    clock cycles are counted as in src/main/dispatcher.vhd:
     * The scheduler for the jobs (i_job_scheduler) visits each job module once
       every num_iterators clock cycles, and gives it the next job if its busy
       flag is low in the clock cycle of the visit. The job starts (job_start_i
@@ -237,34 +237,34 @@ def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
     could have been selected at the earliest (three clock cycles after its
     ready flag is high), until the clock cycle in which it is selected.
 
-    Each result is pixels consecutive rows, and pixels must be 4: the job
-    modules are job_wide.vhd, and the wide iterator calculates the four rows of
-    a result at the same time, in four slots. Slot k is done 4n+k+3 clock
+    Each result is pixels consecutive columns, and pixels must be 4: the job
+    modules are job_wide.vhd, and the wide iterator calculates the four columns
+    of a result at the same time, in four slots. Slot k is done 4n+k+3 clock
     cycles after the start (in the iterator), where n is the number of
     iterations done. So a result takes result_cycles = 4n+k+10 clock cycles,
     from the selection of the previous result until the ready flag is high,
-    where n is the largest number of iterations of its rows, and k the last of
-    the rows with n iterations (the first result of a job is ready 4n+k+8
+    where n is the largest number of iterations of its columns, and k the last
+    of the columns with n iterations (the first result of a job is ready 4n+k+8
     clock cycles after the job starts, as above)."""
     stop_i: IntArray = np.asarray(stop, np.int64)
     rows, cols = stop_i.shape
     assert pixels == 4
-    group: IntArray = stop_i.reshape(rows // 4, 4, cols)
-    most: IntArray = group.max(axis=1)
-    last: IntArray = 3 - np.argmax((group == most[:, None, :])[:, ::-1, :], axis=1)
+    group: IntArray = stop_i.reshape(rows, cols // 4, 4)
+    most: IntArray = group.max(axis=2)
+    last: IntArray = 3 - np.argmax((group == most[:, :, None])[:, :, ::-1], axis=2)
     iter_cycles: IntArray = 4*most + last + 10
-    rows //= pixels
-    rows_in_job //= pixels
+    cols //= pixels
+    cols_in_job //= pixels
     jobs: List[List[int]] = [
-        iter_cycles[b*rows_in_job:(b+1)*rows_in_job, c].tolist()
-        for b in range(rows // rows_in_job) for c in range(cols)]
+        iter_cycles[r, b*cols_in_job:(b+1)*cols_in_job].tolist()
+        for r in range(rows) for b in range(cols // cols_in_job)]
     num_groups = -(-num_iterators // group_size)
     period = max(num_groups, 5)
     job_latency = 4      # From the visit of i_job_scheduler to the start of the job
 
     next_job = 0
     job: List[List[int]] = [[] for _ in range(num_iterators)]
-    row = [0] * num_iterators
+    res = [0] * num_iterators
     # The clock cycle from which the ready flag of each job module is high,
     # or None when it has no job
     ready: List[Optional[int]] = [None] * num_iterators
@@ -285,7 +285,7 @@ def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
             if next_job < len(jobs):
                 job[i] = jobs[next_job]
                 next_job += 1
-                row[i] = 0
+                res[i] = 0
                 ready[i] = t + job[i][0] - 2
             else:
                 finished += 1
@@ -313,9 +313,9 @@ def picture_cycles(stop: ArrayLike, num_iterators: int = NUM_ITERATORS,
                 i = g*group_size + j
                 waiting += k - (since[j] + 3)
                 last = k
-                row[i] += 1
-                if row[i] < len(job[i]):
-                    ready[i] = k + job[i][row[i]]
+                res[i] += 1
+                if res[i] < len(job[i]):
+                    ready[i] = k + job[i][res[i]]
                 else:
                     # The next visit with the busy flag low
                     ready[i] = None
@@ -336,7 +336,7 @@ def rgb(cnt: ArrayLike) -> NDArray[np.uint8]:
 
 
 def board(name: str, cols: int, rows: int, max_count: int,
-          num_iterators: int, rows_in_job: int, pixels: int,
+          num_iterators: int, cols_in_job: int, pixels: int,
           main_clock_khz: float) -> Tuple[IntArray, IntArray]:
     """Compare the model with the reference for the initial view of a board,
     and estimate the time for the picture. Returns the counts of the model and
@@ -361,7 +361,7 @@ def board(name: str, cols: int, rows: int, max_count: int,
           f"{in_set.sum()} pixels in the set early, after "
           f"{stop[in_set].mean():.0f} iterations on average. Average count "
           f"{hw.mean():.1f}, average iterations {stop.mean():.1f}")
-    cycles, waiting = picture_cycles(stop, num_iterators, rows_in_job,
+    cycles, waiting = picture_cycles(stop, num_iterators, cols_in_job,
                                      pixels=pixels)
     print(f"Estimated time for the picture ({cols}x{rows}, "
           f"{num_iterators} job modules, {pixels} pixels in "
@@ -388,10 +388,10 @@ def main() -> None:
         sys.exit(2)
 
     hw, ref = board("MEGA65", NUM_COLS, NUM_ROWS, MAX_COUNT, NUM_ITERATORS,
-                    ROWS_IN_JOB, PIXELS, MAIN_CLOCK_KHZ)
+                    COLS_IN_JOB, PIXELS, MAIN_CLOCK_KHZ)
     print()
     board("Nexys 4 DDR", NEXYS4DDR_NUM_COLS, NEXYS4DDR_NUM_ROWS,
-          NEXYS4DDR_MAX_COUNT, NEXYS4DDR_NUM_ITERATORS, NEXYS4DDR_ROWS_IN_JOB,
+          NEXYS4DDR_MAX_COUNT, NEXYS4DDR_NUM_ITERATORS, NEXYS4DDR_COLS_IN_JOB,
           NEXYS4DDR_PIXELS, NEXYS4DDR_MAIN_CLOCK_KHZ)
 
     if args == ["--png"]:

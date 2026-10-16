@@ -49,10 +49,10 @@ architecture simulation of redraw_tb is
 
    constant C_NUM_ITERATORS : positive := 5;
    constant C_PIXELS        : positive := 4;
-   constant C_ROWS_IN_JOB   : positive := 4;
+   constant C_COLS_IN_JOB   : positive := 4;
    constant C_NUM_COLS      : positive := 16;
    constant C_NUM_ROWS      : positive := 12;
-   constant C_COL_STRIDE    : positive := 16;
+   constant C_ROW_STRIDE    : positive := 16;
    -- The maximum count is lower than on the boards (1023), to keep the
    -- pictures short. The control of the pictures in main.vhd does not depend
    -- on it.
@@ -105,7 +105,7 @@ architecture simulation of redraw_tb is
    signal rd_data   : std_logic_vector(8 downto 0);
 
    -- The latest value written by main to each pixel of the picture
-   type pixels_t is array (0 to C_NUM_COLS*C_COL_STRIDE-1) of std_logic_vector(8 downto 0);
+   type pixels_t is array (0 to C_NUM_ROWS*C_ROW_STRIDE-1) of std_logic_vector(8 downto 0);
    signal written   : pixels_t;
 
    -- Counted by p_check: the pictures started, the pictures finished (all
@@ -154,10 +154,10 @@ begin
          G_CLK_FREQ      => 18*C_UPD_PERIOD,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_NUM_COLS      => C_NUM_COLS,
          G_NUM_ROWS      => C_NUM_ROWS,
-         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ROW_STRIDE    => C_ROW_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
@@ -204,10 +204,10 @@ begin
          G_CLK_FREQ      => 18*C_FAST_PERIOD,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_NUM_COLS      => C_NUM_COLS,
          G_NUM_ROWS      => C_NUM_ROWS,
-         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ROW_STRIDE    => C_ROW_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
@@ -355,7 +355,7 @@ begin
          begin
             for col in 0 to C_NUM_COLS-1 loop
                for row in 0 to C_NUM_ROWS-1 loop
-                  addr_v  := col*C_COL_STRIDE + row;
+                  addr_v  := row*C_ROW_STRIDE + col;
                   rd_addr <= to_slv(addr_v, C_ADDR_BITS);
                   for i in 1 to C_RD_LAT+2 loop
                      wait until rising_edge(clk);

@@ -2,7 +2,7 @@
 ## stub (iterator_wide_stub.vhd). The handshake of the iterator is given by
 ## assumptions in job_wide.psl.
 ##
-## Task naming:  <mode>_<G_NUM_ROWS>_<G_MAX_COUNT>
+## Task naming:  <mode>_<G_NUM_COLS>_<G_MAX_COUNT>
 ##
 ##   4_5     - A single result in each job, and counts of three bits (fewer
 ##             than the eight bits of a pixel).
@@ -31,9 +31,9 @@ prove: depth 10
 smtbmc
 
 [script]
-p4_5:     ghdl --std=08 -gG_MAX_COUNT=5    -gG_NUM_ROWS=4  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
-p8_1023:  ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_ROWS=8  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
-p12_1023: ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_ROWS=12 -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+p4_5:     ghdl --std=08 -gG_MAX_COUNT=5    -gG_NUM_COLS=4  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+p8_1023:  ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_COLS=8  -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
+p12_1023: ghdl --std=08 -gG_MAX_COUNT=1023 -gG_NUM_COLS=12 -gG_PIXELS=4 util_pkg.vhd dispatcher_pkg.vhd iterator_wide_stub.vhd job_wide.vhd job_wide.psl -e job_wide
 prep -top job_wide
 
 [files]

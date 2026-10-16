@@ -7,7 +7,7 @@
 -- the top left corner, and the frame rate in the top right corner.
 --
 -- The address of the pixel in column x and row y of the picture is
--- x*G_COL_STRIDE + y, with G_ADDR_BITS bits, the same as in dispatcher.vhd.
+-- y*G_ROW_STRIDE + x, with G_ADDR_BITS bits, the same as in dispatcher.vhd.
 --
 -- The read latency of the display memory is C_DISP_MEM_LATENCY clock cycles
 -- (four, see disp_mem.vhd and video_pkg.vhd). disp.vhd and overlay.vhd expect
@@ -25,7 +25,7 @@ use work.text_pkg.all;
 entity vga is
    generic (
       G_MODE       : video_mode_t;
-      G_COL_STRIDE : positive;
+      G_ROW_STRIDE : positive;
       G_ADDR_BITS  : positive
    );
    port (
@@ -61,7 +61,7 @@ end entity vga;
 architecture structural of vga is
 
    -- The number of bits of the rows in the visible area
-   constant C_ROW_BITS : natural := log2(G_MODE.v_visible);
+   constant C_COL_BITS : natural := log2(G_MODE.h_visible);
 
    -- The line of text of the overlay, from 8 pixels from the left edge to 8
    -- pixels from the right edge, in characters of 16 pixels (see
@@ -90,15 +90,10 @@ architecture structural of vga is
    signal disp_x  : std_logic_vector(10 downto 0);
    signal disp_y  : std_logic_vector(10 downto 0);
 
-   -- The address of the pixel, and the address of its column. Only the lowest
-   -- G_ADDR_BITS bits are used. The multiplication by the constant G_COL_STRIDE uses
-   -- LUTs, because the DSPs are for the iterators. When G_COL_STRIDE is
-   -- 2**C_ROW_BITS (as on both boards), it is only wires.
+   -- The address of the pixel, and the address of its row (pix_y times
+   -- G_ROW_STRIDE). Only the lowest G_ADDR_BITS bits are used.
    signal rd_addr : std_logic_vector(21 downto 0);
-   signal rd_col  : std_logic_vector(21 downto 0);
-
-   attribute use_dsp : string;
-   attribute use_dsp of rd_col : signal is "no";
+   signal rd_row  : std_logic_vector(21 downto 0) := (others => '0');
 
    signal disp_hs  : std_logic;
    signal disp_vs  : std_logic;
@@ -119,15 +114,14 @@ architecture structural of vga is
 
 begin
 
-   assert G_COL_STRIDE >= G_MODE.v_visible and
-          (G_MODE.h_visible-1)*G_COL_STRIDE + G_MODE.v_visible <= 2**G_ADDR_BITS
+   assert G_ROW_STRIDE >= G_MODE.h_visible and
+          (G_MODE.v_visible-1)*G_ROW_STRIDE + G_MODE.h_visible <= 2**G_ADDR_BITS
       report "The picture does not fit in the display memory"
       severity failure;
 
-   -- The column stride is multiplied as 11 bits, and the address has at most
-   -- the 22 bits of rd_addr
-   assert G_COL_STRIDE < 2**11 and G_ADDR_BITS <= rd_addr'length
-      report "The column stride must be less than 2048, and the address at most 22 bits"
+   -- The address has at most the 22 bits of rd_addr
+   assert G_ADDR_BITS <= rd_addr'length
+      report "The address must be at most 22 bits"
       severity failure;
 
    assert C_DELAY >= 1
@@ -168,10 +162,26 @@ begin
       ); -- i_pix
 
 
-   -- Outside the visible area the address is not used, so the row is reduced
-   -- to C_ROW_BITS bits, and the address may wrap around.
-   rd_col    <= pix_x * to_slv(G_COL_STRIDE, 11);
-   rd_addr   <= rd_col + pix_y(C_ROW_BITS-1 downto 0);
+   -- The address of the row is counted along with pix_y (see pix.vhd), so
+   -- there is no multiplication by G_ROW_STRIDE (1280 on the MEGA65), and
+   -- the path from the pixel counters to rd_addr_o has a single adder, as
+   -- when the address was the column followed by the row. Outside the
+   -- visible area the address is not used, so the column is reduced to
+   -- C_COL_BITS bits, and the address may wrap around.
+   p_rd_row : process (clk_i)
+   begin
+      if rising_edge(clk_i) then
+         if pix_x = h_total(G_MODE)-1 then
+            if pix_y = v_total(G_MODE)-1 then
+               rd_row <= (others => '0');
+            else
+               rd_row <= rd_row + G_ROW_STRIDE;
+            end if;
+         end if;
+      end if;
+   end process p_rd_row;
+
+   rd_addr   <= rd_row + pix_x(C_COL_BITS-1 downto 0);
    rd_addr_o <= rd_addr(G_ADDR_BITS-1 downto 0);
 
    p_disp_delay : process (clk_i)

@@ -6,13 +6,14 @@
 ## Task naming:  <mode>_<G_NUM_ITERATORS>_<G_GROUP_SIZE>
 ##
 ##   5_2  - Five job modules in three groups, where the last one has a single
-##          job module. Three picture columns of 4 addresses (a power of
-##          two), two blocks of two rows, and one pixel in each write.
-##   6_16 - Six job modules in a single group. Two picture columns of 8
-##          addresses, two blocks of four rows, and two pixels in each write.
-##   7_3  - Seven job modules in three groups. Three picture columns of 6
-##          addresses (not a power of two), three blocks of two rows, and two
-##          pixels in each write.
+##          job module. Three picture rows of 4 addresses (a power of two),
+##          two blocks of two columns, and one pixel in each write.
+##   6_16 - Six job modules in a single group. Two picture rows of 8
+##          addresses, two blocks of four columns, and two pixels in each
+##          write.
+##   7_3  - Seven job modules in three groups. Three picture rows of 6
+##          addresses (not a power of two), three blocks of two columns, and
+##          two pixels in each write.
 ##
 ## The first write is in step 13 at the earliest (after the reset, a job, a
 ## result, and the selection and the acknowledge of the result), which is
@@ -21,7 +22,7 @@
 ## tasks run until several results have been written, so that a broken
 ## property gives a counterexample, rather than only a failed induction.
 ##
-## There is no task with a single block of rows, because then the block of a
+## There is no task with a single block of columns, because then the block of a
 ## job (tbl_blk_i) has no bits, which the solver does not accept.
 ##
 ## Run one task:   sby --yosys "yosys -m ghdl" -f dispatcher_results.sby prove_5_2
@@ -50,9 +51,9 @@ prove: depth 12
 smtbmc
 
 [script]
-r5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_COLS=3 -gG_NUM_ROWS=4 -gG_ROWS_IN_JOB=2 -gG_COL_STRIDE=4 -gG_ADDR_BITS=4 -gG_PIXELS=1 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
-r6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_COLS=2 -gG_NUM_ROWS=8 -gG_ROWS_IN_JOB=4 -gG_COL_STRIDE=8 -gG_ADDR_BITS=4 -gG_PIXELS=2 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
-r7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_COLS=3 -gG_NUM_ROWS=6 -gG_ROWS_IN_JOB=2 -gG_COL_STRIDE=6 -gG_ADDR_BITS=5 -gG_PIXELS=2 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
+r5_2:  ghdl --std=08 -gG_NUM_ITERATORS=5 -gG_GROUP_SIZE=2  -gG_NUM_ROWS=3 -gG_NUM_COLS=4 -gG_COLS_IN_JOB=2 -gG_ROW_STRIDE=4 -gG_ADDR_BITS=4 -gG_PIXELS=1 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
+r6_16: ghdl --std=08 -gG_NUM_ITERATORS=6 -gG_GROUP_SIZE=16 -gG_NUM_ROWS=2 -gG_NUM_COLS=8 -gG_COLS_IN_JOB=4 -gG_ROW_STRIDE=8 -gG_ADDR_BITS=4 -gG_PIXELS=2 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
+r7_3:  ghdl --std=08 -gG_NUM_ITERATORS=7 -gG_GROUP_SIZE=3  -gG_NUM_ROWS=3 -gG_NUM_COLS=6 -gG_COLS_IN_JOB=2 -gG_ROW_STRIDE=6 -gG_ADDR_BITS=5 -gG_PIXELS=2 util_pkg.vhd dispatcher_pkg.vhd res_scheduler.vhd dispatcher_results.vhd dispatcher_results.psl -e dispatcher_results
 prep -top dispatcher_results
 
 [files]

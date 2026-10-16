@@ -7,11 +7,11 @@ use ieee.std_logic_1164.all;
 
 package dispatcher_pkg is
 
-   -- One value (cx, starty, or stepy) for each group of job modules. The
+   -- One value (startx, cy, or stepx) for each group of job modules. The
    -- width of the values (35 bits for 2.33) is given where the type is used.
    type value_vector is array (natural range <>) of std_logic_vector;
 
-   -- The row within the job of the result of each job module
+   -- The column within the job of the result of each job module
    type res_addr_vector is array (natural range <>) of
       std_logic_vector(8 downto 0);
 

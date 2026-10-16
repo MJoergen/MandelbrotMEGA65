@@ -4,12 +4,12 @@
 -- for four points at the same time, with numbers in 2.33 fixed point format
 -- (35 bits). It is the iterator of the job modules, see job_wide.vhd.
 --
--- The four points are four consecutive rows of a picture column: they have
--- the same cx, and cy, cy+stepy, cy+2*stepy, and cy+3*stepy. Inputs to this
--- block are cx_i, cy_i, and stepy_i, as well as start_i. start_i should be
--- pulsed for one clock cycle. cx_i, cy_i, and stepy_i must remain constant
--- until the iteration is finished. stepy_i is registered (stepy_r) before it
--- is added to cy, so it must be stable one clock cycle before start_i. On
+-- The four points are four consecutive columns of a picture row: they have
+-- cx, cx+stepx, cx+2*stepx, and cx+3*stepx, and the same cy. Inputs to this
+-- block are cx_i, cy_i, and stepx_i, as well as start_i. start_i should be
+-- pulsed for one clock cycle. cx_i, cy_i, and stepx_i must remain constant
+-- until the iteration is finished. stepx_i is registered (stepx_r) before it
+-- is added to cx, so it must be stable one clock cycle before start_i. On
 -- output, done_o goes high when all four points are finished, with the
 -- iteration count of each point in cnt_o (the first point in the lowest
 -- bits). Both stay unchanged until the next start_i. The count is the number of the first iteration where x or y is
@@ -57,20 +57,20 @@
 -- clock cycles, and the iterator calculates one iteration in every clock
 -- cycle. The point in x_r and y_r is called the slot
 -- (sl_r): the four slots are 0, 1, 2, 3, 0, 1, ... in consecutive clock
--- cycles, and each slot has its own value of cy, its own saved values for the
+-- cycles, and each slot has its own value of cx, its own saved values for the
 -- periodicity detection, and its own count. All four points have done the
 -- same number of iterations (it_r) when they are in x_r and y_r.
 --
 -- At the start, x_r and y_r are cleared in the first four clock cycles, i.e.
--- x = y = 0 for each slot, and the values of cy of the four slots are
--- calculated (cy_acc_r). Then the next values are calculated in every clock
+-- x = y = 0 for each slot, and the values of cx of the four slots are
+-- calculated (cx_acc_r). Then the next values are calculated in every clock
 -- cycle, until all four points are finished (the values of the points that
 -- are finished first are not used then). A point that stops after n
 -- iterations is done after 4n+2 clock cycles (counted from the start), plus
 -- the slot, and done_o is high from one clock cycle after the last of the
 -- four points is done.
 --
--- After that, x_r and y_r, the values of cy, and the saved values of the
+-- After that, x_r and y_r, the values of cx, and the saved values of the
 -- periodicity detection keep their value until the next start (their clock
 -- enable is run_r), so the iterator does not toggle while it is idle: the
 -- inputs of the DSPs do not change, so their registers stop changing three
@@ -121,7 +121,7 @@ entity iterator_wide is
       start_i : in  std_logic;
       cx_i    : in  std_logic_vector(34 downto 0);
       cy_i    : in  std_logic_vector(34 downto 0);
-      stepy_i : in  std_logic_vector(34 downto 0);
+      stepx_i : in  std_logic_vector(34 downto 0);
       cnt_o   : out std_logic_vector(4*log2(G_MAX_COUNT+1)-1 downto 0);
       done_o  : out std_logic
    );
@@ -132,7 +132,7 @@ architecture rtl of iterator_wide is
    -- The number of bits of a count
    constant C_CNT_BITS : natural := log2(G_MAX_COUNT+1);
 
-   -- The counts of the slots. The values of the slots (cy_r, sx_r, and sy_r)
+   -- The counts of the slots. The values of the slots (cx_r, sx_r, and sy_r)
    -- are of the type value_vector, from dispatcher_pkg.vhd.
    type cnt_vector is array (natural range <>) of
       std_logic_vector(C_CNT_BITS-1 downto 0);
@@ -184,13 +184,13 @@ architecture rtl of iterator_wide is
    signal new_y_s    : std_logic_vector(37 downto 0);  -- 5.33
    signal ovf_s      : std_logic;
 
-   -- The constant cx, and the values of cy of the four slots. The first entry
-   -- of cy_r is the value of cy of the slot in stage 3, which is added in
+   -- The values of cx of the four slots, and the constant cy. The first entry
+   -- of cx_r is the value of cx of the slot in stage 3, which is added in
    -- stage 4.
-   signal cx_r       : std_logic_vector(34 downto 0);
-   signal cy_r       : value_vector(0 to 3)(34 downto 0);
-   signal cy_acc_r   : std_logic_vector(34 downto 0);
-   signal stepy_r    : std_logic_vector(34 downto 0);
+   signal cx_r       : value_vector(0 to 3)(34 downto 0);
+   signal cx_acc_r   : std_logic_vector(34 downto 0);
+   signal stepx_r    : std_logic_vector(34 downto 0);
+   signal cy_r       : std_logic_vector(34 downto 0);
 
    -- The start: init_s is high in the clock cycle of the start and the three
    -- after it, when x_r and y_r are cleared.
@@ -318,9 +318,9 @@ begin
    -- adder, see p_dsp. p3_r and p6_r are between -4 and 4 (units of 2^-32),
    -- so their top bits are not used.
    new_x_s <= (std_logic_vector(p3_r(35 downto 0)) & p2_lo_r(1)) +
-              (cx_r(34) & cx_r(34) & cx_r) + p2_lo_r(0);
+              (cx_r(0)(34) & cx_r(0)(34) & cx_r(0)) + p2_lo_r(0);
    new_y_s <= (std_logic_vector(p6_r(35 downto 0)) & p5_lo_r(2 downto 1)) +
-              (cy_r(0)(34) & cy_r(0)(34) & cy_r(0)(34) & cy_r(0)) + p5_lo_r(0);
+              (cy_r(34) & cy_r(34) & cy_r(34) & cy_r) + p5_lo_r(0);
 
    -- The new x is in range if it is between -2 and 2, i.e. if the three top
    -- bits are equal, and the same for the new y, with the four top bits.
@@ -357,40 +357,40 @@ begin
    -- The constants of the slots
    ---------------------------------------
 
-   -- cy_r moves along with the slots, while the points are calculated
-   -- (run_r). The value of cy that is put in the last entry is in the first
+   -- cx_r moves along with the slots, while the points are calculated
+   -- (run_r). The value of cx that is put in the last entry is in the first
    -- entry three clock cycles later, when the slot is in stage 3, i.e. it is
    -- used one clock cycle before the slot is in x_r and y_r. At the start, the
-   -- values of cy of slot 0, 1, 2, and 3 are put in the last entry, in the
+   -- values of cx of slot 0, 1, 2, and 3 are put in the last entry, in the
    -- clock cycle of the start (where run_r is still low, so the other entries
    -- do not move, but they are not used) and the three after it.
-   p_cy : process (clk_i)
+   p_cx : process (clk_i)
    begin
       if rising_edge(clk_i) then
-         cx_r    <= cx_i;
-         stepy_r <= stepy_i;
+         cy_r    <= cy_i;
+         stepx_r <= stepx_i;
 
          if run_r = '1' then
-            cy_r(0 to 2) <= cy_r(1 to 3);
-            cy_r(3)      <= cy_r(0);
+            cx_r(0 to 2) <= cx_r(1 to 3);
+            cx_r(3)      <= cx_r(0);
          end if;
          if (init_r(0) or init_r(1) or init_r(2)) = '1' then
-            cy_r(3)  <= cy_acc_r;
-            cy_acc_r <= cy_acc_r + stepy_r;
+            cx_r(3)  <= cx_acc_r;
+            cx_acc_r <= cx_acc_r + stepx_r;
          end if;
          if start_i = '1' then
-            cy_r(3)  <= cy_i;
-            cy_acc_r <= cy_i + stepy_r;
+            cx_r(3)  <= cx_i;
+            cx_acc_r <= cx_i + stepx_r;
          end if;
       end if;
-   end process p_cy;
+   end process p_cx;
 
 
    -----------------------------
    -- Periodicity detection
    -----------------------------
 
-   -- The saved values move along with the slots, like cy_r (also only while
+   -- The saved values move along with the slots, like cx_r (also only while
    -- run_r is high). The values of the slot in x_r and y_r are saved if it_r
    -- is a power of two. The saved values are not cleared at the start
    -- (otherwise each bit would need a LUT), because they are first saved

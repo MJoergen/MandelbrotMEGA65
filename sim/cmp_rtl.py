@@ -6,7 +6,7 @@
 # The testbench main_tb.vhd writes the line "columns rows stride max_count" to
 # sim/main_out.txt, and then one line "address data" for each pixel written to
 # the display memory. The size of the picture (columns and rows) gives the
-# initial view, the address is column*stride + row (see dispatcher.vhd), and
+# initial view, the address is row*stride + column (see dispatcher.vhd), and
 # the data is the count modulo 511, or 511 for the points in the set (see
 # job_wide.vhd).
 # A complete picture takes a long time to simulate, so a partial picture is
@@ -48,8 +48,8 @@ def main() -> None:
         print(f"No writes found in {filename}")
         sys.exit(1)
 
-    col: IntArray = writes[:, 0] // stride
-    row: IntArray = writes[:, 0] % stride
+    row: IntArray = writes[:, 0] // stride
+    col: IntArray = writes[:, 0] % stride
     data: IntArray = writes[:, 1]
 
     errors: int = 0
@@ -71,8 +71,8 @@ def main() -> None:
     errors += len(wrong)
 
     print(f"{cols}x{rows} picture: "
-          f"{len(writes)} pixels written ({len(set(col.tolist()))} columns, "
-          f"rows up to {row.max()}), {len(wrong)} differ from the model")
+          f"{len(writes)} pixels written ({len(set(row.tolist()))} rows, "
+          f"up to row {row.max()}), {len(wrong)} differ from the model")
     sys.exit(1 if errors else 0)
 
 

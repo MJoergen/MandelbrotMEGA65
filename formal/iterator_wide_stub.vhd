@@ -21,7 +21,7 @@ entity iterator_wide is
       start_i : in  std_logic;
       cx_i    : in  std_logic_vector(34 downto 0);
       cy_i    : in  std_logic_vector(34 downto 0);
-      stepy_i : in  std_logic_vector(34 downto 0);
+      stepx_i : in  std_logic_vector(34 downto 0);
       cnt_o   : out std_logic_vector(4*log2(G_MAX_COUNT+1)-1 downto 0);
       done_o  : out std_logic
    );

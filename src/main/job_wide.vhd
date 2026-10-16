@@ -1,15 +1,15 @@
 -- This is a job module, with numbers in 2.33 fixed point format (35 bits). It
--- calculates (sequentially) G_NUM_ROWS rows of a picture column, using one
--- wide iterator (iterator_wide.vhd), which calculates four rows at the same
--- time.
+-- calculates (sequentially, from left to right) G_NUM_COLS columns of a
+-- picture row, using one wide iterator (iterator_wide.vhd), which calculates
+-- four columns at the same time.
 --
--- Each result is the values of the four rows calculated together by the
--- iterator (a word of the display memory), so G_PIXELS must be 4. The row
--- number given with each result (res_addr_o) is that of the first row of the
--- result, counted from the first row of the job, and the first row is in the
--- lowest 9 bits of res_data_o. G_NUM_ROWS must be a multiple of 4. The job
--- module starts the iterator with the next four rows when the result has been
--- acknowledged.
+-- Each result is the values of the four columns calculated together by the
+-- iterator (a word of the display memory), so G_PIXELS must be 4. The column
+-- number given with each result (res_addr_o) is that of the first column of
+-- the result, counted from the first column of the job, and the first column
+-- is in the lowest 9 bits of res_data_o. G_NUM_COLS must be a multiple of 4.
+-- The job module starts the iterator with the next four columns when the
+-- result has been acknowledged.
 --
 -- The display memory has 9 bits for each pixel, but the count has more bits
 -- when G_MAX_COUNT is larger than 511. So the value of a pixel is 511 for the
@@ -29,16 +29,16 @@ use work.dispatcher_pkg.all;
 entity job_wide is
    generic (
       G_MAX_COUNT : positive;
-      G_NUM_ROWS  : positive;
-      G_PIXELS    : positive := 4   -- Rows in each result
+      G_NUM_COLS  : positive;
+      G_PIXELS    : positive := 4   -- Columns in each result
    );
    port (
       clk_i        : in  std_logic;
       rst_i        : in  std_logic;
       job_start_i  : in  std_logic;
-      job_cx_i     : in  std_logic_vector(34 downto 0);
-      job_starty_i : in  std_logic_vector(34 downto 0);
-      job_stepy_i  : in  std_logic_vector(34 downto 0);
+      job_startx_i : in  std_logic_vector(34 downto 0);
+      job_cy_i     : in  std_logic_vector(34 downto 0);
+      job_stepx_i  : in  std_logic_vector(34 downto 0);
       job_busy_o   : out std_logic;
       res_addr_o   : out std_logic_vector( 8 downto 0);
       res_ack_i    : in  std_logic;
@@ -49,8 +49,8 @@ end entity job_wide;
 
 architecture rtl of job_wide is
 
-   -- The number of bits of the row number, and of a count
-   constant C_ADDR_BITS : natural := maximum(log2(G_NUM_ROWS), 1);
+   -- The number of bits of the column number, and of a count
+   constant C_ADDR_BITS : natural := maximum(log2(G_NUM_COLS), 1);
    constant C_CNT_BITS  : natural := log2(G_MAX_COUNT+1);
 
    -- The value of a pixel in the display memory, for the count cnt: 511 for
@@ -78,10 +78,10 @@ architecture rtl of job_wide is
    signal res_cy_r     : std_logic_vector(34 downto 0);
    signal res_cnt_s    : std_logic_vector(4*C_CNT_BITS-1 downto 0);
    signal res_valid_s  : std_logic;
-   -- The first row of the result
+   -- The first column of the result
    signal res_addr_r   : std_logic_vector(C_ADDR_BITS-1 downto 0);
    -- High when res_addr_r is the last result. It is a register, so the check
-   -- for the last result is not in the paths to res_addr_r and res_cy_r.
+   -- for the last result is not in the paths to res_addr_r and res_cx_r.
    signal res_last_r   : std_logic;
 
    signal job_busy_r   : std_logic;
@@ -92,8 +92,8 @@ architecture rtl of job_wide is
 
 begin
 
-   assert G_PIXELS = 4 and G_NUM_ROWS mod G_PIXELS = 0
-      report "G_PIXELS must be 4, and divide G_NUM_ROWS"
+   assert G_PIXELS = 4 and G_NUM_COLS mod G_PIXELS = 0
+      report "G_PIXELS must be 4, and divide G_NUM_COLS"
       severity failure;
 
    p_rst : process (clk_i)
@@ -106,41 +106,41 @@ begin
 
    -----------------------------
    -- Simple state machine to
-   -- iterate through the rows,
+   -- iterate through the columns,
    -- four at a time.
    -----------------------------
 
    -- The iterator keeps the counts, and done_o high, until the next start. It
    -- sees the start in the clock cycle after res_start_r is set, so the counts
-   -- are only used when res_start_r is low. The iterator calculates the rows
-   -- with cy = res_cy_r + k*stepy, for k = 0 to 3, so the first row of the
-   -- next result has cy = res_cy_r + 4*stepy. This gives exactly the same
-   -- values as adding stepy for each row (in 35 bits).
+   -- are only used when res_start_r is low. The iterator calculates the
+   -- columns with cx = res_cx_r + k*stepx, for k = 0 to 3, so the first
+   -- column of the next result has cx = res_cx_r + 4*stepx. This gives
+   -- exactly the same values as adding stepx for each column (in 35 bits).
    p_fsm : process (clk_i)
    begin
       if rising_edge(clk_i) then
          res_start_r <= '0';
 
          if job_start_i = '1' then
-            res_cx_r    <= job_cx_i;
-            res_cy_r    <= job_starty_i;
+            res_cx_r    <= job_startx_i;
+            res_cy_r    <= job_cy_i;
             res_start_r <= '1';
             res_addr_r  <= (others => '0');
             res_last_r  <= '0';
-            if G_NUM_ROWS = G_PIXELS then
+            if G_NUM_COLS = G_PIXELS then
                res_last_r <= '1';
             end if;
          end if;
 
-         -- The next rows start when the result has been acknowledged
+         -- The next columns start when the result has been acknowledged
          if res_valid_s = '1' and res_ack_i = '1' and
             res_start_r = '0' and res_last_r = '0'
          then
             res_addr_r  <= res_addr_r + G_PIXELS;
-            res_cy_r    <= res_cy_r + (job_stepy_i(32 downto 0) & "00");
+            res_cx_r    <= res_cx_r + (job_stepx_i(32 downto 0) & "00");
             res_start_r <= '1';
             res_last_r  <= '0';
-            if to_integer(res_addr_r) = G_NUM_ROWS-2*G_PIXELS then
+            if to_integer(res_addr_r) = G_NUM_COLS-2*G_PIXELS then
                res_last_r <= '1';
             end if;
          end if;
@@ -178,7 +178,7 @@ begin
          start_i => res_start_r,
          cx_i    => res_cx_r,
          cy_i    => res_cy_r,
-         stepy_i => job_stepy_i,
+         stepx_i => job_stepx_i,
          cnt_o   => res_cnt_s,
          done_o  => res_valid_s
       ); -- i_iterator

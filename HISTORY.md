@@ -17,6 +17,7 @@ to the pull requests of that repository.
 * [The iterator](#the-iterator)
   * [The 2.16 iterator](#the-216-iterator)
 * [The dispatcher](#the-dispatcher)
+  * [Vertical jobs](#vertical-jobs)
 * [The display memory](#the-display-memory)
 * [When a picture is calculated](#when-a-picture-is-calculated)
 * [The frame rate](#the-frame-rate)
@@ -247,6 +248,35 @@ Earlier, the round-robin scheduler for the jobs was used for the results
 too, and a job module waited up to 240 clock cycles (with 240 job modules)
 for each result, also when no other job module had a result ready (see
 [Timing](#timing)).
+
+### Vertical jobs
+Before the jobs were horizontal, a job was 64 rows of a picture column (120
+on the Nexys 4 DDR, a quarter of a picture column, since 1024 is not a
+multiple of 120), and the four pixels of a result were four consecutive rows
+(the four slots of the wide iterator had the same cx and different cy). The
+picture was divided into 16 blocks of 64 rows (4 blocks on the Nexys 4 DDR),
+so there were 20480 jobs (2560). The generics were `G_ROWS_IN_JOB` of the
+dispatcher and `G_NUM_ROWS` of the job module, and the jobs were given out
+one block at a time: first all the picture columns of the top block, then all
+the picture columns of the next block. After the last picture column of a
+block, cx started again from the left edge, and cy moved to the next block,
+by adding 64 times stepy.
+
+The address in the display memory was the picture column times the generic
+`G_COL_STRIDE`, plus the row: 1024 on the MEGA65 (the picture column in 11
+bits followed by the row in 10 bits), and 512 on the Nexys 4 DDR (10 bits
+and 9 bits), so the multiplication was only wires on both boards. The VGA
+module calculated the same address from the pixel counters, also only wires.
+A picture row was therefore spread over the whole display memory, which does
+not suit a frame buffer in HyperRAM, where a row of the screen is read in
+bursts of consecutive addresses.
+
+The model gave 1103544 clock cycles for the initial view on the MEGA65 (5.88
+ms, 170 pictures per second), and 849122 on the Nexys 4 DDR (7.08 ms, 141
+pictures per second). The job modules waited 7.1 clock cycles per pixel on
+average for their results to be accepted on the MEGA65, and 2.6 on the Nexys
+4 DDR. Jobs of 32 to 256 rows gave 168 to 171 pictures per second on the
+MEGA65, and jobs of 16 to 240 rows 141 to 142 on the Nexys 4 DDR.
 
 ## The display memory
 Before the MEGA65 had 320 blocks, the read address went directly to all the

@@ -13,7 +13,7 @@ the picture is stored in block RAM. The numbers have 33 fractional bits, and
 the maximum count is 1023. Generating a complete picture takes about 5.9 ms
 (about 170 pictures per second, measured on an R6, the same as the model
 estimates), with the main clock at 187.8 MHz. On the Nexys 4 DDR, with 240 DSPs and the main clock at 120 MHz, it
-takes about 7.1 ms (141 pictures per second, estimated by the model), for a
+takes about 7.0 ms (143 pictures per second, estimated by the model), for a
 picture with less than a quarter of the pixels.
 
 ## The algorithm
@@ -35,26 +35,27 @@ pixel is 2^-33, i.e. the narrowest picture is about 1.5\*10^-7 wide, and it
 takes about a minute to zoom in that far. A multiplication of 35-bit numbers
 uses three DSPs, so each of the 120 job modules (39 on the Nexys 4 DDR)
 contains an iterator with six DSPs ([`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd)). The
-iterator is pipelined, and calculates four rows (one result of the job
+iterator is pipelined, and calculates four columns (one result of the job
 module) at the same time, so it calculates one iteration in every clock
 cycle. On the MEGA65 this needs a floorplan of the job modules
 ([`mega65_floorplan.tcl`](mega65_floorplan.tcl)), see
 [Iterator](ALGORITHM.md#iterator). Most points in the set are found
 long before the maximum count, because the values of $z$ start to repeat
 exactly (periodicity detection). The picture is divided into jobs, each of 64
-rows of a picture column (120 on the Nexys 4 DDR), and the dispatcher gives
-the next job to a job module as soon as it is idle.
+columns of a picture row (80 on the Nexys 4 DDR), which the job module
+calculates from left to right, and the dispatcher gives the next job to a job
+module as soon as it is idle, in the order of the rows.
 
 The display memory has 1280x1024 pixels in 320 BRAMs (of the 365 in the
-XC7A200T), with 21 bits of address (the column and the row), and 9 bits for
+XC7A200T), with 21 bits of address (the row times 1280 plus the column), and 9 bits for
 each pixel: 511 for the points in the set, and otherwise the count modulo 511.
 So the colours of the counts 0 to 510 repeat for the larger counts. The job
-modules write four pixels (consecutive rows of a picture column) to the
+modules write four pixels (consecutive columns of a picture row) to the
 display memory at a time. The display
 memory takes one write per clock cycle, so with one pixel in each write the
 picture would take at least 1280x1024 clock cycles (7.28 ms), whatever the
-number of job modules. The model estimates 5.88 ms for the initial view, i.e.
-about 170 pictures per second (against 396 with the earlier 16 fractional
+number of job modules. The model estimates 5.84 ms for the initial view, i.e.
+about 171 pictures per second (against 396 with the earlier 16 fractional
 bits and 368 job modules, see [HISTORY.md](HISTORY.md#the-iterator)). If
 every pixel needed the maximum count, it would take about 60 ms (17 pictures
 per second), see [MEGA65](ALGORITHM.md#mega65).
@@ -400,16 +401,16 @@ There is also a testbench for `main`, which is not part of `make sim`, because
 it is slow. It writes the calculated picture to a file, which is compared
 bit-accurately with a Python model of the design by the script `cmp_rtl.py`.
 This requires Python with numpy. A partial picture of the MEGA65 (about 79000
-pixels) takes about 10 minutes:
+pixels) takes about 11 minutes:
 ```
 make run TB=main STOP_TIME=200us
 sim/cmp_rtl.py
 ```
 The design of the Nexys 4 DDR is simulated by setting the generics of the
-testbench, where the same simulated time gives about 36000 pixels in about
-5 minutes:
+testbench, where the same simulated time gives about 38000 pixels in about
+4 minutes:
 ```
-make run TB=main STOP_TIME=200us GENERICS="G_NUM_ITERATORS=39 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19 G_MAX_COUNT=1023"
+make run TB=main STOP_TIME=200us GENERICS="G_NUM_ITERATORS=39 G_PIXELS=4 G_COLS_IN_JOB=80 G_NUM_COLS=640 G_NUM_ROWS=480 G_ROW_STRIDE=1024 G_ADDR_BITS=19 G_MAX_COUNT=1023"
 sim/cmp_rtl.py
 ```
 See [Iterator](ALGORITHM.md#iterator) for details. `make consts` checks that
@@ -449,28 +450,28 @@ reachable. The properties are:
   `G_SIZE`+1 clock cycles.
 * `job_wide`: The job module is busy from the start of a job until its last
   result is acknowledged. The results come in order, one for each group of
-  four rows, with the row number of the first row. A result stays unchanged
-  until it is acknowledged, and is then removed. The iterator is started once
-  for each result, with cx, cy of the first row of the result, and the step
-  in cy, which do not change while it iterates, and each result has the
+  four columns, with the column number of the first column. A result stays
+  unchanged until it is acknowledged, and is then removed. The iterator is
+  started once for each result, with cx of the first column of the result,
+  cy, and the step in cx, which do not change while it iterates, and each result has the
   values of the pixels converted from the counts of the iterator (511 for the
   points in the set).
 * `dispatcher_jobs` (with `job_scheduler`): The jobs of a picture are given
-  out in order, one block at a time, each once. The job module given a job is
-  started in the next clock cycle, with the value of c of the first row of
-  the job. The picture is done only when all its jobs have been given out and
+  out in order, one picture row at a time (its blocks from left to right),
+  each once. The job module given a job is started in the next clock cycle,
+  with the value of c of the first column of the job. The picture is done only when all its jobs have been given out and
   all the job modules are idle, and then within two clock cycles. It also
   meets the assumptions about the inputs of the job module in `job_wide.psl`: a job
   module is only started when it is idle (this needs at least five job
   modules; with four, a job is started twice), not right after its reset, and
-  the step in cy does not change while it is busy. The job modules are not
+  the step in cx does not change while it is busy. The job modules are not
   included; their busy flags are given by assumptions. A new picture must
   only be started when the previous one is done, as `main` does.
 * `dispatcher_results` (with `res_scheduler`): At most one job module is
   acknowledged in each clock cycle, and only one that has a result. Each
   acknowledged result is written exactly once, two clock cycles after the
-  acknowledge, to the address from the table of the jobs (the picture column
-  and the block) and the row of the result, with the counts of the result,
+  acknowledge, to the address from the table of the jobs (the picture row
+  and the block) and the column of the result, with the counts of the result,
   and nothing else is written. When a job module is selected by
   `res_scheduler` in clock cycle c, its ready flag is low from c+2, as
   `res_scheduler` requires. The job modules and `dispatcher_jobs` are not
@@ -533,8 +534,8 @@ other projects that only the MEGA65 uses are in [`src/keyboard/`](src/keyboard),
 | [`src/main/fps.vhd`](src/main/fps.vhd), [`src/main/seg.vhd`](src/main/seg.vhd) | Frame rate. `fps` divides the clock frequency by the time taken by the latest picture, and converts the result to decimal, and `seg` multiplexes the digits on the 7-segment display of the Nexys 4 DDR.
 | [`src/main/view_text.vhd`](src/main/view_text.vhd) | Converts the view to the text shown in the top left corner: the centre of the picture and the zoom, in decimal.
 | [`src/vga/vga.vhd`](src/vga/vga.vhd) | Everything in the VGA clock domain: pixel counters, VGA output, and the overlay of the view and the frame rate.
-| [`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd) | Iterates the Mandelbrot function for four points (rows) at the same time, with 2.33 fixed point, one iteration in each clock cycle, using six DSPs.
-| [`src/main/job_wide.vhd`](src/main/job_wide.vhd) | A job module. Calculates one job (64 rows of a picture column, 120 on the Nexys 4 DDR) at a time, four rows at a time, using one wide iterator.
+| [`src/main/iterator_wide.vhd`](src/main/iterator_wide.vhd) | Iterates the Mandelbrot function for four points (columns) at the same time, with 2.33 fixed point, one iteration in each clock cycle, using six DSPs.
+| [`src/main/job_wide.vhd`](src/main/job_wide.vhd) | A job module. Calculates one job (64 columns of a picture row, 80 on the Nexys 4 DDR) at a time, four columns at a time from left to right, using one wide iterator.
 | [`src/main/dispatcher.vhd`](src/main/dispatcher.vhd) | Controls the calculation of the entire picture: hands out the jobs to the idle job modules, and collects the results. Instantiates the job modules, between its two parts below.
 | [`src/main/dispatcher_jobs.vhd`](src/main/dispatcher_jobs.vhd) | First part of the dispatcher: hands out the jobs to the idle job modules, and finds out when the picture is done.
 | [`src/main/dispatcher_results.vhd`](src/main/dispatcher_results.vhd) | Second part of the dispatcher: collects the results, and writes them to the display memory.

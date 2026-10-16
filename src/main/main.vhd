@@ -52,18 +52,18 @@ entity main is
       G_NUM_ITERATORS : positive;
       -- The number of pixels in each write to the display memory, see
       -- dispatcher.vhd and disp_mem.vhd. The wide iterator calculates four
-      -- rows at a time, so this must be 4 (see job_wide.vhd), and the rows in
-      -- a job (G_ROWS_IN_JOB) must be a multiple of it.
+      -- columns at a time, so this must be 4 (see job_wide.vhd), and the
+      -- columns in a job (G_COLS_IN_JOB) must be a multiple of it.
       G_PIXELS        : positive;
-      -- Rows in each job given to a job module, see dispatcher.vhd. The
-      -- number of rows of the picture must be a multiple of it.
-      G_ROWS_IN_JOB   : positive;
+      -- Columns in each job given to a job module, see dispatcher.vhd. The
+      -- number of columns of the picture must be a multiple of it.
+      G_COLS_IN_JOB   : positive;
       -- The size of the picture, i.e. the resolution of the VGA output, the
-      -- address distance between two picture columns in the display memory,
-      -- and the number of bits of the address, see dispatcher.vhd.
+      -- address distance between two picture rows in the display memory, and
+      -- the number of bits of the address, see dispatcher.vhd.
       G_NUM_COLS      : positive;
       G_NUM_ROWS      : positive;
-      G_COL_STRIDE    : positive;
+      G_ROW_STRIDE    : positive;
       G_ADDR_BITS     : positive;
       -- The maximum count. The count is converted to the 9-bit value of the
       -- display memory, see job_wide.vhd.
@@ -393,9 +393,9 @@ begin
          G_MAX_COUNT     => G_MAX_COUNT,
          G_NUM_ROWS      => G_NUM_ROWS,
          G_NUM_COLS      => G_NUM_COLS,
-         G_COL_STRIDE    => G_COL_STRIDE,
+         G_ROW_STRIDE    => G_ROW_STRIDE,
          G_ADDR_BITS     => G_ADDR_BITS,
-         G_ROWS_IN_JOB   => G_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => G_COLS_IN_JOB,
          G_NUM_ITERATORS => G_NUM_ITERATORS,
          G_PIXELS        => G_PIXELS
       )

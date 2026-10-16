@@ -62,12 +62,12 @@
                                at the counter in each group (\texttt{grp\_busy\_r}), and the
                                job module selected for the next job}
          \proc{p\_job\_start}{\texttt{job\_start\_r}, \texttt{job\_started\_r}, the job in
-                              \texttt{tbl\_*}, and the next job (\texttt{cur\_addr\_r},
-                              \texttt{cur\_blk\_r})}
-         \proc{p\_job\_cx}{c of the first row of the job (\texttt{job\_cx\_r},
-                           \texttt{job\_starty\_r})}
-         \proc{p\_grp}{the job in each group (\texttt{grp\_cx\_r}, \texttt{grp\_starty\_r},
-                       \texttt{grp\_stepy\_r}), and \texttt{job\_start\_d}}
+                              \texttt{tbl\_*}, and the next job (\texttt{cur\_blk\_r},
+                              \texttt{cur\_row\_r})}
+         \proc{p\_job\_c}{c of the first column of the job (\texttt{job\_startx\_r},
+                          \texttt{job\_cy\_r})}
+         \proc{p\_grp}{the job in each group (\texttt{grp\_startx\_r}, \texttt{grp\_cy\_r},
+                       \texttt{grp\_stepx\_r}), and \texttt{job\_start\_d}}
          \proc{p\_done}{the busy flags of each group (\texttt{grp\_job\_busy\_r}), and
                         \texttt{done\_r}}
       \end{tabular}};
@@ -80,9 +80,9 @@
    % pass the job modules on the left.
    \node[block, anchor = north east, minimum width = 64mm]
       (modules) at ([yshift = -16mm] jobs.south east) {%
-      {\sffamily\small\bfseries job modules} (368, in groups of 16)\\[1mm]
-      \texttt{job.vhd}: the rows of the job, one after the other,\\
-      with the iterator};
+      {\sffamily\small\bfseries job modules} (120, in groups of 16)\\[1mm]
+      \texttt{job\_wide.vhd}: the columns of the job, four at a\\
+      time, from left to right, with the iterator};
 
    %% ---------------------------------------------------------------
    %% dispatcher_results: collects the results and writes them
@@ -105,7 +105,7 @@
          \proc{p\_ack, p\_grp\_res}{step 2: the acknowledge (\texttt{res\_ack\_r}), and the
                                     result of the group (\texttt{grp\_res\_addr\_r},
                                     \texttt{grp\_res\_data\_r})}
-         \proc{p\_wr}{steps 3 and 4: the column and the row (\texttt{acc\_*\_dd}), and the
+         \proc{p\_wr}{steps 3 and 4: the row and the column (\texttt{acc\_*\_dd}), and the
                       write (\texttt{wr\_addr\_r}, \texttt{wr\_data\_r}, \texttt{wr\_en\_r})}
       \end{tabular}};
 
@@ -137,7 +137,7 @@
    \coordinate (tblx) at ([xshift = 12mm] jobs.south west);
    \draw[wire] (tblx |- jobs.south) -- (tblx |- results.north)
       node[siglabel, midway, right] {\texttt{tbl\_*}: the job module,\\
-                                      the picture column,\\
+                                      the picture row,\\
                                       and the block of each job};
 
    % The job and its start down to the job modules, and the busy flags back up.

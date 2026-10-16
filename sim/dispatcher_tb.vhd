@@ -1,19 +1,19 @@
 -- This is a simple self-checking testbench for the dispatcher. It is not an
 -- exhaustive test. It uses three instances of the dispatcher, all with four
 -- pixels in each write (as the job modules, job_wide.vhd, need): A normal one,
--- where each picture column is divided into four jobs of a single write, and
--- the job modules are in groups of five (see dispatcher.vhd); one with a
--- single picture column (i.e. with fewer picture columns than job modules), so
--- every job is the last picture column of its block; and one where each
--- picture column is divided into two jobs, of two writes each. In the first
--- one, the address is the column followed by the row, and in the last one the
--- address distance between two columns is not a power of two (see
--- dispatcher.vhd). It calculates two small pictures with each of them, one
--- after the other, and checks the following for each picture:
+-- where each picture row is divided into four jobs of a single write, and the
+-- job modules are in groups of five (see dispatcher.vhd); one with four
+-- picture rows (i.e. with fewer jobs than job modules) of a single job each,
+-- so every job is the last block of its row; and one where each picture row
+-- is divided into two jobs, of two writes each. In the first one, the address
+-- is the row followed by the column, and in the last one the address distance
+-- between two rows is not a power of two (see dispatcher.vhd). It calculates
+-- two small pictures with each of them, one after the other, and checks the
+-- following for each picture:
 -- * Nothing is written, and done is low, when idle. Done goes low after a
 --   start.
 -- * Each pixel is written exactly once, and no other pixels are written. Each
---   write starts at a row that is a multiple of the pixels in a write.
+--   write starts at a column that is a multiple of the pixels in a write.
 -- * All pixels have been written when done goes high, and nothing is written
 --   after that.
 -- * The value of each pixel is exactly the value calculated by the
@@ -39,31 +39,31 @@ end entity dispatcher_tb;
 architecture simulation of dispatcher_tb is
 
    constant C_MAX_COUNT     : positive := 30;
-   constant C_NUM_ROWS      : positive := 16;
-   constant C_NUM_COLS      : positive := 64;
+   constant C_NUM_ROWS      : positive := 64;
+   constant C_NUM_COLS      : positive := 16;
    constant C_NUM_ITERATORS : positive := 16;
 
-   -- Rows in each job, in the three instances
-   constant C_ROWS_IN_JOB   : positive := 4;
-   constant C_SMALL_ROWS    : positive := 4;
-   constant C_WIDE_ROWS     : positive := 8;
+   -- Columns in each job, in the three instances
+   constant C_COLS_IN_JOB   : positive := 4;
+   constant C_SMALL_COLS    : positive := C_NUM_COLS;
+   constant C_WIDE_COLS     : positive := 8;
 
    -- Pixels in each write
    constant C_PIXELS        : positive := 4;
 
-   -- Address distance between two picture columns, in the three instances
+   -- Address distance between two picture rows, in the three instances
    constant C_STRIDE        : positive := 512;
    constant C_ADDR_BITS     : positive := 19;
-   constant C_SMALL_STRIDE  : positive := C_NUM_ROWS;
+   constant C_SMALL_STRIDE  : positive := C_NUM_COLS;
    constant C_WIDE_STRIDE   : positive := 20;
 
    -- Size of the groups of job modules in the first instance (see
    -- dispatcher.vhd). This gives four groups, and the last one is smaller.
    constant C_GROUP_SIZE    : positive := 5;
 
-   -- Number of picture columns in the second instance. This is less than the
+   -- Number of picture rows in the second instance. This is less than the
    -- number of job modules.
-   constant C_SMALL_COLS    : positive := 1;
+   constant C_SMALL_ROWS    : positive := 4;
 
    -- Maximum number of clock cycles to wait for a picture
    constant C_TIMEOUT       : positive := 30000;
@@ -134,8 +134,8 @@ begin
       procedure run_picture (
          signal   dut_in   : out dut_in_t;
          signal   dut_out  : in  dut_out_t;
-         num_cols : positive;
-         stride   : positive;      -- Address distance between two columns
+         num_rows : positive;
+         stride   : positive;      -- Address distance between two rows
          startx_r : real;
          starty_r : real;
          width_r  : real;          -- Size of the picture
@@ -144,8 +144,8 @@ begin
       ) is
          variable startx_v   : signed(34 downto 0) := to_fixed_wide(startx_r);
          variable starty_v   : signed(34 downto 0) := to_fixed_wide(starty_r);
-         variable stepx_v    : signed(34 downto 0) := to_fixed_wide(width_r  / real(num_cols));
-         variable stepy_v    : signed(34 downto 0) := to_fixed_wide(height_r / real(C_NUM_ROWS));
+         variable stepx_v    : signed(34 downto 0) := to_fixed_wide(width_r  / real(C_NUM_COLS));
+         variable stepy_v    : signed(34 downto 0) := to_fixed_wide(height_r / real(num_rows));
          variable col_v      : natural;
          variable row_v      : natural;
          variable total_v    : natural := 0;
@@ -187,15 +187,15 @@ begin
             wait until rising_edge(clk);
 
             if dut_out.wr_en = '1' then
-               col_v := to_integer(unsigned(dut_out.wr_addr)) / stride;
-               row_v := to_integer(unsigned(dut_out.wr_addr)) mod stride;
-               if col_v < num_cols and row_v <= C_NUM_ROWS - C_PIXELS and row_v mod C_PIXELS = 0 then
+               row_v := to_integer(unsigned(dut_out.wr_addr)) / stride;
+               col_v := to_integer(unsigned(dut_out.wr_addr)) mod stride;
+               if row_v < num_rows and col_v <= C_NUM_COLS - C_PIXELS and col_v mod C_PIXELS = 0 then
                   for i in 0 to C_PIXELS-1 loop
-                     assert seen_v(col_v, row_v+i) = -1
-                        report name & ": Pixel (" & integer'image(col_v) & "," & integer'image(row_v+i) &
+                     assert seen_v(col_v+i, row_v) = -1
+                        report name & ": Pixel (" & integer'image(col_v+i) & "," & integer'image(row_v) &
                                ") written more than once"
                         severity error;
-                     seen_v(col_v, row_v+i) := to_integer(unsigned(dut_out.wr_data(9*i+8 downto 9*i)));
+                     seen_v(col_v+i, row_v) := to_integer(unsigned(dut_out.wr_data(9*i+8 downto 9*i)));
                      total_v                := total_v + 1;
                   end loop;
                else
@@ -215,9 +215,9 @@ begin
             report name & ": Timeout waiting for done. Pixels written: " & integer'image(total_v)
             severity failure;
 
-         assert total_v = num_cols * C_NUM_ROWS
+         assert total_v = C_NUM_COLS * num_rows
             report name & ": Wrong number of pixels written when done: " & integer'image(total_v) &
-                   ", expected " & integer'image(num_cols * C_NUM_ROWS)
+                   ", expected " & integer'image(C_NUM_COLS * num_rows)
             severity error;
 
          -- Nothing more should be written after done
@@ -229,8 +229,8 @@ begin
          end loop;
 
          -- Check the value of each pixel
-         for c in 0 to num_cols-1 loop
-            for r in 0 to C_NUM_ROWS-1 loop
+         for c in 0 to C_NUM_COLS-1 loop
+            for r in 0 to num_rows-1 loop
                if seen_v(c, r) /= -1 then
                   -- The dispatcher and the job modules add the steps in 35
                   -- bits, which wrap around
@@ -266,21 +266,21 @@ begin
 
       -- Normal dispatcher. The second picture is started right after the
       -- first, which also checks that the dispatcher can be restarted.
-      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 1");
-      run_picture(dut1_in, dut1_out, C_NUM_COLS, C_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 2");
+      run_picture(dut1_in, dut1_out, C_NUM_ROWS, C_STRIDE, -1.0, -0.3, 0.6, 0.8, "picture 1");
+      run_picture(dut1_in, dut1_out, C_NUM_ROWS, C_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 2");
 
-      -- Dispatcher with a single picture column, and two pictures.
-      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 3");
-      run_picture(dut2_in, dut2_out, C_SMALL_COLS, C_SMALL_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 4");
+      -- Dispatcher with four picture rows of a single job, and two pictures.
+      run_picture(dut2_in, dut2_out, C_SMALL_ROWS, C_SMALL_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 3");
+      run_picture(dut2_in, dut2_out, C_SMALL_ROWS, C_SMALL_STRIDE,  0.0,  0.3, 0.5, 0.5, "picture 4");
 
       -- Dispatcher with two writes in each job, an address distance between
-      -- two columns that is not a power of two, and two pictures. The second
+      -- two rows that is not a power of two, and two pictures. The second
       -- picture is very small (a pixel is 2^-28), and wraps around from 2 to
-      -- -2 in cy, which checks that all the bits of the values are used
+      -- -2 in cx, which checks that all the bits of the values are used
       -- everywhere.
-      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE, -1.0, -0.3, 0.8, 0.6, "picture 5");
-      run_picture(dut3_in, dut3_out, C_NUM_COLS, C_WIDE_STRIDE,
-                  -0.75, 1.99999995, 2.384185791015625E-7, 5.9604644775390625E-8, "picture 6");
+      run_picture(dut3_in, dut3_out, C_NUM_ROWS, C_WIDE_STRIDE, -1.0, -0.3, 0.6, 0.8, "picture 5");
+      run_picture(dut3_in, dut3_out, C_NUM_ROWS, C_WIDE_STRIDE,
+                  1.99999995, -0.75, 5.9604644775390625E-8, 2.384185791015625E-7, "picture 6");
 
       report "dispatcher_tb: finished";
       std.env.finish;
@@ -296,9 +296,9 @@ begin
          G_MAX_COUNT     => C_MAX_COUNT,
          G_NUM_ROWS      => C_NUM_ROWS,
          G_NUM_COLS      => C_NUM_COLS,
-         G_COL_STRIDE    => C_STRIDE,
+         G_ROW_STRIDE    => C_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_GROUP_SIZE    => C_GROUP_SIZE,
          G_PIXELS        => C_PIXELS
@@ -320,11 +320,11 @@ begin
    i_dispatcher_small : entity work.dispatcher
       generic map (
          G_MAX_COUNT     => C_MAX_COUNT,
-         G_NUM_ROWS      => C_NUM_ROWS,
-         G_NUM_COLS      => C_SMALL_COLS,
-         G_COL_STRIDE    => C_SMALL_STRIDE,
+         G_NUM_ROWS      => C_SMALL_ROWS,
+         G_NUM_COLS      => C_NUM_COLS,
+         G_ROW_STRIDE    => C_SMALL_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
-         G_ROWS_IN_JOB   => C_SMALL_ROWS,
+         G_COLS_IN_JOB   => C_SMALL_COLS,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS
       )
@@ -347,9 +347,9 @@ begin
          G_MAX_COUNT     => C_MAX_COUNT,
          G_NUM_ROWS      => C_NUM_ROWS,
          G_NUM_COLS      => C_NUM_COLS,
-         G_COL_STRIDE    => C_WIDE_STRIDE,
+         G_ROW_STRIDE    => C_WIDE_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
-         G_ROWS_IN_JOB   => C_WIDE_ROWS,
+         G_COLS_IN_JOB   => C_WIDE_COLS,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_GROUP_SIZE    => C_GROUP_SIZE,
          G_PIXELS        => C_PIXELS
