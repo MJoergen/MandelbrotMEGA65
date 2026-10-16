@@ -1,5 +1,5 @@
 -- This is a self-checking testbench for the wide iterator (iterator_wide.vhd),
--- which calculates four points at a time: cx + i*(cy + k*stepy), for k = 0, 1,
+-- which calculates four points at a time: (cx + k*stepx) + i*cy, for k = 0, 1,
 -- 2, and 3. For each start, the count of each of the four points is compared
 -- exactly with the bit-accurate model in iterator_model_pkg.vhd, and for the
 -- points given as real numbers also with a count calculated using real
@@ -18,7 +18,7 @@
 --   periodicity detection must compare both x and y.
 -- * Points right after points that leave saved values equal to their first
 --   values.
--- * Four values of cy where the last ones wrap around (from 2 to -2), as
+-- * Four values of cx where the last ones wrap around (from 2 to -2), as
 --   they do in the job modules.
 -- Finally, a grid of 40 x 32 points over the initial view is compared exactly
 -- with the model.
@@ -56,7 +56,7 @@ architecture simulation of iterator_wide_tb is
    signal start : std_logic := '0';
    signal cx    : std_logic_vector(34 downto 0) := (others => '0');
    signal cy    : std_logic_vector(34 downto 0) := (others => '0');
-   signal stepy : std_logic_vector(34 downto 0) := (others => '0');
+   signal stepx : std_logic_vector(34 downto 0) := (others => '0');
    signal cnt   : std_logic_vector(4*C_CNT_BITS-1 downto 0);
    signal done  : std_logic;
 
@@ -116,17 +116,18 @@ begin
 
    p_test : process
 
-      -- Run the iterator for the four points cx + i*(cy + k*stepy), and
+      -- Run the iterator for the four points (cx + k*stepx) + i*cy, and
       -- compare the counts with the model, and, if real_check is true, with
       -- the count calculated using real numbers.
       procedure run (
          cx_v       : signed(34 downto 0);
          cy_v       : signed(34 downto 0);
-         stepy_v    : signed(34 downto 0);
+         stepx_v    : signed(34 downto 0);
          real_check : boolean;
          max_cycles : integer      -- Maximum clock cycles until done
       ) is
-         variable cyk_v     : signed(34 downto 0);
+         variable cxk_v     : signed(34 downto 0);
+         variable prod_v    : signed(37 downto 0);
          variable exp_v     : integer;
          variable ref_v     : integer;
          variable act_v     : integer;
@@ -136,9 +137,9 @@ begin
          wait until rising_edge(clk);
          cx    <= std_logic_vector(cx_v);
          cy    <= std_logic_vector(cy_v);
-         stepy <= std_logic_vector(stepy_v);
+         stepx <= std_logic_vector(stepx_v);
 
-         -- stepy is registered in the iterator, so it is set one clock cycle
+         -- stepx is registered in the iterator, so it is set one clock cycle
          -- before the start
          wait until rising_edge(clk);
          start <= '1';
@@ -152,25 +153,27 @@ begin
          wait for 1 ns;
 
          for k in 0 to 3 loop
-            -- The values of cy wrap around, like in the iterator
-            cyk_v := cy_v + resize(to_signed(k, 3) * stepy_v, 35);
+            -- The values of cx wrap around, like in the iterator (resize
+            -- would keep the sign bit of the product, so it is not used)
+            prod_v  := to_signed(k, 3) * stepx_v;
+            cxk_v   := cx_v + prod_v(34 downto 0);
             act_v   := to_integer(unsigned(cnt(C_CNT_BITS*k+C_CNT_BITS-1 downto C_CNT_BITS*k)));
-            exp_v   := iterator_count(cx_v, cyk_v, C_MAX_COUNT);
+            exp_v   := iterator_count(cxk_v, cy_v, C_MAX_COUNT);
 
             assert done = '1' and act_v = exp_v
-               report "Count differs from the model for c = (" & real'image(to_real(cx_v)) &
-                      ", " & real'image(to_real(cyk_v)) & "): got " & integer'image(act_v) &
+               report "Count differs from the model for c = (" & real'image(to_real(cxk_v)) &
+                      ", " & real'image(to_real(cy_v)) & "): got " & integer'image(act_v) &
                       ", expected " & integer'image(exp_v)
                severity error;
 
             if real_check then
-               ref_v := expected_count(to_real(cx_v), to_real(cyk_v));
-               report "c = (" & real'image(to_real(cx_v)) & ", " & real'image(to_real(cyk_v)) &
+               ref_v := expected_count(to_real(cxk_v), to_real(cy_v));
+               report "c = (" & real'image(to_real(cxk_v)) & ", " & real'image(to_real(cy_v)) &
                       "): count = " & integer'image(act_v) &
                       ", real numbers = " & integer'image(ref_v);
                assert abs(act_v - ref_v) <= C_TOLERANCE
-                  report "Count differs from real numbers for c = (" & real'image(to_real(cx_v)) &
-                         ", " & real'image(to_real(cyk_v)) & "): got " & integer'image(act_v) &
+                  report "Count differs from real numbers for c = (" & real'image(to_real(cxk_v)) &
+                         ", " & real'image(to_real(cy_v)) & "): got " & integer'image(act_v) &
                          ", expected " & integer'image(ref_v)
                   severity error;
             end if;
@@ -183,16 +186,16 @@ begin
             severity error;
       end procedure run;
 
-      -- Run the iterator for the four points cx_r + i*(cy_r + k*stepy_r), given
+      -- Run the iterator for the four points (cx_r + k*stepx_r) + i*cy_r, given
       -- as real numbers, and compare with the model and with real numbers.
       procedure check (
          cx_r       : real;
          cy_r       : real;
-         stepy_r    : real;
+         stepx_r    : real;
          max_cycles : integer := integer'high
       ) is
       begin
-         run(to_fixed_wide(cx_r), to_fixed_wide(cy_r), to_fixed_wide(stepy_r), true, max_cycles);
+         run(to_fixed_wide(cx_r), to_fixed_wide(cy_r), to_fixed_wide(stepx_r), true, max_cycles);
       end procedure check;
 
       -- Leave the iterator idle for a number of clock cycles
@@ -226,14 +229,14 @@ begin
       check( 0.1,   0.1,  0.0, 150);    -- Inside the main cardioid, converges to a fixed point
       check(-0.12,  0.75, 0.0, 160);    -- Inside the period 3 bulb
 
-      -- Four different points: -1+i (escapes after 3 iterations), -1+0.5i
-      -- (escapes after 5), -1 (in the set), and -1-0.5i (escapes after 5)
-      check(-1.0,   1.0, -0.5,  40);
+      -- Four different points: -1+i (escapes after 3 iterations), -0.5+i
+      -- (escapes after 4), i (in the set), and 0.5+i (escapes after 2)
+      check(-1.0,   1.0,  0.5,  40);
 
-      -- In the set: 0.1 + 0.1i to 0.1 + 0.13i
+      -- In the set: 0.1 + 0.1i to 0.13 + 0.1i
       check( 0.1,   0.1,  0.01, 200);
 
-      check( 1.0,   1.0, -1.0);     -- Escape immediately (the last one is cy = -2)
+      check( 1.0,   1.5, -1.0);     -- Escape quickly (the last one is cx = -2)
       check(-2.0,   0.0,  0.0);     -- In the set, but z = 2 is out of range (see ALGORITHM.md)
       check( 0.5,   0.0,  0.25);    -- Escape quickly
       check(-1.0,   0.5,  0.0);     -- Escapes quickly (example from iterator.vhd)
@@ -252,17 +255,17 @@ begin
       check( 0.0,   1.0,  0.0,  30);
       check(-1.0,   1.0,  0.0);
 
-      -- The values of cy wrap around: cy = 1.99995 + k*0.00004, so the last
+      -- The values of cx wrap around: cx = 1.99995 + k*0.00004, so the last
       -- two are -1.99997 and -1.99993 (after wrapping around)
-      run(to_fixed_wide(-0.5), to_fixed_wide(1.99995), to_fixed_wide(0.00004), false, integer'high);
+      run(to_fixed_wide(1.99995), to_fixed_wide(-0.5), to_fixed_wide(0.00004), false, integer'high);
 
       -- A grid of 40 x 32 points over the initial view (-1.6667 to 1 and -1 to
       -- 1). The steps are not round numbers, so many different values occur.
-      for row in 0 to 7 loop
-         for col in 0 to 39 loop
-            run(to_fixed_wide(-1.6667 + real(col) * 0.0667123),
-                to_fixed_wide(-1.0 + real(4*row) * 0.0625123),
-                to_fixed_wide(0.0625123), false, integer'high);
+      for row in 0 to 31 loop
+         for col in 0 to 9 loop
+            run(to_fixed_wide(-1.6667 + real(4*col) * 0.0667123),
+                to_fixed_wide(-1.0 + real(row) * 0.0625123),
+                to_fixed_wide(0.0667123), false, integer'high);
          end loop;
       end loop;
 
@@ -289,7 +292,7 @@ begin
          start_i => start,
          cx_i    => cx,
          cy_i    => cy,
-         stepy_i => stepy,
+         stepx_i => stepx,
          cnt_o   => cnt,
          done_o  => done
       ); -- i_iterator_wide

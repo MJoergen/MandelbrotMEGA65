@@ -1,16 +1,16 @@
 -- This testbench runs the MAIN clock domain (main.vhd) with the initial view,
 -- and no buttons pressed. The first line of the file sim/main_out.txt is the
--- size of the picture, the address distance between two picture columns, and
+-- size of the picture, the address distance between two picture rows, and
 -- the maximum count, "columns rows stride max_count". Then every pixel written to the display memory is
 -- written to the file, as one line "address data" (all as decimal numbers).
 -- The testbench stops when a complete picture has been written.
 --
 -- The generics are the number of job modules, the number of pixels in each
--- write, the rows in a job, the size of the picture, the address distance
--- between two picture columns, the bits of the address, and the maximum
+-- write, the columns in a job, the size of the picture, the address distance
+-- between two picture rows, the bits of the address, and the maximum
 -- count, by default as on the MEGA65 (mega65.vhd). They can be set with
 -- GENERICS, e.g. as on the Nexys 4 DDR (nexys4ddr.vhd):
---   GENERICS="G_NUM_ITERATORS=39 G_PIXELS=4 G_ROWS_IN_JOB=120 G_NUM_COLS=640 G_NUM_ROWS=480 G_COL_STRIDE=512 G_ADDR_BITS=19 G_MAX_COUNT=1023"
+--   GENERICS="G_NUM_ITERATORS=39 G_PIXELS=4 G_COLS_IN_JOB=80 G_NUM_COLS=640 G_NUM_ROWS=480 G_ROW_STRIDE=1024 G_ADDR_BITS=19 G_MAX_COUNT=1023"
 --
 -- The testbench is not self-checking. Instead the output is compared with the
 -- bit-accurate model using the script cmp_rtl.py. A complete picture takes a
@@ -30,10 +30,10 @@ entity main_tb is
    generic (
       G_NUM_ITERATORS : positive := 120;
       G_PIXELS        : positive := 4;
-      G_ROWS_IN_JOB   : positive := 64;
+      G_COLS_IN_JOB   : positive := 64;
       G_NUM_COLS      : positive := 1280;
       G_NUM_ROWS      : positive := 1024;
-      G_COL_STRIDE    : positive := 1024;
+      G_ROW_STRIDE    : positive := 1280;
       G_ADDR_BITS     : positive := 21;
       G_MAX_COUNT     : positive := 1023
    );
@@ -81,10 +81,10 @@ begin
          G_CLK_FREQ      => 100_000_000,   -- As p_clk
          G_NUM_ITERATORS => G_NUM_ITERATORS,
          G_PIXELS        => G_PIXELS,
-         G_ROWS_IN_JOB   => G_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => G_COLS_IN_JOB,
          G_NUM_COLS      => G_NUM_COLS,
          G_NUM_ROWS      => G_NUM_ROWS,
-         G_COL_STRIDE    => G_COL_STRIDE,
+         G_ROW_STRIDE    => G_ROW_STRIDE,
          G_ADDR_BITS     => G_ADDR_BITS,
          G_MAX_COUNT     => G_MAX_COUNT
       )
@@ -116,7 +116,7 @@ begin
          write(l_v, string'(" "));
          write(l_v, G_NUM_ROWS);
          write(l_v, string'(" "));
-         write(l_v, G_COL_STRIDE);
+         write(l_v, G_ROW_STRIDE);
          write(l_v, string'(" "));
          write(l_v, G_MAX_COUNT);
          writeline(f, l_v);
@@ -125,7 +125,7 @@ begin
 
       if rising_edge(clk) then
          if wr_en = '1' and rst = '0' then
-            -- The pixels of a write are consecutive rows
+            -- The pixels of a write are consecutive columns
             for i in 0 to G_PIXELS-1 loop
                write(l_v, to_integer(wr_addr) + i);
                write(l_v, string'(" "));

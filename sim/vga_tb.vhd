@@ -1,11 +1,11 @@
 -- This is a self-checking testbench for the VGA output (vga.vhd, i.e. pix.vhd,
 -- disp.vhd, and the palettes in palette_pkg.vhd). It is done for both video
 -- modes (see video_pkg.vhd), each with its own instance, and the address
--- layout of the board that uses it: 640x480 with the column followed by the
--- row in 19 bits (as on the Nexys 4 DDR), and 1280x1024 with the column
--- followed by the row in 21 bits (as on the MEGA65). A third instance
--- checks 640x480 with 480 addresses per column, i.e. an address distance
--- between columns which is not a power of two. Each instance has two phases.
+-- layout of the board that uses it: 640x480 with the row followed by the
+-- column in 19 bits (as on the Nexys 4 DDR), and 1280x1024 with 1280
+-- addresses per row, i.e. an address distance between rows which is not a
+-- power of two, in 21 bits (as on the MEGA65). A third instance checks
+-- 640x480 with 640 addresses per row. Each instance has two phases.
 --
 -- In the first phase, the display memory is replaced by a constant value, and
 -- the first palette is used (the colour is the value), so the colour output is
@@ -48,15 +48,15 @@ architecture simulation of vga_tb is
 
    type config_t is record
       mode       : video_mode_t;
-      col_stride : positive;      -- Address distance between two columns
+      row_stride : positive;      -- Address distance between two rows
       addr_bits  : positive;      -- Bits of the address
    end record config_t;
    type config_vector is array (natural range <>) of config_t;
 
    constant C_CONFIGS : config_vector := (
-      (mode => C_VIDEO_640X480,   col_stride =>  512, addr_bits => 19),
-      (mode => C_VIDEO_1280X1024, col_stride => 1024, addr_bits => 21),
-      (mode => C_VIDEO_640X480,   col_stride =>  480, addr_bits => 19));
+      (mode => C_VIDEO_640X480,   row_stride => 1024, addr_bits => 19),
+      (mode => C_VIDEO_1280X1024, row_stride => 1280, addr_bits => 21),
+      (mode => C_VIDEO_640X480,   row_stride =>  640, addr_bits => 19));
 
    constant C_COLOUR    : std_logic_vector(7 downto 0) := X"A5";
 
@@ -107,7 +107,7 @@ begin
 
    gen_config : for m in C_CONFIGS'range generate
       constant C_MODE      : video_mode_t := C_CONFIGS(m).mode;
-      constant C_STRIDE    : natural := C_CONFIGS(m).col_stride;
+      constant C_STRIDE    : natural := C_CONFIGS(m).row_stride;
       constant C_ADDR_BITS : natural := C_CONFIGS(m).addr_bits;
       -- The read latency of the display memory
       constant C_LATENCY   : positive := 4;
@@ -150,8 +150,8 @@ begin
       p_mem : process (clk)
       begin
          if rising_edge(clk) then
-            mem_d(1)              <= pixel_value(to_integer(unsigned(rd_addr)) / C_STRIDE,
-                                                 to_integer(unsigned(rd_addr)) mod C_STRIDE);
+            mem_d(1)              <= pixel_value(to_integer(unsigned(rd_addr)) mod C_STRIDE,
+                                                 to_integer(unsigned(rd_addr)) / C_STRIDE);
             mem_d(2 to C_LATENCY) <= mem_d(1 to C_LATENCY-1);
          end if;
       end process p_mem;
@@ -379,7 +379,7 @@ begin
       i_vga : entity work.vga
          generic map (
             G_MODE       => C_MODE,
-            G_COL_STRIDE => C_STRIDE,
+            G_ROW_STRIDE => C_STRIDE,
             G_ADDR_BITS  => C_ADDR_BITS
          )
          port map (

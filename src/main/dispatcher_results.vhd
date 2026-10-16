@@ -2,10 +2,10 @@
 -- collects the results from the job modules and writes them to the display
 -- memory.
 --
--- It keeps a table of the picture column and the block of the job of each job
+-- It keeps a table of the picture row and the block of the job of each job
 -- module, written by dispatcher_jobs.vhd (tbl_*_i) when the job is started.
 -- When a result is accepted, the address of the result is calculated from the
--- table and the row of the result within the job (res_addr_i).
+-- table and the column of the result within the job (res_addr_i).
 --
 -- The results of the job modules are in res_data_i, 9*G_PIXELS bits for each
 -- job module, with job module 0 in the lowest bits.
@@ -21,9 +21,9 @@ entity dispatcher_results is
    generic (
       G_NUM_ROWS      : positive;
       G_NUM_COLS      : positive;
-      G_COL_STRIDE    : positive;         -- Address distance between columns
+      G_ROW_STRIDE    : positive;         -- Address distance between rows
       G_ADDR_BITS     : positive;         -- Bits of the address
-      G_ROWS_IN_JOB   : positive;         -- Rows in each job
+      G_COLS_IN_JOB   : positive;         -- Columns in each job
       G_NUM_ITERATORS : positive;
       G_GROUP_SIZE    : positive;
       G_PIXELS        : positive          -- Pixels in each write
@@ -35,11 +35,11 @@ entity dispatcher_results is
       sched_active_i : in  std_logic;
 
       -- From dispatcher_jobs: The index of the job module, the picture
-      -- column, and the block of each job, when tbl_valid_i is high
+      -- row, and the block of each job, when tbl_valid_i is high
       tbl_valid_i    : in  std_logic;
       tbl_idx_i      : in  natural range 0 to G_NUM_ITERATORS-1;
-      tbl_col_i      : in  std_logic_vector(maximum(1, log2(G_NUM_COLS))-1 downto 0);
-      tbl_blk_i      : in  natural range 0 to G_NUM_ROWS/G_ROWS_IN_JOB-1;
+      tbl_row_i      : in  std_logic_vector(maximum(1, log2(G_NUM_ROWS))-1 downto 0);
+      tbl_blk_i      : in  natural range 0 to G_NUM_COLS/G_COLS_IN_JOB-1;
 
       -- From and to the job modules
       res_addr_i     : in  res_addr_vector(G_NUM_ITERATORS-1 downto 0);
@@ -56,10 +56,10 @@ end entity dispatcher_results;
 
 architecture rtl of dispatcher_results is
 
-   -- The number of bits of the column (at least one, also for a single
-   -- column) and of the row in the picture
-   constant C_COL_BITS   : natural := maximum(1, log2(G_NUM_COLS));
-   constant C_ROW_BITS   : natural := log2(G_NUM_ROWS);
+   -- The number of bits of the row (at least one, also for a single row)
+   -- and of the column in the picture
+   constant C_ROW_BITS   : natural := maximum(1, log2(G_NUM_ROWS));
+   constant C_COL_BITS   : natural := log2(G_NUM_COLS);
 
    -- The index of the job module whose result is accepted goes to all the
    -- job modules. To make the routing shorter, it goes through an extra
@@ -68,11 +68,11 @@ architecture rtl of dispatcher_results is
    -- tool from merging them.
    constant C_NUM_GROUPS : natural := (G_NUM_ITERATORS + G_GROUP_SIZE - 1) / G_GROUP_SIZE;
 
-   -- The number of blocks of rows
-   constant C_NUM_BLOCKS : natural := G_NUM_ROWS / G_ROWS_IN_JOB;
+   -- The number of blocks of columns
+   constant C_NUM_BLOCKS : natural := G_NUM_COLS / G_COLS_IN_JOB;
 
    type job_addr_vector is array (natural range <>) of
-      std_logic_vector(C_COL_BITS-1 downto 0);
+      std_logic_vector(C_ROW_BITS-1 downto 0);
    type res_data_vector is array (natural range <>) of
       std_logic_vector(9*G_PIXELS-1 downto 0);
    type idx_vector is array (natural range <>) of
@@ -80,7 +80,7 @@ architecture rtl of dispatcher_results is
    type blk_vector is array (natural range <>) of
       natural range 0 to C_NUM_BLOCKS-1;
 
-   -- The picture column and the block of the job of each job module
+   -- The picture row and the block of the job of each job module
    signal job_addr_r        : job_addr_vector( G_NUM_ITERATORS-1 downto 0);
    signal job_blk_r         : blk_vector(      G_NUM_ITERATORS-1 downto 0);
 
@@ -105,14 +105,14 @@ architecture rtl of dispatcher_results is
    signal wr_en_r           : std_logic;
 
    -- The accepted result, delayed by one, two, and three clock cycles: The
-   -- picture column and the block of the job, the first row of the block, and
-   -- then the address of the column and the row of the result.
-   signal acc_job_addr_r    : std_logic_vector(C_COL_BITS-1 downto 0);
-   signal acc_job_addr_d    : std_logic_vector(C_COL_BITS-1 downto 0);
+   -- picture row and the block of the job, the first column of the block,
+   -- and then the address of the row and the column of the result.
+   signal acc_job_addr_r    : std_logic_vector(C_ROW_BITS-1 downto 0);
+   signal acc_job_addr_d    : std_logic_vector(C_ROW_BITS-1 downto 0);
    signal acc_blk_r         : natural range 0 to C_NUM_BLOCKS-1;
-   signal acc_col_dd        : std_logic_vector(G_ADDR_BITS-1 downto 0);
-   signal acc_row_d         : std_logic_vector(C_ROW_BITS-1 downto 0);
-   signal acc_row_dd        : std_logic_vector(C_ROW_BITS-1 downto 0);
+   signal acc_row_dd        : std_logic_vector(G_ADDR_BITS-1 downto 0);
+   signal acc_col_d         : std_logic_vector(C_COL_BITS-1 downto 0);
+   signal acc_col_dd        : std_logic_vector(C_COL_BITS-1 downto 0);
    signal acc_data_dd       : std_logic_vector(9*G_PIXELS-1 downto 0);
    signal acc_grp_r         : natural range 0 to C_NUM_GROUPS-1;
    signal acc_grp_d         : natural range 0 to C_NUM_GROUPS-1;
@@ -120,10 +120,10 @@ architecture rtl of dispatcher_results is
    signal acc_valid_d       : std_logic;
    signal acc_valid_dd      : std_logic;
 
-   -- The multiplication by the constant G_COL_STRIDE uses LUTs, because all
+   -- The multiplication by the constant G_ROW_STRIDE uses LUTs, because all
    -- the DSPs are used by the iterators.
    attribute use_dsp : string;
-   attribute use_dsp of acc_col_dd : signal is "no";
+   attribute use_dsp of acc_row_dd : signal is "no";
 
    signal idx_iterator_r    : natural range 0 to G_NUM_ITERATORS-1;
    signal idx_valid_r       : std_logic;
@@ -131,9 +131,9 @@ architecture rtl of dispatcher_results is
 begin
 
    -- The write address must be a multiple of G_PIXELS, see disp_mem.vhd
-   assert G_COL_STRIDE >= G_NUM_ROWS and
-          G_COL_STRIDE mod G_PIXELS = 0 and
-          (G_NUM_COLS-1)*G_COL_STRIDE + G_NUM_ROWS <= 2**G_ADDR_BITS
+   assert G_ROW_STRIDE >= G_NUM_COLS and
+          G_ROW_STRIDE mod G_PIXELS = 0 and
+          (G_NUM_ROWS-1)*G_ROW_STRIDE + G_NUM_COLS <= 2**G_ADDR_BITS
       report "The picture does not fit in the display memory"
       severity failure;
 
@@ -149,7 +149,7 @@ begin
    begin
       if rising_edge(clk_i) then
          if tbl_valid_i = '1' then
-            job_addr_r(tbl_idx_i) <= tbl_col_i;
+            job_addr_r(tbl_idx_i) <= tbl_row_i;
             job_blk_r(tbl_idx_i)  <= tbl_blk_i;
          end if;
       end if;
@@ -200,8 +200,8 @@ begin
    -- 2. Each group acknowledges the selected job module, if it is in the
    --    group, and selects its result (grp_res_addr_r and grp_res_data_r).
    -- 3. The result is selected from the group of the job module, and its
-   --    row in the picture and the address of its column are calculated.
-   -- 4. The address is calculated from the column and the row.
+   --    column in the picture and the address of its row are calculated.
+   -- 4. The address is calculated from the row and the column.
    -- The job module keeps its result unchanged until it has seen the
    -- acknowledge, so the result is still there in step 2.
 
@@ -249,28 +249,28 @@ begin
    end generate gen_grp_res;
 
    p_wr : process (clk_i)
-      variable col_v : std_logic_vector(C_COL_BITS+G_ADDR_BITS-1 downto 0);
+      variable row_v : std_logic_vector(C_ROW_BITS+G_ADDR_BITS-1 downto 0);
    begin
       if rising_edge(clk_i) then
          -- Step 2
          acc_job_addr_d <= acc_job_addr_r;
-         acc_row_d      <= to_slv(acc_blk_r * G_ROWS_IN_JOB, C_ROW_BITS);
+         acc_col_d      <= to_slv(acc_blk_r * G_COLS_IN_JOB, C_COL_BITS);
          acc_grp_d      <= acc_grp_r;
          acc_valid_d    <= acc_valid_r;
 
-         -- Step 3. The job module gives the row within the block. The
+         -- Step 3. The job module gives the column within the block. The
          -- multiplication is not in step 2, because acc_job_addr_r is read
-         -- from a table, which may be a BRAM (job_addr_r). When G_COL_STRIDE
+         -- from a table, which may be a BRAM (job_addr_r). When G_ROW_STRIDE
          -- is a power of two, the multiplication is only wires.
-         col_v        := acc_job_addr_d * to_slv(G_COL_STRIDE, G_ADDR_BITS);
-         acc_col_dd   <= col_v(G_ADDR_BITS-1 downto 0);
-         acc_row_dd   <= acc_row_d + resize(grp_res_addr_r(acc_grp_d), C_ROW_BITS);
+         row_v        := acc_job_addr_d * to_slv(G_ROW_STRIDE, G_ADDR_BITS);
+         acc_row_dd   <= row_v(G_ADDR_BITS-1 downto 0);
+         acc_col_dd   <= acc_col_d + resize(grp_res_addr_r(acc_grp_d), C_COL_BITS);
          acc_data_dd  <= grp_res_data_r(acc_grp_d);
          acc_valid_dd <= acc_valid_d;
 
-         -- Step 4. When G_COL_STRIDE is 2**C_ROW_BITS, this is the column
-         -- followed by the row, i.e. only wires.
-         wr_addr_r <= acc_col_dd + acc_row_dd;
+         -- Step 4. When G_ROW_STRIDE is 2**C_COL_BITS, this is the row
+         -- followed by the column, i.e. only wires.
+         wr_addr_r <= acc_row_dd + acc_col_dd;
          wr_data_r <= acc_data_dd;
          wr_en_r   <= acc_valid_dd;
       end if;

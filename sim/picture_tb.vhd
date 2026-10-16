@@ -2,10 +2,11 @@
 -- that it calculates with the bit-accurate model of the iterator
 -- (iterator_model_pkg.vhd). It is the same check as main_tb.vhd with
 -- cmp_rtl.py, but with a small picture (64x48, with 8 job modules, four
--- pixels in each write, and jobs of 12 rows), so that it is part of make sim.
+-- pixels in each write, and jobs of 16 columns), so that it is part of make
+-- sim.
 --
 -- For each picture it checks:
--- * Each write is inside the picture, at the first row of a word.
+-- * Each write is inside the picture, at the first column of a word.
 -- * Each pixel is written exactly once, and the picture is complete when the
 --   frame rate is updated (fps_valid_o, at the end of the picture).
 -- * The value of each pixel is the value of the model, for the value of c of
@@ -35,10 +36,10 @@ architecture simulation of picture_tb is
    constant C_MAX_COUNT     : positive := 127;    -- See above
    constant C_NUM_ITERATORS : positive := 8;
    constant C_PIXELS        : positive := 4;
-   constant C_ROWS_IN_JOB   : positive := 12;
+   constant C_COLS_IN_JOB   : positive := 16;
    constant C_NUM_COLS      : positive := 64;
    constant C_NUM_ROWS      : positive := 48;
-   constant C_COL_STRIDE    : positive := 64;
+   constant C_ROW_STRIDE    : positive := 64;
    constant C_ADDR_BITS     : positive := 12;
 
    -- The number of words written for each picture
@@ -91,10 +92,10 @@ begin
          G_CLK_FREQ      => 18*C_UPD_PERIOD,
          G_NUM_ITERATORS => C_NUM_ITERATORS,
          G_PIXELS        => C_PIXELS,
-         G_ROWS_IN_JOB   => C_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => C_COLS_IN_JOB,
          G_NUM_COLS      => C_NUM_COLS,
          G_NUM_ROWS      => C_NUM_ROWS,
-         G_COL_STRIDE    => C_COL_STRIDE,
+         G_ROW_STRIDE    => C_ROW_STRIDE,
          G_ADDR_BITS     => C_ADDR_BITS,
          G_MAX_COUNT     => C_MAX_COUNT
       )
@@ -155,32 +156,32 @@ begin
             end if;
 
             if wr_en = '1' then
-               col_v := to_integer(unsigned(wr_addr)) / C_COL_STRIDE;
-               row_v := to_integer(unsigned(wr_addr)) mod C_COL_STRIDE;
-               assert col_v < C_NUM_COLS and row_v < C_NUM_ROWS and row_v mod C_PIXELS = 0
+               row_v := to_integer(unsigned(wr_addr)) / C_ROW_STRIDE;
+               col_v := to_integer(unsigned(wr_addr)) mod C_ROW_STRIDE;
+               assert col_v < C_NUM_COLS and row_v < C_NUM_ROWS and col_v mod C_PIXELS = 0
                   report "Picture " & integer'image(pictures+1) & ": a word was written to " &
                          "column " & integer'image(col_v) & ", row " & integer'image(row_v)
                   severity failure;
                for i in 0 to C_PIXELS-1 loop
-                  assert not seen_v(col_v, row_v+i)
+                  assert not seen_v(col_v+i, row_v)
                      report "Picture " & integer'image(pictures+1) & ": the pixel in column " &
-                            integer'image(col_v) & ", row " & integer'image(row_v+i) &
+                            integer'image(col_v+i) & ", row " & integer'image(row_v) &
                             " was written twice"
                      severity error;
-                  seen_v(col_v, row_v+i) := true;
+                  seen_v(col_v+i, row_v) := true;
 
                   -- The dispatcher and the job modules add the steps in 35
                   -- bits, which wrap around
                   cx_v  := resize(signed(pic_startx) +
-                                  to_signed(col_v, 12) * signed(pic_stepx), 35);
+                                  to_signed(col_v+i, 12) * signed(pic_stepx), 35);
                   cy_v  := resize(signed(pic_starty) +
-                                  to_signed(row_v+i, 12) * signed(pic_stepy), 35);
+                                  to_signed(row_v, 12) * signed(pic_stepy), 35);
                   exp_v := to_pixel(iterator_count(cx_v, cy_v, C_MAX_COUNT), C_MAX_COUNT);
                   got_v := to_integer(unsigned(wr_data(9*i+8 downto 9*i)));
                   if got_v /= exp_v then
                      if err_v < 5 then
                         report "Picture " & integer'image(pictures+1) & ": the pixel in column " &
-                               integer'image(col_v) & ", row " & integer'image(row_v+i) &
+                               integer'image(col_v+i) & ", row " & integer'image(row_v) &
                                " is " & integer'image(got_v) & ", but the model gives " &
                                integer'image(exp_v)
                            severity error;

@@ -1,11 +1,12 @@
 vunit i_job_wide(job_wide(rtl))
 {
-   -- The properties of the job module. The iterator calculates the four rows
-   -- of a result at the same time, so the rows are counted in results here,
+   -- The properties of the job module. The iterator calculates the four
+   -- columns of a result at the same time, so the columns are counted in
+   -- results here,
    -- and the counts of a result come from the iterator at the same time.
 
    -- The number of results of a job
-   constant C_NUM_RES : natural := G_NUM_ROWS / G_PIXELS;
+   constant C_NUM_RES : natural := G_NUM_COLS / G_PIXELS;
 
    type f_cnt_vector is array (natural range <>) of
       std_logic_vector(4*C_CNT_BITS-1 downto 0);
@@ -14,32 +15,32 @@ vunit i_job_wide(job_wide(rtl))
    signal f_rst       : std_logic;
 
    -- The job, as given at the start (job_start_i)
-   signal f_cx        : std_logic_vector(34 downto 0);
-   signal f_starty    : std_logic_vector(34 downto 0);
-   signal f_stepy     : std_logic_vector(34 downto 0);
+   signal f_startx    : std_logic_vector(34 downto 0);
+   signal f_cy        : std_logic_vector(34 downto 0);
+   signal f_stepx     : std_logic_vector(34 downto 0);
 
    -- The result of the next start of the iterator, and of the current (or
    -- last) one. The results are counted from the start of the job.
    signal f_next_res  : natural range 0 to C_NUM_RES;
    signal f_cur_res   : natural range 0 to C_NUM_RES-1;
 
-   -- The value of cy of the first row of the next result
-   signal f_next_cy   : std_logic_vector(34 downto 0);
+   -- The value of cx of the first column of the next result
+   signal f_next_cx   : std_logic_vector(34 downto 0);
 
    -- The iterator is iterating, i.e. it has been started, and has not
    -- finished since then. This is the state of the iterator, see the
    -- assumptions about the iterator below.
    signal f_iter_busy : std_logic;
 
-   -- The counts of the four rows of each result of the job, from the
+   -- The counts of the four columns of each result of the job, from the
    -- iterator
    signal f_cnt       : f_cnt_vector(0 to C_NUM_RES-1);
 
    -- The number of results acknowledged in this job
    signal f_res       : natural range 0 to C_NUM_RES;
 
-   -- The expected result: The address of its first row, and the values of the
-   -- pixels of its rows, with the first row in the lowest 9 bits
+   -- The expected result: The address of its first column, and the values of
+   -- the pixels of its columns, with the first column in the lowest 9 bits
    signal f_res_addr  : std_logic_vector(8 downto 0);
    signal f_res_data  : std_logic_vector(9*G_PIXELS-1 downto 0);
 
@@ -53,7 +54,7 @@ vunit i_job_wide(job_wide(rtl))
    signal f_set_pix   : std_logic;
 
    -- Invariants of the internal state, computed below
-   signal f_state_row   : std_logic;
+   signal f_state_col   : std_logic;
    signal f_state_c     : std_logic;
    signal f_state_flag  : std_logic;
    signal f_state_cnt   : std_logic;
@@ -72,19 +73,19 @@ vunit i_job_wide(job_wide(rtl))
    begin
       if rising_edge(clk_i) then
          if job_start_i = '1' then
-            f_cx       <= job_cx_i;
-            f_starty   <= job_starty_i;
-            f_stepy    <= job_stepy_i;
+            f_startx   <= job_startx_i;
+            f_cy       <= job_cy_i;
+            f_stepx    <= job_stepx_i;
          end if;
       end if;
    end process p_job;
 
-   p_next_cy : process (all)
+   p_next_cx : process (all)
       variable prod_v : std_logic_vector(43 downto 0);
    begin
-      prod_v    := f_stepy * to_slv(f_next_res*G_PIXELS, 9);
-      f_next_cy <= f_starty + prod_v(34 downto 0);
-   end process p_next_cy;
+      prod_v    := f_stepx * to_slv(f_next_res*G_PIXELS, 9);
+      f_next_cx <= f_startx + prod_v(34 downto 0);
+   end process p_next_cx;
 
    p_iter : process (clk_i)
    begin
@@ -168,28 +169,28 @@ vunit i_job_wide(job_wide(rtl))
          f_state_range <= '1';
       end if;
 
-      -- The first row of the result in res_addr_r is that of the result of
-      -- the iterator. In the clock cycle where the iterator is started, it is
-      -- the next result.
-      f_state_row <= '0';
+      -- The first column of the result in res_addr_r is that of the result
+      -- of the iterator. In the clock cycle where the iterator is started, it
+      -- is the next result.
+      f_state_col <= '0';
       if res_start_r = '1' then
          if addr_v = f_next_res*G_PIXELS then
-            f_state_row <= '1';
+            f_state_col <= '1';
          end if;
       elsif addr_v = f_cur_res*G_PIXELS and f_next_res = f_cur_res + 1 and f_res = f_cur_res then
-         f_state_row <= '1';
+         f_state_col <= '1';
       end if;
 
-      -- The value of c is that of the first row of the result
-      prod_v    := f_stepy * to_slv(addr_v, 9);
+      -- The value of c is that of the first column of the result
+      prod_v    := f_stepx * to_slv(addr_v, 9);
       f_state_c <= '0';
-      if res_cx_r = f_cx and res_cy_r = f_starty + prod_v(34 downto 0) then
+      if res_cx_r = f_startx + prod_v(34 downto 0) and res_cy_r = f_cy then
          f_state_c <= '1';
       end if;
 
       -- The flag of the last result is that of res_addr_r
       f_state_flag <= '1';
-      if (res_last_r = '1') /= (addr_v = G_NUM_ROWS-G_PIXELS) then
+      if (res_last_r = '1') /= (addr_v = G_NUM_COLS-G_PIXELS) then
          f_state_flag <= '0';
       end if;
 
@@ -239,7 +240,7 @@ vunit i_job_wide(job_wide(rtl))
    f_idle_stays : assert always {not job_busy_o and not job_start_i} |=> {not job_busy_o};
 
    -- There is only a result while busy, and only one for each group of
-   -- G_PIXELS rows
+   -- G_PIXELS columns
    f_valid_busy : assert always {res_valid_o and not f_rst} |-> {job_busy_o};
    f_valid_res  : assert always {res_valid_o and not f_rst} |-> {f_res < C_NUM_RES};
 
@@ -250,7 +251,7 @@ vunit i_job_wide(job_wide(rtl))
    f_valid_ack : assert always {res_ack_i and not f_rst} |=> {not res_valid_o};
 
    -- The results come in order, and each result has the values of the pixels
-   -- of its rows, from the counts of the iterator
+   -- of its columns, from the counts of the iterator
    f_valid_addr : assert always {res_valid_o and not f_rst} |-> {res_addr_o = f_res_addr};
    f_valid_data : assert always {res_valid_o and not f_rst} |-> {res_data_o = f_res_data};
 
@@ -263,11 +264,11 @@ vunit i_job_wide(job_wide(rtl))
    f_iter_start : assert always {res_start_r and not f_rst} |-> {not f_iter_busy};
 
    -- The results of the job are calculated in order, each once, with the
-   -- values of c of the job (cy of the first row of the result, and the step
-   -- in cy)
-   f_iter_rows : assert always {res_start_r and not f_rst} |->
-      {f_next_res < C_NUM_RES and res_cx_r = f_cx and res_cy_r = f_next_cy and
-       job_stepy_i = f_stepy};
+   -- values of c of the job (cx of the first column of the result, and the
+   -- step in cx)
+   f_iter_cols : assert always {res_start_r and not f_rst} |->
+      {f_next_res < C_NUM_RES and res_cx_r = f_next_cx and res_cy_r = f_cy and
+       job_stepx_i = f_stepx};
 
    -- The value of c does not change while the iterator is iterating
    f_iter_stable : assert always {f_iter_busy and not f_rst} |->
@@ -281,7 +282,7 @@ vunit i_job_wide(job_wide(rtl))
    -- These are needed for the induction, because the iterator can take any
    -- number of clock cycles
    f_state_range_a : assert always {not f_rst} |-> {f_state_range};
-   f_state_row_a   : assert always {job_busy_r and not f_rst} |-> {f_state_row};
+   f_state_col_a   : assert always {job_busy_r and not f_rst} |-> {f_state_col};
    f_state_c_a     : assert always {job_busy_r and not f_rst} |-> {f_state_c};
    f_state_flag_a  : assert always {job_busy_r and not f_rst} |-> {f_state_flag};
    f_state_cnt_a   : assert always {not f_rst} |-> {f_state_cnt};
@@ -310,8 +311,8 @@ vunit i_job_wide(job_wide(rtl))
    -- Only a result is acknowledged
    f_ack_valid  : assume always {res_ack_i} |-> {res_valid_o};
 
-   -- The step in cy does not change during a job
-   f_stepy_same : assume always {job_busy_o and not job_start_i} |-> {job_stepy_i = f_stepy};
+   -- The step in cx does not change during a job
+   f_stepx_same : assume always {job_busy_o and not job_start_i} |-> {job_stepx_i = f_stepx};
 
 
    -----------------------------

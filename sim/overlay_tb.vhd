@@ -1,7 +1,7 @@
 -- This is a self-checking testbench for the overlay of the view and the frame
 -- rate (overlay.vhd), as part of the VGA output (vga.vhd).
 --
--- The video mode is 640x480, with the column followed by the row in the
+-- The video mode is 640x480, with the row followed by the column in the
 -- address (as on the Nexys 4 DDR). The display memory is replaced by a model
 -- with the read latency of disp_mem.vhd (four clock cycles), which holds a
 -- different value for each pixel, (x + 3*y) mod 512, as in vga_tb.vhd. The first palette is used, so
@@ -181,8 +181,8 @@ begin
    p_mem : process (clk)
    begin
       if rising_edge(clk) then
-         mem_d(1)      <= pixel_value(to_integer(unsigned(rd_addr(18 downto 9))),
-                                      to_integer(unsigned(rd_addr(8 downto 0))));
+         mem_d(1)      <= pixel_value(to_integer(unsigned(rd_addr(9 downto 0))),
+                                      to_integer(unsigned(rd_addr(18 downto 10))));
          mem_d(2 to 3) <= mem_d(1 to 2);
          rd_data       <= mem_d(3);
       end if;
@@ -311,7 +311,7 @@ begin
    i_vga : entity work.vga
       generic map (
          G_MODE       => C_MODE,
-         G_COL_STRIDE => 512,
+         G_ROW_STRIDE => 1024,
          G_ADDR_BITS  => 19
       )
       port map (

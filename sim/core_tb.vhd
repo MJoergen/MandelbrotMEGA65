@@ -5,7 +5,8 @@
 -- initial view, which is mostly inside the set), so the video mode is 640x4
 -- (640 is the smallest width that vga.vhd accepts, because of the overlay),
 -- with short blanking so that a frame is short, 16 job modules, and jobs of
--- one word (4 rows). The clocks are in the ratio of the Nexys 4 DDR (120 MHz
+-- one word (4 columns). The address distance between two rows is 640, i.e.
+-- not a power of two, as on the MEGA65. The clocks are in the ratio of the Nexys 4 DDR (120 MHz
 -- and 25 MHz), but about 17 times faster (2 GHz and 417 MHz).
 --
 -- It checks two pictures. For each of them it waits until the picture is
@@ -105,9 +106,9 @@ begin
          G_CLK_FREQ      => C_CLK_FREQ,
          G_NUM_ITERATORS => 16,
          G_PIXELS        => 4,
-         G_ROWS_IN_JOB   => 4,
+         G_COLS_IN_JOB   => 4,
          G_VIDEO         => C_VIDEO,
-         G_COL_STRIDE    => 4,
+         G_ROW_STRIDE    => 640,
          G_ADDR_BITS     => 16,
          G_MEM_BLOCKS    => 16,
          G_BLOCK_REGS    => true,

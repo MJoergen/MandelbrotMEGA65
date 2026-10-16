@@ -29,9 +29,9 @@ entity core is
       G_CLK_FREQ      : natural;         -- Frequency of the MAIN clock, in Hz
       G_NUM_ITERATORS : positive;
       G_PIXELS        : positive;        -- Pixels in each write to the display memory
-      G_ROWS_IN_JOB   : positive;
+      G_COLS_IN_JOB   : positive;
       G_VIDEO         : video_mode_t;
-      G_COL_STRIDE    : positive;
+      G_ROW_STRIDE    : positive;
       G_ADDR_BITS     : positive;
       G_MEM_BLOCKS    : positive;
       G_BLOCK_REGS    : boolean;
@@ -92,10 +92,10 @@ begin
          G_CLK_FREQ      => G_CLK_FREQ,
          G_NUM_ITERATORS => G_NUM_ITERATORS,
          G_PIXELS        => G_PIXELS,
-         G_ROWS_IN_JOB   => G_ROWS_IN_JOB,
+         G_COLS_IN_JOB   => G_COLS_IN_JOB,
          G_NUM_COLS      => G_VIDEO.h_visible,
          G_NUM_ROWS      => G_VIDEO.v_visible,
-         G_COL_STRIDE    => G_COL_STRIDE,
+         G_ROW_STRIDE    => G_ROW_STRIDE,
          G_ADDR_BITS     => G_ADDR_BITS,
          G_MAX_COUNT     => G_MAX_COUNT
       )
@@ -170,7 +170,7 @@ begin
    i_vga : entity work.vga
       generic map (
          G_MODE       => G_VIDEO,
-         G_COL_STRIDE => G_COL_STRIDE,
+         G_ROW_STRIDE => G_ROW_STRIDE,
          G_ADDR_BITS  => G_ADDR_BITS
       )
       port map (

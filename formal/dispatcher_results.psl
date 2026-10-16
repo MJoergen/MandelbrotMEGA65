@@ -3,13 +3,13 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
    -- The number of words of a job module's result
    constant C_DATA_BITS : natural := 9*G_PIXELS;
 
-   type f_col_vector is array (natural range <>) of std_logic_vector(C_COL_BITS-1 downto 0);
+   type f_row_vector is array (natural range <>) of std_logic_vector(C_ROW_BITS-1 downto 0);
    type f_blk_vector is array (natural range <>) of natural range 0 to C_NUM_BLOCKS-1;
    type f_data_vector is array (natural range <>) of std_logic_vector(C_DATA_BITS-1 downto 0);
 
-   -- The picture column and the block of the job of each job module, as
-   -- given by dispatcher_jobs (tbl_*_i), and whether it has had a job
-   signal f_col        : f_col_vector(G_NUM_ITERATORS-1 downto 0);
+   -- The picture row and the block of the job of each job module, as given
+   -- by dispatcher_jobs (tbl_*_i), and whether it has had a job
+   signal f_row        : f_row_vector(G_NUM_ITERATORS-1 downto 0);
    signal f_blk        : f_blk_vector(G_NUM_ITERATORS-1 downto 0);
    signal f_has_job    : std_logic_vector(G_NUM_ITERATORS-1 downto 0) := (others => '0');
 
@@ -24,7 +24,7 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
    signal f_sel_dd     : std_logic_vector(G_NUM_ITERATORS-1 downto 0) := (others => '0');
 
    -- The write expected for the acknowledge of this clock cycle (the
-   -- address from the table and the row of the result, and the counts of
+   -- address from the table and the column of the result, and the counts of
    -- the result), one and two clock cycles later
    signal f_exp_en_d   : std_logic := '0';
    signal f_exp_addr_d : std_logic_vector(G_ADDR_BITS-1 downto 0);
@@ -77,7 +77,7 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
          end if;
 
          if tbl_valid_i = '1' then
-            f_col(tbl_idx_i)     <= tbl_col_i;
+            f_row(tbl_idx_i)     <= tbl_row_i;
             f_blk(tbl_idx_i)     <= tbl_blk_i;
             f_has_job(tbl_idx_i) <= '1';
          end if;
@@ -92,7 +92,7 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
          for i in 0 to G_NUM_ITERATORS-1 loop
             if res_ack_o(i) = '1' then
                en_v   := '1';
-               addr_v := to_integer(f_col(i))*G_COL_STRIDE + f_blk(i)*G_ROWS_IN_JOB +
+               addr_v := to_integer(f_row(i))*G_ROW_STRIDE + f_blk(i)*G_COLS_IN_JOB +
                          to_integer(res_addr_i(i));
                data_v := f_res_data(i);
             end if;
@@ -121,8 +121,8 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
    end generate f_ack_gen;
 
    -- Each acknowledged result is written exactly once, two clock cycles after
-   -- the acknowledge, to the address from the table (the picture column and
-   -- the block of the job) and the row of the result, with the counts of the
+   -- the acknowledge, to the address from the table (the picture row and the
+   -- block of the job) and the column of the result, with the counts of the
    -- result. Nothing else is written.
    f_wr_en   : assert always {f_ready} |-> {wr_en_o = f_exp_en_dd};
    f_wr_addr : assert always {wr_en_o and f_ready} |-> {wr_addr_o = f_exp_addr_dd};
@@ -146,7 +146,7 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
    -- needed for the induction.
    f_tbl_gen : for i in 0 to G_NUM_ITERATORS-1 generate
       f_tbl_a : assert always {f_has_job(i)} |->
-         {job_addr_r(i) = f_col(i) and job_blk_r(i) = f_blk(i)};
+         {job_addr_r(i) = f_row(i) and job_blk_r(i) = f_blk(i)};
    end generate f_tbl_gen;
 
 
@@ -164,21 +164,21 @@ vunit i_dispatcher_results(dispatcher_results(rtl))
 
    -- The job given by dispatcher_jobs is in range
    f_tbl_range  : assume always {tbl_valid_i} |->
-      {to_integer(tbl_col_i) < G_NUM_COLS and tbl_idx_i < G_NUM_ITERATORS and
+      {to_integer(tbl_row_i) < G_NUM_ROWS and tbl_idx_i < G_NUM_ITERATORS and
        tbl_blk_i < C_NUM_BLOCKS};
 
    -- The job modules, see job_wide.psl. A job module only has a result after it
-   -- has been given a job. A result is the counts of G_PIXELS rows, starting
-   -- at a row within the job that is a multiple of G_PIXELS. It stays
-   -- unchanged until it is acknowledged, and is removed in the next clock
-   -- cycle. A job module is only given a new job (which writes the table)
+   -- has been given a job. A result is the counts of G_PIXELS columns,
+   -- starting at a column within the job that is a multiple of G_PIXELS. It
+   -- stays unchanged until it is acknowledged, and is removed in the next
+   -- clock cycle. A job module is only given a new job (which writes the table)
    -- when it has no result, and no acknowledge is on its way to it, i.e. not
    -- in the two clock cycles after it was selected (it is idle only after
    -- the acknowledge of its last result). Its first result comes later.
    f_job_gen : for i in 0 to G_NUM_ITERATORS-1 generate
       f_res_job    : assume always {not f_has_job(i)} |-> {not res_valid_i(i)};
-      f_res_row    : assume always {res_valid_i(i)} |->
-         {to_integer(res_addr_i(i)) < G_ROWS_IN_JOB and to_integer(res_addr_i(i)) mod G_PIXELS = 0};
+      f_res_col    : assume always {res_valid_i(i)} |->
+         {to_integer(res_addr_i(i)) < G_COLS_IN_JOB and to_integer(res_addr_i(i)) mod G_PIXELS = 0};
       f_res_stable : assume always {res_valid_i(i) and not res_ack_o(i)} |=>
          {res_valid_i(i) = '1' and stable(res_addr_i(i)) and stable(f_res_data(i))};
       f_res_remove : assume always {res_ack_o(i)} |=> {not res_valid_i(i)};
